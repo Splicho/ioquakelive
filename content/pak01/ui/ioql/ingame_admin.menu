@@ -1,0 +1,58 @@
+#include "ui/menudef.h"
+
+menu "ingame_admin"
+
+itemDef {
+    name voiceVolumeLabel
+    group grpAdmin
+    style WINDOW_STYLE_EMPTY
+    rect 185 165 100 16
+    textalign ITEM_ALIGN_LEFT
+    textaligny 10
+    text "Voice Volume"
+    textscale .2
+    forecolor 0.964 0.815 0 0.8
+    decoration
+    visible 1
+}
+
+itemDef {
+    name voiceVolume
+    group grpAdmin
+    type ITEM_TYPE_SLIDER
+    style WINDOW_STYLE_EMPTY
+    rect 187 184 96 16
+    cvarFloat "ui_voicePlayerVolume" 100 0 200
+    forecolor 1 1 1 1
+    visible 1
+    mouseenter { show admin_voicevolume_tooltip }
+    mouseexit { hide admin_voicevolume_tooltip }
+}
+
+itemDef {
+    name voiceVolumeValue
+    group grpAdmin
+    style WINDOW_STYLE_EMPTY
+    rect 185 202 100 16
+    cvar "ui_voicePlayerVolumeText"
+    font FONT_SANS
+    textscale .2
+    textalign ITEM_ALIGN_CENTER
+    textalignx 50
+    textaligny 11
+    forecolor 1 1 1 1
+    decoration
+    visible 1
+}
+
+itemDef {
+    name admin_voicevolume_tooltip
+    group grpAdminTooltip
+    rect 281 328 300 15
+    text "Set how loud the selected player's voice chat is for you."
+    forecolor 0.964 0.815 0 1
+    textscale .20
+    textalign ITEM_ALIGN_CENTER
+    visible 0
+    decoration
+}

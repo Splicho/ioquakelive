@@ -1,0 +1,197 @@
+name: Launcher
+
+on:
+  push:
+    branches: [main]
+    paths:
+    - 'code/launcher/**'
+    - 'code/zlib/**'
+    - 'code/jpeg-8c/**'
+    - 'code/SDL3'
+    - 'code/tools/test_launcher.py'
+    - '.github/workflows/launcher.yml'
+  pull_request:
+    branches: [main]
+    paths:
+    - 'code/launcher/**'
+    - 'code/zlib/**'
+    - 'code/jpeg-8c/**'
+    - 'code/SDL3'
+    - 'code/tools/test_launcher.py'
+    - '.github/workflows/launcher.yml'
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      sign:
+        type: boolean
+        default: false
+
+jobs:
+  launcher:
+    name: Launcher ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - name: windows-x64
+          runner: windows-2022
+          configure: -A x64
+          game: ioquakelive.x86_64.exe
+          self: ioquakelive-launcher.exe
+          link: ioquakelive.lnk
+        - name: windows-arm64
+          runner: windows-11-arm
+          configure: -A ARM64
+          game: ioquakelive.arm64.exe
+          self: ioquakelive-launcher.exe
+          link: ioquakelive.lnk
+        - name: linux-x86_64
+          runner: ubuntu-22.04
+          configure: -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel
+          game: ioquakelive.x86_64
+          self: ioquakelive-launcher
+          link: ioquakelive.desktop
+        - name: linux-arm64
+          runner: ubuntu-22.04-arm
+          configure: -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel
+          game: ioquakelive.arm64
+          self: ioquakelive-launcher
+          link: ioquakelive.desktop
+        - name: macos-arm64
+          runner: macos-15
+          configure: -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_OSX_ARCHITECTURES=arm64
+          game: ioquakelive.app/Contents/MacOS/ioquakelive
+          self: ioquakelive-launcher.app/Contents/MacOS/ioquakelive-launcher
+          link: ioquakelive
+    steps:
+    - uses: actions/checkout@v4
+    - name: Fetch SDL3
+      run: git submodule update --init --depth 1 code/SDL3
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build xvfb libgl1-mesa-dri \
+          libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+          libxkbcommon-dev libwayland-dev libdecor-0-dev libegl1-mesa-dev libgl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev
+    - name: Icon
+      if: runner.os == 'macOS'
+      run: |
+        set -euo pipefail
+        SET=build/launcher-icon/quakelive.iconset
+        mkdir -p "$SET"
+        sips -s format png misc/quakelive.ico --out "$SET/icon_512x512@2x.png" >/dev/null
+        sips -z 1024 1024 "$SET/icon_512x512@2x.png" >/dev/null
+        for SIZE in 16 32 128 256 512; do
+          sips -z "$SIZE" "$SIZE" "$SET/icon_512x512@2x.png" --out "$SET/icon_${SIZE}x${SIZE}.png" >/dev/null
+        done
+        for SIZE in 16 32 128 256; do
+          sips -z "$((SIZE * 2))" "$((SIZE * 2))" "$SET/icon_512x512@2x.png" --out "$SET/icon_${SIZE}x${SIZE}@2x.png" >/dev/null
+        done
+        iconutil -c icns "$SET" -o build/launcher-icon/quakelive.icns
+    - name: Build
+      shell: bash
+      run: |
+        set -euo pipefail
+        ICON=""
+        if [ -f build/launcher-icon/quakelive.icns ]; then
+          ICON="-DLAUNCHER_ICNS=$PWD/build/launcher-icon/quakelive.icns"
+        fi
+        cmake -S code/launcher -B build/launcher ${{ matrix.configure }} ${ICON:+"$ICON"}
+        cmake --build build/launcher --config MinSizeRel --parallel 4 --target ioquakelive-launcher ioquakelive-launcher-captura
+    - name: Test install and update
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        if ! curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "User-Agent: ioquakelive-ci" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/latest" -o latest.json; then
+          echo "no release published yet, nothing to install"
+          exit 0
+        fi
+        VERSION=$(sed -n 's/^#define PRODUCT_VERSION "\(.*\)"/\1/p' code/qcommon/q_shared.h)
+        BIN=build/launcher/bin/captura
+        case "$RUNNER_OS" in
+          Windows) SHOT="$BIN/ioquakelive-launcher-captura.exe" ;;
+          Linux) SHOT="$BIN/ioquakelive-launcher-captura" ;;
+          macOS) SHOT="$BIN/ioquakelive-launcher.app/Contents/MacOS/ioquakelive-launcher" ;;
+        esac
+        ARGS=(code/tools/test_launcher.py --launcher "$SHOT" --json latest.json --work launcher-test
+              --game "${{ matrix.game }}" --self "${{ matrix.self }}" --link "${{ matrix.link }}" --version "$VERSION")
+        if [ "$RUNNER_OS" = Linux ]; then
+          xvfb-run -a -s "-screen 0 1920x1080x24" python "${ARGS[@]}"
+        else
+          python "${ARGS[@]}"
+        fi
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: screens-launcher-${{ matrix.name }}
+        path: launcher-test/*.png
+        retention-days: 7
+        if-no-files-found: ignore
+    - name: Sign and notarise
+      if: runner.os == 'macOS' && inputs.sign
+      env:
+        CERT_B64:   ${{ secrets.MACOS_CERTIFICATE_P12 }}
+        CERT_PWD:   ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        KC_PWD:     ${{ secrets.MACOS_KEYCHAIN_PWD }}
+        KEY_ID:     ${{ secrets.MACOS_NOTARY_KEY_ID }}
+        KEY_ISSUER: ${{ secrets.MACOS_NOTARY_KEY_ISSUER }}
+        KEY_P8:     ${{ secrets.MACOS_NOTARY_KEY_P8 }}
+      run: |
+        set -euo pipefail
+        APP=build/launcher/bin/ioquakelive-launcher.app
+        if [ -z "$CERT_B64" ]; then
+          echo "no signing certificate, leaving the ad-hoc signature"
+          exit 0
+        fi
+        echo "$CERT_B64" | base64 -d > cert.p12
+        security create-keychain -p "$KC_PWD" build.keychain
+        security default-keychain -s build.keychain
+        security list-keychains -d user -s build.keychain login.keychain
+        security unlock-keychain -p "$KC_PWD" build.keychain
+        security set-keychain-settings -lut 21600 build.keychain
+        security import cert.p12 -k build.keychain -P "$CERT_PWD" -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PWD" build.keychain >/dev/null
+        rm cert.p12
+        IDENTITY="$(security find-identity -v -p codesigning | sed -nE 's/.*"(Developer ID Application: [^"]+)".*/\1/p' | head -1)"
+        if [ -z "$IDENTITY" ]; then
+          echo "ERROR: no Developer ID Application identity found" >&2
+          exit 1
+        fi
+        codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
+        codesign --verify --strict --verbose=2 "$APP"
+        echo "$KEY_P8" | base64 -d > AuthKey.p8
+        ditto -c -k --keepParent "$APP" launcher-notarise.zip
+        SUBMIT_OUT="$(xcrun notarytool submit launcher-notarise.zip \
+          --key AuthKey.p8 --key-id "$KEY_ID" --issuer "$KEY_ISSUER" --wait 2>&1 | tee /dev/stderr)"
+        STATUS="$(echo "$SUBMIT_OUT" | awk '/^  status:/ {print $2; exit}')"
+        rm -f AuthKey.p8 launcher-notarise.zip
+        if [ "$STATUS" != "Accepted" ]; then
+          echo "ERROR: notarisation status was '$STATUS', expected 'Accepted'" >&2
+          exit 1
+        fi
+        xcrun stapler staple "$APP"
+        xcrun stapler validate "$APP"
+    - name: Stage
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p staging
+        case "$RUNNER_OS" in
+          Windows) cp build/launcher/bin/ioquakelive-launcher.exe staging/ ;;
+          Linux) tar -C build/launcher/bin -cf staging/launcher.tar ioquakelive-launcher ;;
+          macOS) COPYFILE_DISABLE=1 tar -C build/launcher/bin -cf staging/launcher.tar ioquakelive-launcher.app ;;
+        esac
+    - uses: actions/upload-artifact@v4
+      with:
+        name: launcher-${{ matrix.name }}
+        path: staging/
+        retention-days: 2

@@ -1,0 +1,65 @@
+#version 450
+
+layout(push_constant) uniform Transform {
+	mat4 mvp;
+};
+
+layout(set = 0, binding = 0) uniform UBO {
+	vec4 eyePos;
+	vec4 lightPos;
+	vec4 lightColor;
+	vec4 lightVector;
+#ifdef USE_FOG
+	vec4 fogDistanceVector;
+	vec4 fogDepthVector;
+	vec4 fogEyeT;
+	vec4 fogColor;
+#endif
+};
+
+layout(location = 0) in vec3 in_position;
+layout(location = 1) in vec2 in_tex_coord;
+layout(location = 2) in vec3 in_normal;
+
+layout(location = 0) out vec2 frag_tex_coord;
+layout(location = 1) out vec3 N;
+layout(location = 2) out vec4 L;
+layout(location = 3) out vec4 V;
+
+#ifdef USE_FOG
+layout(location = 4) out vec2 fog_tex_coord;
+#endif
+
+out gl_PerVertex {
+	vec4 gl_Position;
+};
+
+void main() {
+	gl_Position = mvp * vec4(in_position, 1.0);
+
+	frag_tex_coord = in_tex_coord;
+	N = in_normal;
+	L = lightPos - vec4(in_position, 1.0);
+	V = eyePos - vec4(in_position, 1.0);
+
+#ifdef USE_FOG
+	float s = dot(in_position, fogDistanceVector.xyz) + fogDistanceVector.w;
+	float t = dot(in_position, fogDepthVector.xyz) + fogDepthVector.w;
+
+	if ( fogEyeT.y == 1.0 ) {
+		if ( t < 0.0 ) {
+			t = 1.0 / 32.0;
+		} else {
+			t = 31.0 / 32.0;
+		}
+	} else {
+		if ( t < 1.0 ) {
+			t = 1.0 / 32.0;
+		} else {
+			t = 1.0 / 32.0 + (30.0 / 32.0 * t) / ( t - fogEyeT.x );
+		}
+	}
+
+	fog_tex_coord = vec2(s, t);
+#endif
+}

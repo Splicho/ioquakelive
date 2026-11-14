@@ -1,0 +1,334 @@
+
+static const stOption_t stOpts_m_pitch[] = {{"No", "0.022"}, {"Yes", "-0.022"}};
+static const stOption_t stOpts_in_joystick_inverted[] = {{"No", "0"}, {"Yes", "1"}};
+static const stOption_t stOpts_r_mode[] = {{"Desktop", "-2"}, {"Custom", "-1"}, {"1024x768", "12"}, {"1152x864", "13"}, {"1280x720", "14"}, {"1280x768", "15"}, {"1280x800", "16"}, {"1280x1024", "17"}, {"1440x900", "18"}, {"1600x900", "19"}, {"1600x1000", "20"}, {"1680x1050", "21"}, {"1600x1200", "22"}, {"1920x1080", "23"}, {"1920x1200", "24"}, {"1920x1440", "25"}, {"2048x1536", "26"}, {"2560x1600", "27"}};
+static const stOption_t stOpts_r_windowedmode[] = {{"Desktop", "-2"}, {"Custom", "-1"}, {"1024x768", "12"}, {"1152x864", "13"}, {"1280x720", "14"}, {"1280x768", "15"}, {"1280x800", "16"}, {"1280x1024", "17"}, {"1440x900", "18"}, {"1600x900", "19"}, {"1600x1000", "20"}, {"1680x1050", "21"}, {"1600x1200", "22"}, {"1920x1080", "23"}, {"1920x1200", "24"}, {"1920x1440", "25"}, {"2048x1536", "26"}, {"2560x1600", "27"}};
+static const stOption_t stOpts_r_fullscreen[] = {{"Windowed", "0"}, {"Fullscreen", "1"}, {"Borderless", "2"}};
+static const stOption_t stOpts_cg_flagstyle[] = {{"Cloth", "1"}, {"Hologram", "2"}};
+static const stOption_t stOpts_cg_damageplum[] = {{"Off", ""}, {"Variable Damage Weapons", "sg gl rl pg bfg"}, {"All Weapons", "g mg sg gl rl lg rg pg bfg gh cg ng pl hmg"}};
+static const stOption_t stOpts_cg_damageplumcolorstyle[] = {{"One Color Fade", "1"}, {"Damage Colors", "2"}, {"Weapon Colors", "3"}};
+static const stOption_t stOpts_cg_autoaction[] = {{"None", "0"}, {"Demo", "1"}, {"Screenshot", "2"}, {"Demo & Screenshot", "3"}};
+static const stOption_t stOpts_cl_demorecordmessage[] = {{"Off", "0"}, {"Full", "1"}, {"Short", "2"}};
+static const stOption_t stOpts_cg_teammatenames[] = {{"None", "0"}, {"Targeted", "1"}, {"Always", "2"}};
+static const stOption_t stOpts_cg_hudfiles[] = {{"Normal", "ui/hud.txt"}, {"Small", "ui/hud2.txt"}, {"Large", "ui/hud3.txt"}};
+static const stOption_t stOpts_cg_leveltimerdirection[] = {{"Up", "0"}, {"Down", "1"}};
+static const stOption_t stOpts_cg_weaponbar[] = {{"None", "0"}, {"Left", "1"}, {"Right", "2"}, {"Centered", "3"}, {"Classic", "4"}};
+static const stOption_t stOpts_cg_drawfullweaponbar[] = {{"In Inventory", "0"}, {"All Available", "1"}};
+static const stOption_t stOpts_cg_drawitempickups[] = {{"None", "0"}, {"Enabled", "3"}, {"Enabled With Timestamps", "7"}};
+static const stOption_t stOpts_cg_useitemmessage[] = {{"No", "0"}, {"Large", "1"}, {"Small", "2"}};
+static const stOption_t stOpts_cg_useitemwarning[] = {{"No", "0"}, {"Large", "1"}, {"Small", "2"}};
+static const stOption_t stOpts_cg_drawteamoverlay[] = {{"None", "0"}, {"Top", "1"}, {"Bottom", "2"}};
+static const stOption_t stOpts_cg_lagometer[] = {{"None", "0"}, {"Basic", "1"}, {"Advanced", "2"}};
+static const stOption_t stOpts_cg_speedometer[] = {{"None", "0"}, {"Right Graph", "1"}, {"Center Graph", "2"}, {"Center Text", "3"}};
+static const stOption_t stOpts_cg_drawcrosshairnames[] = {{"None", "0"}, {"All", "1"}, {"Teammates Only", "2"}};
+static const stOption_t stOpts_cg_crosshairhitstyle[] = {{"None", "0"}, {"Damage Color", "1"}, {"Color Flash", "2"}, {"Pulse", "6"}, {"Damage Pulse", "7"}, {"Color Pulse", "8"}};
+static const stOption_t stOpts_cg_crosshairhittime[] = {{"Short", "100"}, {"Normal", "200.0"}, {"Long", "500"}};
+static const stOption_t stOpts_cg_poweruppois[] = {{"Off", "0"}, {"Through Walls", "1"}, {"Always On", "2"}};
+static const stOption_t stOpts_cg_forceteamskin[] = {{"None", ""}, {"Red", "red"}, {"Blue", "blue"}, {"Bright", "bright"}, {"Sport", "sport"}, {"Sport (Red)", "sport_red"}, {"Sport (Blue)", "sport_blue"}, {"Fullbright", "fb"}};
+static const stOption_t stOpts_cg_enemyoutline[] = {{"Off", "0"}, {"Thin", "1"}, {"Medium", "2"}};
+static const stOption_t stOpts_cg_forceenemyskin[] = {{"None", ""}, {"Red", "red"}, {"Blue", "blue"}, {"Bright", "bright"}, {"Sport", "sport"}, {"Sport (Red)", "sport_red"}, {"Sport (Blue)", "sport_blue"}, {"Fullbright", "fb"}};
+static const stOption_t stOpts_cg_drawgun[] = {{"Hidden", "0"}, {"Normal", "1"}, {"Still", "2"}, {"Transparent", "3"}};
+static const stOption_t stOpts_cg_guny[] = {{"Default", "0"}, {"Left", "18"}, {"Center", "3"}, {"Right", "-10"}};
+static const stOption_t stOpts_cg_brasstime[] = {{"None", "0"}, {"Short", "1000"}, {"Normal", "2500"}, {"Long", "5000"}};
+static const stOption_t stOpts_cg_impactmarktime[] = {{"Off", "0"}, {"Short", "2500"}, {"Normal", "5000"}, {"Long", "10000"}};
+static const stOption_t stOpts_cg_plasmastyle[] = {{"No Trail", "1"}, {"Particle Trails", "2"}};
+static const stOption_t stOpts_cg_rocketstyle[] = {{"No Plume", "1"}, {"Fire Plume", "2"}};
+static const stOption_t stOpts_cg_lightningstyle[] = {{"Default", "1"}, {"QuakeWorld", "2"}, {"Team Arena", "3"}, {"Thin Shaft", "4"}, {"Wide Beam", "5"}};
+static const stOption_t stOpts_cg_railstyle[] = {{"Beam", "1"}, {"Spiral", "2"}};
+static const stOption_t stOpts_r_displayrefresh[] = {{"Automatic", "0"}, {"60hz", "60"}, {"120hz", "120"}, {"144hz", "144"}};
+static const stOption_t stOpts_r_mapoverbrightbits[] = {{"Low", "1"}, {"Medium", "2"}, {"High", "3"}};
+static const stOption_t stOpts_r_overbrightbits[] = {{"Low", "1"}, {"Medium", "2"}, {"High", "3"}};
+static const stOption_t stOpts_r_texturemode[] = {{"Nearest", "GL_NEAREST_MIPMAP_NEAREST"}, {"Bilinear", "GL_LINEAR_MIPMAP_NEAREST"}, {"Trilinear", "GL_LINEAR_MIPMAP_LINEAR"}};
+static const stOption_t stOpts_r_picmip[] = {{"Low", "8"}, {"Medium", "2"}, {"High", "0"}};
+static const stOption_t stOpts_r_enablebloom[] = {{"Off", "0"}, {"On (One Pass)", "1"}, {"On (Two Passes)", "2"}};
+static const stOption_t stOpts_cg_announcer[] = {{"Default", "1"}, {"Vadrigar", "2"}, {"Daemia", "3"}, {"Classic", "4"}};
+static const stOption_t stOpts_cg_hitbeep[] = {{"None", "0"}, {"Single Pitch", "1"}, {"Ascending", "2"}, {"Descending", "3"}};
+static const stOption_t stOpts_cg_killbeep[] = {{"None", "0"}, {"Ting", "1"}, {"Tink", "2"}, {"Dramatic", "3"}, {"Voosh", "4"}, {"Drum", "5"}, {"Bang", "6"}, {"Ding", "7"}, {"Cha-Ching!", "8"}, {"Tonal D", "9"}, {"Tonal E", "10"}, {"Tonal F#", "11"}, {"Tonal G", "12"}, {"Cork Pop", "13"}, {"Cash Register", "14"}, {"Grapple", "15"}};
+static const stOption_t stOpts_cg_voicechatindicator[] = {{"Off", "0"}, {"Right", "1"}, {"Left", "2"}};
+static const stOption_t stOpts_cg_specnames[] = {{"None", "0"}, {"Targeted", "1"}, {"Always On", "2"}};
+static const stOption_t stOpts_cg_specteamvitals[] = {{"None", "0"}, {"On", "1"}, {"On With HP", "2"}};
+static const stOption_t stOpts_cg_specteamvitalshealthcolor[] = {{"Team Colors", "0"}, {"Health Colors", "1"}};
+static const stOption_t stOpts_cg_specitemtimers[] = {{"None", "0"}, {"Power-ups", "1"}, {"Power-ups & Red Armor", "7"}, {"All", "15"}};
+static const stOption_t stOpts_cg_drawinputcmds[] = {{"Off", "0"}, {"Always On", "1"}, {"Spectate Only", "2"}};
+
+static const stOption_t stOpts_r_lowlatency[] = {{"Off", "0"}, {"On", "1"}, {"On + Boost", "2"}};
+static const stOption_t stOpts_r_ext_multisample[] = {{"Off", "0"}, {"2x", "2"}, {"4x", "4"}, {"8x", "8"}};
+static const stOption_t stOpts_r_ext_max_anisotropy[] = {{"2x", "2"}, {"4x", "4"}, {"8x", "8"}, {"16x", "16"}};
+static const stOption_t stOpts_cg_drawbrightweapons[] = {{"Off", "0"}, {"Yours", "1"}, {"Enemies", "4"}, {"Yours and Enemies", "5"}, {"Everyone", "7"}};
+static const stOption_t stOpts_ch_animaterewardicons[] = {{"Still", "0"}, {"Once", "1"}, {"Loop", "2"}};
+static const stOption_t stOpts_ch_drawlocaltime[] = {{"Off", "0"}, {"24 Hours", "1"}, {"12 Hours", "2"}};
+static const stOption_t stOpts_r_maxqueuedframes[] = {{"Driver", "0"}, {"1 Frame", "1"}, {"2 Frames", "2"}};
+
+static const stCvar_t stCvars[] = {
+    {ST_TAB_INPUT, "Mouse Settings", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_INPUT, "Invert Mouse", "m_pitch", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_m_pitch, 2, NULL, 0},
+    {ST_TAB_INPUT, "Mouse Sensitivity", "sensitivity", ST_RANGE, 0.0f, 25.0f, 0.1f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Mouse DPI", "m_cpi", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Mouse Acceleration", "cl_mouseaccel", ST_RANGE, 0.0f, 5.0f, 0.1f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Mouse Acceleration Offset", "cl_mouseacceloffset", ST_RANGE, 0.0f, 25.0f, 0.25f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Sensitivity Cap", "cl_mousesenscap", ST_RANGE, 0.0f, 25.0f, 0.25f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Movement", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_INPUT, "Move Forward", "+forward", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Move Back", "+back", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Move Left", "+moveleft", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Move Right", "+moveright", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Jump", "+moveup", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Crouch", "+movedown", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Silent Walk", "+speed", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Actions", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_INPUT, "Shoot", "+attack", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Last Weapon", "weapon toggle", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Next Weapon", "weapnext", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Previous Weapon", "weapprev", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Zoom", "+zoom", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Use Item", "+button2", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Taunt", "+button3", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Drop Flag", "dropflag", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Drop Weapon", "dropweapon", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Drop Power-up", "droppowerup", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Drop Rune", "droprune", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Self Kill", "kill", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, NULL, NULL, ST_BREAK, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_INPUT, "Scoreboard", "+scores", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Vote Yes", "vote yes", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Vote No", "vote no", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Ready Up", "readyup", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Take Screenshot", "screenshotjpeg", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Talk", "messagemode", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Team Talk", "messagemode2", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Chat History", "+chat", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Voice Chat", "+voice", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Accuracy", "+acc", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Weapons", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_INPUT, "Gauntlet", "weapon 1", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Machine Gun", "weapon 2", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Shotgun", "weapon 3", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Grenade Launcher", "weapon 4", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Rocket Launcher", "weapon 5", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Lightning Gun", "weapon 6", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Railgun", "weapon 7", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_INPUT, "Plasma Gun", "weapon 8", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "BFG", "weapon 9", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Grappling Hook", "weapon 10", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Nailgun", "weapon 11", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Proximity Mine", "weapon 12", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "Chaingun", "weapon 13", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_INPUT, "HMG", "weapon 14", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_GAMEPAD, "Gamepad", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_GAMEPAD, "Invert Y View Axis", "in_joystick_inverted", ST_SELECT, 0.0f, 1.0f, 0.0f, stOpts_in_joystick_inverted, 2, NULL, 0},
+    {ST_TAB_GAMEPAD, "Horizontal View Sensitivity", "in_joyhorizviewsensitivity", ST_RANGE, 0.0f, 25.0f, 0.1f, NULL, 0, NULL, 0},
+    {ST_TAB_GAMEPAD, "Vertical View Sensitivity", "in_joyvertviewsensitivity", ST_RANGE, 0.0f, 25.0f, 0.1f, NULL, 0, NULL, 0},
+    {ST_TAB_GAMEPAD, "View Acceleration", "cl_viewaccel", ST_RANGE, 1.0f, 3.0f, 0.1f, NULL, 0, NULL, 0},
+    {ST_TAB_GAMEPAD, "Horizontal View Deadzone", "in_joyhorizviewdeadzone", ST_RANGE, 0.0f, 1.0f, 0.01f, NULL, 0, NULL, 0},
+    {ST_TAB_GAMEPAD, "Vertical View Deadzone", "in_joyvertviewdeadzone", ST_RANGE, 0.0f, 1.0f, 0.01f, NULL, 0, NULL, 0},
+    {ST_TAB_GAMEPAD, "Horizontal Move Deadzone", "in_joyhorizmovedeadzone", ST_RANGE, 0.0f, 1.0f, 0.01f, NULL, 0, NULL, 0},
+    {ST_TAB_GAMEPAD, "Vertical Move Deadzone", "in_joyvertmovedeadzone", ST_RANGE, 0.0f, 1.0f, 0.01f, NULL, 0, NULL, 0},
+    {ST_TAB_BASIC, "Basic", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_BASIC, "Player Model", "model", ST_MODELSKIN, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_BASIC, "Master Volume", "s_volume", ST_RANGE, 0.0f, 2.0f, 0.1f, NULL, 0, "Adjust the master game volume.", 0},
+    {ST_TAB_BASIC, "Music Volume", "s_musicvolume", ST_RANGE, 0.0f, 2.0f, 0.1f, NULL, 0, "Adjust the in-game music volume.", 0},
+    {ST_TAB_BASIC, "Crosshair", "cg_drawcrosshair", ST_CROSSHAIR, 0.0f, 0.0f, 0.0f, NULL, 0, "Click on 'Crosshair Style' to cycle through available crosshair options.", 0},
+    {ST_TAB_BASIC, "Crosshair Color", "cg_crosshaircolor", ST_PALETTE, 1.0f, 26.0f, 0.0f, NULL, 0, "Click on the color bar to select your crosshair color.", 0},
+    {ST_TAB_BASIC, "Rail Color", "color1", ST_PALETTE, 1.0f, 26.0f, 0.0f, NULL, 0, "Color of your rail beam.", 0},
+    {ST_TAB_BASIC, "Full Mode (Resolution)", "r_mode", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_mode, 18, "Choose the video resolution.", 1},
+    {ST_TAB_BASIC, "Windowed Mode (Resolution)", "r_windowedmode", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_windowedmode, 18, NULL, 1},
+    {ST_TAB_BASIC, "Play Fullscreen", "r_fullscreen", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_fullscreen, 3, "Play QUAKE LIVE windowed, fullscreen, or borderless fullscreen, which alt-tabs instantly and never changes the screen mode.", 1},
+    {ST_TAB_BASIC, "Brightness", "r_gamma", ST_RANGE, 0.5f, 3.0f, 0.1f, NULL, 0, NULL, 1},
+    {ST_TAB_BASIC, "Field of View", "cg_fov", ST_RANGE, 10.0f, 130.0f, 1.0f, NULL, 0, "Field of Vision, how wide of an area you can see.", 1},
+    {ST_TAB_GAME, "Game", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_GAME, "Screen shake on hit", "cg_kickscale", ST_RANGE, 0.0f, 1.0f, 0.25f, NULL, 0, "Control the amount your screen shakes when you receive damage.", 0},
+    {ST_TAB_GAME, "Screen bob on walk", "cg_bob", ST_RANGE, 0.0f, 1.0f, 0.25f, NULL, 0, "Control the amount your screen bobs when you move.", 0},
+    {ST_TAB_GAME, "Switch on Pickup", "cg_autoswitch", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Switch weapons automatically when you pickup a weapon.", 0},
+    {ST_TAB_GAME, "Switch on Empty", "cg_switchonempty", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Switch weapons automatically when you attempt to fire an empty weapon.", 0},
+    {ST_TAB_GAME, "Switch to Empty", "cg_switchtoempty", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Allow you to switch to an empty weapon, or ignore the switch request.", 0},
+    {ST_TAB_GAME, "Simple Items", "cg_simpleitems", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Use 2D icons for map items, such as weapons, armor, health and power-ups.", 0},
+    {ST_TAB_GAME, "Flag Style", "cg_flagstyle", ST_SELECT, 1.0f, 2.0f, 0.0f, stOpts_cg_flagstyle, 2, "Alter the visual style used for the team flags in CTF based gametypes.", 0},
+    {ST_TAB_GAME, "Impact Sparks", "cg_impactsparks", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Customize whether hit players create sparks, and how long they last.", 0},
+    {ST_TAB_GAME, "Sparks Velocity", "cg_impactsparksvelocity", ST_RANGE, -128.0f, 128.0f, 8.0f, NULL, 0, "The direction and speed in which impact spark embers float.", 0},
+    {ST_TAB_GAME, "Damage Numbers", "cg_damageplum", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_damageplum, 3, "Toggle whether you see damage numbers as damage is dealt.", 0},
+    {ST_TAB_GAME, "Damage Number Style", "cg_damageplumcolorstyle", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_damageplumcolorstyle, 3, "Choose how to colorize the damage dealt numbers.", 0},
+    {ST_TAB_GAME, "Player Taunts", "cg_allowtaunt", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Toggle whether you hear players' taunt gestures.", 0},
+    {ST_TAB_GAME, "Darken Dead Bodies", "cg_deadbodydarken", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Desaturate and darken the corpse of a dead player using a brightskin.", 0},
+    {ST_TAB_GAME, "Spectator Count", "ch_drawspectators", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Show how many players are watching you, next to the FPS counter. The server has to send it.", 0},
+    {ST_TAB_GAME, "Field of View", "cg_fov", ST_RANGE, 10.0f, 130.0f, 1.0f, NULL, 0, "Field of Vision, how wide of an area you can see.", 1},
+    {ST_TAB_GAME, "Zoom FOV", "cg_zoomfov", ST_RANGE, 10.0f, 130.0f, 1.0f, NULL, 0, "Field of Vision while zoomed-in.", 1},
+    {ST_TAB_GAME, "Zoom Sensitivity", "cg_zoomsensitivity", ST_RANGE, 0.0f, 10.0f, 0.1f, NULL, 0, "Mouse sensitivity adjustment (in percent) while zoomed.", 1},
+    {ST_TAB_GAME, "Zoom Toggle", "cg_zoomtoggle", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Choose to toggle your zoom on and off, rather than having to hold it down.", 1},
+    {ST_TAB_GAME, "Zoom Scaling", "cg_zoomscaling", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Choose whether your zoom scales in & out or quickly snaps.", 1},
+    {ST_TAB_GAME, "Auto Record Actions", "cg_autoaction", ST_SELECT, 0.0f, 3.0f, 0.0f, stOpts_cg_autoaction, 4, "Automated actions to archive match results.", 1},
+    {ST_TAB_GAME, "Record Every Map", "cl_autorecorddemo", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Keep a demo of every map you play, even with Auto Record Actions on None. stoprecord pauses it until the next map.", 1},
+    {ST_TAB_GAME, "Recording Message", "cl_demorecordmessage", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cl_demorecordmessage, 3, "Display the verbose demo recording message while recording.", 1},
+    {ST_TAB_GAME, "Enable Console", "com_allowconsole", ST_BOOL, 0.0f, 2.0f, 0.0f, NULL, 0, "Enable the ability to easily lower the console with the ~ key", 1},
+    {ST_TAB_GAME, "Allow Console Chat", "cl_allowconsolechat", ST_BOOL, 0.0f, 0.0f, 0.0f, NULL, 0, "Enable the ability to chat in the console without the use of the 'say' command.", 1},
+    {ST_TAB_GAME, "Teammate Indicators", "cg_teammatenames", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_teammatenames, 3, NULL, 1},
+    {ST_TAB_GAME, "Teammate POIs", "cg_teammatepois", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_GAME, "Auto Stats", "ch_autostats", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Save the console with the final scores to a file under stats/ when a match ends.", 1},
+    {ST_TAB_GAME, "Check for Updates", "cl_checkupdates", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Ask at startup whether a newer version is out and say so in the main menu.", 1},
+    {ST_TAB_GAME, "Ask to Open Steam", "com_steamprompt", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "At startup, offer to open Steam when it is not running.", 1},
+    {ST_TAB_HUD, "HUD", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_HUD, "HUD Style", "cg_hudfiles", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_hudfiles, 3, "Choose between small, medium and large sized HUD icons.", 0},
+    {ST_TAB_HUD, "Level Timer Direction", "cg_leveltimerdirection", ST_SELECT, 0.0f, 1.0f, 0.0f, stOpts_cg_leveltimerdirection, 2, "Direction in which the match timer counts.", 0},
+    {ST_TAB_HUD, "Weapon Bar", "cg_weaponbar", ST_SELECT, 0.0f, 4.0f, 0.0f, stOpts_cg_weaponbar, 5, "Position your weaponbar to the left, right, center or use the classical Q3 bar.", 0},
+    {ST_TAB_HUD, "Weapon Bar Items", "cg_drawfullweaponbar", ST_SELECT, 0.0f, 1.0f, 0.0f, stOpts_cg_drawfullweaponbar, 2, "List on your weapon bar all weapons in the map or all on hand in inventory.", 0},
+    {ST_TAB_HUD, "Draw Low Ammo Warning", "cg_drawammowarning", ST_BOOL, 0.0f, 2.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_HUD, "Low Ammo Warning Sound", "cg_lowammowarningsound", ST_BOOL, 0.0f, 2.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_HUD, "Item Pickups", "cg_drawitempickups", ST_SELECT, 0.0f, 7.0f, 0.0f, stOpts_cg_drawitempickups, 3, "Item pickup notification displays a HUD message when you pickup an item.", 0},
+    {ST_TAB_HUD, "Use Item Message", "cg_useitemmessage", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_useitemmessage, 3, "Display a message when a holdable item is used.", 0},
+    {ST_TAB_HUD, "Use Item Warning", "cg_useitemwarning", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_useitemwarning, 3, "Display a message when a holdable item is unvailable.", 0},
+    {ST_TAB_HUD, "Team Overlay", "cg_drawteamoverlay", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_drawteamoverlay, 3, "List your teammates health, armor, location and held weapons and powerups.", 0},
+    {ST_TAB_HUD, "Draw FPS", "cg_drawfps", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Display the frames per second in which the game is rendered.", 0},
+    {ST_TAB_HUD, "Draw Lagometer", "cg_lagometer", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_lagometer, 3, "Display a network performance graph to monitor ping and packet loss.", 0},
+    {ST_TAB_HUD, "Draw Rewards", "cg_drawrewards", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Display reward notifications when you receive a medal, such as 'Impressive'.", 0},
+    {ST_TAB_HUD, "Draw Speedometer", "cg_speedometer", ST_SELECT, 0.0f, 4.0f, 0.0f, stOpts_cg_speedometer, 4, "Display the rate in which your player is moving in units per second (ups).", 0},
+    {ST_TAB_HUD, "Crosshair", "cg_drawcrosshair", ST_CROSSHAIR, 0.0f, 0.0f, 0.0f, NULL, 0, "Click on 'Crosshair Style' to cycle through available crosshair options.", 1},
+    {ST_TAB_HUD, "Crosshair Color by Health", "cg_crosshairhealth", ST_BOOL, 0.0f, 0.0f, 0.0f, NULL, 0, "Crosshair color dictated by your health value to warn you when you become weak.", 1},
+    {ST_TAB_HUD, "Crosshair Size", "cg_crosshairsize", ST_RANGE, 8.0f, 128.0f, 8.0f, NULL, 0, "Choose between small, medium and large crosshairs.", 1},
+    {ST_TAB_HUD, "Crosshair Color", "cg_crosshaircolor", ST_PALETTE, 1.0f, 26.0f, 0.0f, NULL, 0, "Click on the color bar to select your crosshair color.", 1},
+    {ST_TAB_HUD, "Crosshair Brightness", "cg_crosshairbrightness", ST_RANGE, 0.0f, 1.0f, 0.1f, NULL, 0, "Brightness or color intensity of your crosshair.", 1},
+    {ST_TAB_HUD, "Crosshair Pickup Pulse", "cg_crosshairpulse", ST_BOOL, 0.0f, 0.0f, 0.0f, NULL, 0, "Momentarily enlarge the crosshair when an item is picked up.", 1},
+    {ST_TAB_HUD, "Crosshair Target Names", "cg_drawcrosshairnames", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_drawcrosshairnames, 3, "Draw the name of players in line of sight of your crosshair.", 1},
+    {ST_TAB_HUD, "Crosshair Hit Style", "cg_crosshairhitstyle", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_crosshairhitstyle, 6, "Crosshair behavior when you obtain a hit.", 1},
+    {ST_TAB_HUD, "Crosshair Hit Time", "cg_crosshairhittime", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_crosshairhittime, 3, "Length of time your crosshair hit style notification will remain on screen.", 1},
+    {ST_TAB_HUD, "Crosshair Hit Color", "cg_crosshairhitcolor", ST_PALETTE, 0.0f, 0.0f, 0.0f, NULL, 0, "The color your crosshair will flash when you obtain a hit.", 1},
+    {ST_TAB_HUD, "Draw Attacker", "cg_drawattacker", ST_BOOL, 0.0f, 0.0f, 0.0f, NULL, 0, "Draw the name and head of the player who last hit you on your HUD.", 1},
+    {ST_TAB_HUD, "Frag Message", "cg_drawfragmessages", ST_BOOL, 0.0f, 0.0f, 0.0f, NULL, 0, "Display large center print text upon earning a frag.", 1},
+    {ST_TAB_HUD, "Power-up Indicators", "cg_poweruppois", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_poweruppois, 3, NULL, 1},
+    {ST_TAB_HUD, "Game Events in Kill Feed", "ch_gameevents", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_HUD, "Animated Chat", "ch_animatescroll", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_HUD, "Chat Lines", "ch_chatlines", ST_RANGE, 1.0f, 10.0f, 1.0f, NULL, 0, NULL, 1},
+    {ST_TAB_HUD, "Animated Medals", "ch_animaterewardicons", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_ch_animaterewardicons, 3, NULL, 1},
+    {ST_TAB_HUD, "Typing Balloon Animation", "cg_animatechatballoon", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_HUD, "Zoom Animation Time", "cg_zoomanimationtime", ST_RANGE, 0.0f, 500.0f, 10.0f, NULL, 0, NULL, 1},
+    {ST_TAB_HUD, "Local Time", "ch_drawlocaltime", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_ch_drawlocaltime, 3, "Display the clock of your computer.", 1},
+    {ST_TAB_HUD, "Demo Recording Name", "ch_recordmessage", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Display the name of the demo while it is being recorded.", 1},
+    {ST_TAB_TEAM, "Teammates", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_TEAM, "Enemies", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_TEAM, "Force Team Model", "cg_forceteammodel", ST_MODEL, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_TEAM, "Force Team Skin", "cg_forceteamskin", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_forceteamskin, 8, NULL, 0},
+    {ST_TAB_TEAM, "Team Head Color", "cg_teamheadcolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_TEAM, "Team Upper Color", "cg_teamuppercolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_TEAM, "Team Lower Color", "cg_teamlowercolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_TEAM, "Force Team Weapon Color", "cg_forceteamweaponcolor", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Force teammates' grenades and rails to use 'Team Upper' color.", 0},
+    {ST_TAB_TEAM, "Team Damage Indicator", "cg_screendamage_team", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, "Choose the color in which teammate hits are indicated on your screen.", 0},
+    {ST_TAB_TEAM, "Team Damage Alpha", "cg_screendamagealpha_team", ST_RANGE, 0.0f, 255.0f, 5.0f, NULL, 0, NULL, 0},
+    {ST_TAB_TEAM, "Force Enemy Model", "cg_forceenemymodel", ST_MODEL, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_TEAM, "Force Enemy Skin", "cg_forceenemyskin", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_forceenemyskin, 8, NULL, 1},
+    {ST_TAB_TEAM, "Enemy Head Color", "cg_enemyheadcolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_TEAM, "Enemy Upper Color", "cg_enemyuppercolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_TEAM, "Enemy Lower Color", "cg_enemylowercolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_TEAM, "Enemy Outline", "cg_enemyoutline", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_enemyoutline, 3, "Draw a thin outline around enemies, only where they can be seen.", 1},
+    {ST_TAB_TEAM, "Enemy Outline Color", "cg_enemyoutlinecolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_TEAM, "Force Enemy Weapon Color", "cg_forceenemyweaponcolor", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Force enemies' grenades and rails to use 'Enemy Upper' color.", 1},
+    {ST_TAB_TEAM, "Enemy Damage Indicator", "cg_screendamage", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, "Choose the color in which enemy hits are indicated on your screen.", 1},
+    {ST_TAB_TEAM, "Enemy Damage Indicator Alpha", "cg_screendamagealpha", ST_RANGE, 0.0f, 255.0f, 5.0f, NULL, 0, NULL, 1},
+    {ST_TAB_WEAPONS, "Weapons", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_WEAPONS, "Per Weapon Configuration", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_WEAPONS, "Enter multiple console commands, separated by semicolons.", NULL, ST_TEXT, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_WEAPONS, NULL, NULL, ST_BREAK, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_WEAPONS, "Gun Model", "cg_drawgun", ST_SELECT, 0.0f, 3.0f, 0.0f, stOpts_cg_drawgun, 4, "Alter the display of your currently held weapon.", 0},
+    {ST_TAB_WEAPONS, "Gun Position", "cg_guny", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_guny, 4, "The screen alignment of your held weapon.", 0},
+    {ST_TAB_WEAPONS, "Muzzle Flash", "cg_muzzleflash", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Toggle the display of your weapons' muzzle flash.", 0},
+    {ST_TAB_WEAPONS, "Brass Ejections", "cg_brasstime", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_brasstime, 4, "The amount of time brass ejections remain in the worldspace.", 0},
+    {ST_TAB_WEAPONS, "Impact Marks", "cg_impactmarktime", ST_SELECT, 0.0f, 10000.0f, 0.0f, stOpts_cg_impactmarktime, 4, NULL, 0},
+    {ST_TAB_WEAPONS, "Bubble Trail", "cg_bubbletrail", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Draw a bubble trail for weapon projectiles that travel underwater.", 0},
+    {ST_TAB_WEAPONS, "Plasma Style", "cg_plasmastyle", ST_SELECT, 1.0f, 2.0f, 0.0f, stOpts_cg_plasmastyle, 2, "Customize the plasma to either exclude or include a particle trail.", 0},
+    {ST_TAB_WEAPONS, "Rocket Style", "cg_rocketstyle", ST_SELECT, 1.0f, 2.0f, 0.0f, stOpts_cg_rocketstyle, 2, "Customize the rocket explosion to either exclude or include a fire plume.", 0},
+    {ST_TAB_WEAPONS, "Lightning Style", "cg_lightningstyle", ST_SELECT, 1.0f, 5.0f, 0.0f, stOpts_cg_lightningstyle, 5, "Customize the lightning gun stream effect.", 0},
+    {ST_TAB_WEAPONS, "Lightning Impact", "cg_lightningimpact", ST_BOOL, 0.0f, 1.0f, 1.0f, NULL, 0, "Draw the lightning gun impact effect on surfaces.", 0},
+    {ST_TAB_WEAPONS, "Lightning Impact Cap", "cg_lightningimpactcap", ST_RANGE, 0.0f, 768.0f, 32.0f, NULL, 0, NULL, 0},
+    {ST_TAB_WEAPONS, "Lightning Sway", "cg_truelightning", ST_RANGE, 0.0f, 1.0f, 0.1f, NULL, 0, "Control the amount your lightninggun stream visually bends.", 0},
+    {ST_TAB_WEAPONS, "Show Actual Shotgun Pattern", "cg_trueshotgun", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Choose to see a visually nice looking spread or the accurate pattern.", 0},
+    {ST_TAB_WEAPONS, "Rail Style", "cg_railstyle", ST_SELECT, 1.0f, 2.0f, 0.0f, stOpts_cg_railstyle, 2, "Customize the railgun trail effect.", 0},
+    {ST_TAB_WEAPONS, "Rail Color", "color1", ST_PALETTE, 1.0f, 26.0f, 0.0f, NULL, 0, "Color of your rail beam.", 0},
+    {ST_TAB_WEAPONS, "Rail Disc Color", "color2", ST_PALETTE, 1.0f, 26.0f, 0.0f, NULL, 0, "Color of your rail disc or spiral.", 0},
+    {ST_TAB_WEAPONS, "Rail Trail Time", "cg_railtrailtime", ST_RANGE, 0.0f, 2000.0f, 100.0f, NULL, 0, "Length of time the rail trail lingers.", 0},
+    {ST_TAB_WEAPONS, "Shotgun Smoke", "cg_smoke_sg", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Toggle the drawing of the shotgun's smoke puff.", 0},
+    {ST_TAB_WEAPONS, "Grenade Smoke Radius", "cg_smokeradius_gl", ST_RANGE, 0.0f, 64.0f, 8.0f, NULL, 0, "Customize the radius of the grenade smoke trail.", 0},
+    {ST_TAB_WEAPONS, "Rocket Smoke Radius", "cg_smokeradius_rl", ST_RANGE, 0.0f, 32.0f, 4.0f, NULL, 0, "Customize the radius of the rocket smoke trail.", 0},
+    {ST_TAB_WEAPONS, "Nail Smoke Radius", "cg_smokeradius_ng", ST_RANGE, 0.0f, 16.0f, 2.0f, NULL, 0, "Customize the radius of the nail smoke trail.", 0},
+    {ST_TAB_WEAPONS, "Default", "cg_weaponconfig", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The default weapon config will be applied when any weapon is selected.", 1},
+    {ST_TAB_WEAPONS, "Gauntlet", "cg_weaponconfig_g", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The gauntlet weapon config will be applied when the gauntlet is selected.", 1},
+    {ST_TAB_WEAPONS, "Machine Gun", "cg_weaponconfig_mg", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The mg weapon config will be applied when the machinegun is selected.", 1},
+    {ST_TAB_WEAPONS, "Shotgun", "cg_weaponconfig_sg", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The sg weapon config will be applied when the shotgun is selected.", 1},
+    {ST_TAB_WEAPONS, "Grenade Launcher", "cg_weaponconfig_gl", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The gl weapon config will be applied when the grenadelauncher is selected.", 1},
+    {ST_TAB_WEAPONS, "Rocket Launcher", "cg_weaponconfig_rl", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The rl weapon config will be applied when the rocketlauncher is selected.", 1},
+    {ST_TAB_WEAPONS, "Lightning Gun", "cg_weaponconfig_lg", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The lg weapon config will be applied when the lightninggun is selected.", 1},
+    {ST_TAB_WEAPONS, "Railgun", "cg_weaponconfig_rg", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The rg weapon config will be applied when the railgun is selected.", 1},
+    {ST_TAB_WEAPONS, "Plasma Gun", "cg_weaponconfig_pg", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The pg weapon config will be applied when the plasmagun is selected.", 1},
+    {ST_TAB_WEAPONS, "HMG", "cg_weaponconfig_hmg", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "The hmg weapon config will be applied when the heavy machinegun is selected.", 1},
+    {ST_TAB_WEAPONS, "BFG10K", "cg_weaponconfig_bfg", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_WEAPONS, "Nailgun", "cg_weaponconfig_ng", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_WEAPONS, "Chaingun", "cg_weaponconfig_cg", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_WEAPONS, "Prox Launcher", "cg_weaponconfig_pl", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
+    {ST_TAB_VIDEO, "Video", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_VIDEO, "Full Mode (Resolution)", "r_mode", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_mode, 18, "Choose the video resolution.", 0},
+    {ST_TAB_VIDEO, "Windowed Mode (Resolution)", "r_windowedmode", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_windowedmode, 18, NULL, 0},
+    {ST_TAB_VIDEO, "Display Refresh", "r_displayrefresh", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_displayrefresh, 4, "Optional display refresh settings.", 0},
+    {ST_TAB_VIDEO, "Play Fullscreen", "r_fullscreen", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_fullscreen, 3, "Play QUAKE LIVE windowed, fullscreen, or borderless fullscreen, which alt-tabs instantly and never changes the screen mode.", 0},
+    {ST_TAB_VIDEO, "Vertical Sync", "r_swapinterval", ST_BOOL, 0.0f, 0.0f, 0.0f, NULL, 0, "Enable VSYNC to eliminate screen tearing. (Restricts the game to 60 FPS)", 0},
+    {ST_TAB_VIDEO, "Brightness", "r_gamma", ST_RANGE, 0.5f, 3.0f, 0.1f, NULL, 0, NULL, 0},
+    {ST_TAB_VIDEO, "Map Overbright Bits", "r_mapoverbrightbits", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_mapoverbrightbits, 3, "Brightness of map textures.", 0},
+    {ST_TAB_VIDEO, "Overbright Bits", "r_overbrightbits", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_overbrightbits, 3, "Brightness of texture highlights.", 0},
+    {ST_TAB_VIDEO, "Texture Filtering", "r_texturemode", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_r_texturemode, 3, "Controls the texture interpolation by the graphics card.", 0},
+    {ST_TAB_VIDEO, "Texture Detail", "r_picmip", ST_SELECT, 0.0f, 8.0f, 0.0f, stOpts_r_picmip, 3, "Control the texture detailed level.", 0},
+    {ST_TAB_VIDEO, "Enable Vertex Lighting", "r_vertexlight", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_VIDEO, "Enable Lightmaps", "r_lightmap", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_VIDEO, "Enable Full Bright", "r_fullbright", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_VIDEO, "Dynamic Light", "r_dynamiclight", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Toggle dynamic lighting effects.", 0},
+    {ST_TAB_VIDEO, "Ambient Light Scale", "r_ambientscale", ST_RANGE, 1.0f, 100.0f, 1.0f, NULL, 0, "The amount of ambient light added to players and game items.", 0},
+    {ST_TAB_VIDEO, "Player Shadows", "cg_shadows", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Render shadow blobs beneath players.", 0},
+    {ST_TAB_VIDEO, "Disable Skybox", "r_fastsky", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Toggle the drawing of the sky environment.", 0},
+    {ST_TAB_VIDEO, "Water Distortion", "cg_waterwarp", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Toggle the view distortion that occurs while underwater.", 0},
+    {ST_TAB_VIDEO, "Post Processing", "r_enablepostprocess", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Enable Post Processing Effects.", 1},
+    {ST_TAB_VIDEO, "Color Correction", "r_enablecolorcorrect", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Enable Color Correction post processing.", 1},
+    {ST_TAB_VIDEO, "Bloom", "r_enablebloom", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_r_enablebloom, 3, "Enable Bloom post processing, including a second pass for additional bloom.", 1},
+    {ST_TAB_VIDEO, "Screen Vignetting", "cg_vignette", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Enable Screen Vignette shadowing around the edge of the game screen.", 1},
+    {ST_TAB_VIDEO, "Bloom Threshold", "r_bloombrightthreshold", ST_RANGE, 0.0f, 1.0f, 0.05f, NULL, 0, "The lower the threshold, the more will be bloomed.", 1},
+    {ST_TAB_VIDEO, "Bloom Saturation", "r_bloomsaturation", ST_RANGE, 0.0f, 10.0f, 0.1f, NULL, 0, "The higher the bloom saturation, the more colorful the bloom.", 1},
+    {ST_TAB_VIDEO, "Bloom Intensity", "r_bloomintensity", ST_RANGE, 0.0f, 10.0f, 0.1f, NULL, 0, "The higher bloom intensity, the brighter the bloom.", 1},
+    {ST_TAB_VIDEO, "Scene Saturation", "r_bloomscenesaturation", ST_RANGE, 0.0f, 10.0f, 0.1f, NULL, 0, "The higher the scene saturation, the more colorful the non-bloomed world is.", 1},
+    {ST_TAB_VIDEO, "Scene Intensity", "r_bloomsceneintensity", ST_RANGE, 0.0f, 10.0f, 0.1f, NULL, 0, "The higher the scene intensity, the brighter the non-bloomed world is.", 1},
+    {ST_TAB_VIDEO, "Low Latency (Vulkan)", "r_lowlatency", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_r_lowlatency, 3, NULL, 1},
+    {ST_TAB_VIDEO, "Latency Stats (Vulkan)", "r_latencystats", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Display the latency measured by the NVIDIA driver at the top of the screen.", 1},
+    {ST_TAB_VIDEO, "Max Queued Frames", "r_maxqueuedframes", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_r_maxqueuedframes, 3, "Frames the graphics card may have queued. Fewer frames lower the input lag and can cost FPS.", 1},
+    {ST_TAB_VIDEO, "Busy Wait", "com_busywait", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Wait for the next frame by spinning instead of sleeping. Steadier frame times, more CPU use.", 1},
+#ifndef __APPLE__
+    {ST_TAB_VIDEO, "Multithreaded Rendering", "r_smp", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Draw each frame on its own thread while the next one is prepared. More FPS on CPUs with several cores, one extra frame of latency. With Low Latency on (Vulkan) the game waits for that thread before reading input. Applied with Apply Video Settings.", 1},
+#endif
+    {ST_TAB_VIDEO, "Antialiasing", "r_ext_multisample", ST_SELECT, 0.0f, 8.0f, 0.0f, stOpts_r_ext_multisample, 4, NULL, 1},
+    {ST_TAB_VIDEO, "Anisotropic Filtering", "r_ext_max_anisotropy", ST_SELECT, 2.0f, 16.0f, 0.0f, stOpts_r_ext_max_anisotropy, 4, NULL, 1},
+    {ST_TAB_VIDEO, "Background FPS", "com_maxfpsunfocused", ST_RANGE, 0.0f, 250.0f, 5.0f, NULL, 0, NULL, 1},
+    {ST_TAB_VIDEO, "Minimized FPS", "com_maxfpsminimized", ST_RANGE, 0.0f, 60.0f, 5.0f, NULL, 0, NULL, 1},
+    {ST_TAB_VIDEO, "Bright Weapons", "cg_drawbrightweapons", ST_SELECT, 0.0f, 7.0f, 0.0f, stOpts_cg_drawbrightweapons, 5, NULL, 1},
+    {ST_TAB_SOUND, "Sound", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_SOUND, "Master Volume", "s_volume", ST_RANGE, 0.0f, 2.0f, 0.1f, NULL, 0, "Adjust the master game volume.", 0},
+    {ST_TAB_SOUND, "Music Volume", "s_musicvolume", ST_RANGE, 0.0f, 2.0f, 0.1f, NULL, 0, "Adjust the in-game music volume.", 0},
+    {ST_TAB_SOUND, "Announcer Volume", "s_announcervolume", ST_RANGE, 0.0f, 1.0f, 0.1f, NULL, 0, "Adjust the volume of the announcer voice overs.", 0},
+    {ST_TAB_SOUND, "Voice Volume", "s_voicevolume", ST_RANGE, 0.0f, 1.0f, 0.1f, NULL, 0, "Adjust the volume of the voice chat.", 0},
+    {ST_TAB_SOUND, "Kill Beep Volume", "s_killbeepvolume", ST_RANGE, 0.0f, 2.0f, 0.1f, NULL, 0, NULL, 0},
+    {ST_TAB_SOUND, "Server Sounds Volume", "s_playsoundvolume", ST_RANGE, 0.0f, 2.0f, 0.1f, NULL, 0, NULL, 0},
+    {ST_TAB_SOUND, "Mute in Background", "s_mutebackground", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_SOUND, "Announcer Voice", "cg_announcer", ST_SELECT, 1.0f, 4.0f, 0.0f, stOpts_cg_announcer, 4, NULL, 1},
+    {ST_TAB_SOUND, "Ambient Sound", "s_ambient", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Play ambient map sounds.", 1},
+    {ST_TAB_SOUND, "Hit Beep Style", "cg_hitbeep", ST_SELECT, 0.0f, 3.0f, 0.0f, stOpts_cg_hitbeep, 4, "Sound played when obtaining a hit on an enemy player.", 1},
+    {ST_TAB_SOUND, "Kill Beep Style", "cg_killbeep", ST_SELECT, 0.0f, 15.0f, 0.0f, stOpts_cg_killbeep, 16, "Sound played when obtaining a frag on an enemy player.", 1},
+    {ST_TAB_SOUND, "Chat Beep", "cg_chatbeep", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Play a chat beep sound when a chat message is received.", 1},
+    {ST_TAB_SOUND, "Team Chat Beep", "cg_teamchatbeep", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Play a chat beep sound when a teamchat message is received.", 1},
+    {ST_TAB_SOUND, "Doppler Sound", "s_doppler", ST_BOOL, 0.0f, 0.0f, 0.0f, NULL, 0, "Use doppler sound effects.", 1},
+    {ST_TAB_SOUND, "End Game Buzzer", "cg_buzzersound", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Play the buzzer sound at the end of the match.", 1},
+    {ST_TAB_SOUND, "Voice Chat Indicator", "cg_voicechatindicator", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_voicechatindicator, 3, NULL, 1},
+    {ST_TAB_SPECTATING, "Spectating", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_SPECTATING, "Overhead Names", "cg_specnames", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_specnames, 3, "Toggle the display of players' names drawn over their heads while free float spectating.", 0},
+    {ST_TAB_SPECTATING, "Follow Killer", "cg_followkiller", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "While spectating, switch to the player who killed whom you were following.", 0},
+    {ST_TAB_SPECTATING, "Follow Carriers", "cg_followpowerup", ST_BOOL, 0.0f, 2.0f, 0.0f, NULL, 0, "While spectating, switch away to the view of the player who gets a powerup.", 0},
+    {ST_TAB_SPECTATING, "Team Vitals", "cg_specteamvitals", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_specteamvitals, 3, "Enable the team vitals display.", 0},
+    {ST_TAB_SPECTATING, "Vitals Style", "cg_specteamvitalshealthcolor", ST_SELECT, 0.0f, 1.0f, 0.0f, stOpts_cg_specteamvitalshealthcolor, 2, "Choose the color style for the team vitals display.", 0},
+    {ST_TAB_SPECTATING, "Item Timers", "cg_specitemtimers", ST_SELECT, 0.0f, 15.0f, 0.0f, stOpts_cg_specitemtimers, 4, "Display the item respawn timers for major map items.", 0},
+    {ST_TAB_SPECTATING, "Spec FOV", "cg_specfov", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Render the view with the spectated player's FOV.", 0},
+    {ST_TAB_SPECTATING, "Draw Input", "cg_drawinputcmds", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_drawinputcmds, 3, "Display the player's movement input commands.", 0},
+    {ST_TAB_SPECTATING, "Target Status", "ch_drawtargetstatus", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Show the health and armor of any player under the crosshair, not only teammates.", 0},
+    {ST_TAB_SPECTATING, "Follow Frags", "ch_followkiller", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Switch to whoever gets a frag, at most once every two seconds.", 0},
+};
+
+static const char* const stTabNames[] = {"INPUT", "GAMEPAD", "BASIC", "GAME", "HUD", "TEAM", "WEAPONS", "VIDEO", "SOUND", "SPECTATING"};
+

@@ -1,0 +1,69 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+void S_Init(void);
+void S_Shutdown(void);
+qboolean S_Restart(void);
+
+void S_DeviceLost(void);
+
+void S_StartSound(vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx);
+void S_StartLocalSound(sfxHandle_t sfx, int channelNum);
+void S_StartLocalSoundVolume(sfxHandle_t sfx, int channelNum, float volume);
+
+void S_StartBackgroundTrack(const char* intro, const char* loop);
+void S_StopBackgroundTrack(void);
+
+void S_RawSamples(int stream, int samples, int rate, int width, int channels, const byte* data, float volume, int entityNum);
+void S_VoiceSamples(int client, int samples, int rate, const short* data, float volume);
+
+void S_StopAllSounds(void);
+
+void S_ClearLoopingSounds(qboolean killall);
+void S_AddLoopingSound(int entityNum, const vec3_t origin, const vec3_t velocity, sfxHandle_t sfx);
+void S_AddRealLoopingSound(int entityNum, const vec3_t origin, const vec3_t velocity, sfxHandle_t sfx);
+void S_StopLoopingSound(int entityNum);
+
+void S_Respatialize(int entityNum, const vec3_t origin, vec3_t axis[3], int inwater);
+
+void S_UpdateEntityPosition(int entityNum, const vec3_t origin);
+
+void S_Update(void);
+
+void S_WindowFocusLost(void);
+void S_ForceUnmute(qboolean on);
+
+void S_DisableSounds(void);
+
+void S_BeginRegistration(void);
+void S_AsyncLoadBegin(void);
+void S_AsyncLoadFinish(void);
+void S_AsyncLoadDiscard(void);
+
+sfxHandle_t S_RegisterSound(const char* sample, qboolean compressed);
+
+void S_DisplayFreeMemory(void);
+
+void S_ClearSoundBuffer(void);
+
+void SNDDMA_Activate(void);
+
+void S_UpdateBackgroundTrack(void);

@@ -1,0 +1,219 @@
+
+#include "client.h"
+#include "../qcommon/q_steam.h"
+#include "../qcommon/json.h"
+#include "zlib.h"
+
+#include <time.h>
+
+#define CL_REPORT_MAX 0x100000
+
+static const char* CL_Member(const char* obj, const char* end, const char* name) {
+    if (!obj || obj >= end || *obj != '{') {
+        return NULL;
+    }
+    return JSON_ObjectGetNamedValue(obj, end, name);
+}
+
+static qboolean CL_MatchGuid(const char* report, const char* end, char* guid, int size) {
+    const char* v = CL_Member(report, end, "MATCH_GUID");
+    int i;
+
+    guid[0] = '\0';
+    if (!v || JSON_ValueGetType(v, end) != JSONTYPE_STRING) {
+        return qfalse;
+    }
+    JSON_ValueGetString(v, end, guid, (unsigned int)size);
+    for (i = 0; guid[i]; i++) {
+        if (!isalnum((unsigned char)guid[i]) && guid[i] != '-') {
+            return qfalse;
+        }
+    }
+    return (qboolean)(i > 0);
+}
+
+static void CL_WriteFile(const char* name, const char* a, int aLen, const char* b, int bLen, const char* c,
+                         int cLen) {
+    char* buf = (char*)malloc(aLen + (b ? bLen : 0) + (c ? cLen : 0));
+    int n = 0;
+
+    if (!buf) {
+        return;
+    }
+    Com_Memcpy(buf, a, aLen);
+    n += aLen;
+    if (b) {
+        Com_Memcpy(buf + n, b, bLen);
+        n += bLen;
+    }
+    if (c) {
+        Com_Memcpy(buf + n, c, cLen);
+        n += cLen;
+    }
+    FS_WriteCacheFile(name, buf, n);
+    free(buf);
+}
+
+int CL_ReadMatchFile(const char* name, char* buf, int size) {
+    void* data;
+    long len;
+    int i;
+
+    if (!name || !buf || size <= 0 || name[0] == '.') {
+        return -1;
+    }
+    for (i = 0; name[i]; i++) {
+        if (!isalnum((unsigned char)name[i]) && name[i] != '-' && name[i] != '.') {
+            return -1;
+        }
+    }
+    if (!i) {
+        return -1;
+    }
+    len = FS_ReadCacheFile(va("matches/%s", name), &data);
+    if (len <= 0 || !data) {
+        return -1;
+    }
+    if (len >= size) {
+        FS_FreeFile(data);
+        return -1;
+    }
+    Com_Memcpy(buf, data, len);
+    buf[len] = '\0';
+    FS_FreeFile(data);
+    return (int)len;
+}
+
+static void CL_SaveMatchReport(const char* report, int len) {
+    const char* end = report + len;
+    const char* players = CL_Member(report, end, "PLYR_STATS");
+    const char* events = CL_Member(report, end, "PLYR_EVENTS");
+    const char* personal = NULL;
+    const char* status = "QUIT";
+    char guid[128];
+    char self[32];
+    char extra[128];
+    const char* k;
+    char* basics;
+    int n = 0;
+
+    if (!CL_MatchGuid(report, end, guid, sizeof(guid))) {
+        return;
+    }
+
+    Com_sprintf(self, sizeof(self), "%llu", (unsigned long long)Steam_ClientSteamID());
+    for (k = strcmp(self, "0") ? JSON_ArrayGetFirstValue(players, end) : NULL; k;
+         k = JSON_ArrayGetNextValue(k, end)) {
+        const char* id = CL_Member(k, end, "STEAM_ID");
+        const char* quit = CL_Member(k, end, "QUIT");
+        char text[32];
+
+        if (!id || JSON_ValueGetType(id, end) != JSONTYPE_STRING || !quit || JSON_ValueGetType(quit, end) != JSONTYPE_VALUE) {
+            continue;
+        }
+        JSON_ValueGetString(id, end, text, sizeof(text));
+        if (strcmp(text, self) || JSON_ValueGetDouble(quit, end) != 0) {
+            continue;
+        }
+        personal = k;
+        status = JSON_ValueGetDouble(CL_Member(k, end, "WIN"), end) == 1 ? "WIN" : "LOSE";
+        break;
+    }
+
+    basics = (char*)malloc(len + 256 + (personal ? JSON_ValueGetEnd(personal, end) - personal : 0));
+    if (!basics) {
+        return;
+    }
+    basics[n++] = '{';
+    for (k = JSON_ArrayGetFirstValue(report, end); k; k = JSON_ArrayGetNextValue(k, end)) {
+        const char* value = JSON_ArrayGetNextValue(k, end);
+        const char* valueEnd;
+
+        if (!value) {
+            break;
+        }
+        valueEnd = JSON_ValueGetEnd(value, end);
+        if (value != players && value != events) {
+            if (n > 1) {
+                basics[n++] = ',';
+            }
+            Com_Memcpy(basics + n, k, JSON_ValueGetEnd(k, end) - k);
+            n += (int)(JSON_ValueGetEnd(k, end) - k);
+            basics[n++] = ':';
+            Com_Memcpy(basics + n, value, valueEnd - value);
+            n += (int)(valueEnd - value);
+        }
+        k = value;
+    }
+    if (n > 1) {
+        basics[n++] = ',';
+    }
+    Com_Memcpy(basics + n, "\"PERSONAL_STATS\":", 17);
+    n += 17;
+    if (personal) {
+        Com_Memcpy(basics + n, personal, JSON_ValueGetEnd(personal, end) - personal);
+        n += (int)(JSON_ValueGetEnd(personal, end) - personal);
+    } else {
+        Com_Memcpy(basics + n, "null", 4);
+        n += 4;
+    }
+    Com_sprintf(extra, sizeof(extra), ",\"STATUS\":\"%s\",\"TIME_PLAYED\":%lld,\"MEDIA\":[]}", status,
+                (long long)time(NULL) * 1000);
+    Com_Memcpy(basics + n, extra, strlen(extra));
+    n += (int)strlen(extra);
+
+    CL_WriteFile(va("matches/%s.json", guid), basics, n, NULL, 0, NULL, 0);
+    free(basics);
+    if (players) {
+        CL_WriteFile(va("matches/%s.players.json", guid), "{\"PLYR_STATS\":", 14, players,
+                     (int)(JSON_ValueGetEnd(players, end) - players), "}", 1);
+    }
+    if (events) {
+        CL_WriteFile(va("matches/%s.events.json", guid), "{\"PLYR_EVENTS\":", 15, events,
+                     (int)(JSON_ValueGetEnd(events, end) - events), "}", 1);
+    }
+
+    Q_strcat(guid, sizeof(guid), "\n");
+    FS_AppendCacheFile("matches/index.txt", guid, (int)strlen(guid));
+    Com_Printf("Match stats saved.\n");
+}
+
+void CL_MatchMedia(const char* path) {
+    const char* name = strchr(path, '/');
+    const char* guid;
+    char line[MAX_OSPATH];
+    int i;
+
+    if (clc.state < CA_CONNECTED || !name || !name[1]) {
+        return;
+    }
+    name++;
+    guid = cl.gameState.stringData + cl.gameState.stringOffsets[CS_MATCH_GUID];
+    for (i = 0; guid[i]; i++) {
+        if (!isalnum((unsigned char)guid[i]) && guid[i] != '-') {
+            return;
+        }
+    }
+    if (!i) {
+        return;
+    }
+    Com_sprintf(line, sizeof(line), "%s %s\n", name, guid);
+    FS_AppendCacheFile("matches/media.txt", line, (int)strlen(line));
+}
+
+void CL_MatchReportFrame(void) {
+    void* packed;
+    int size;
+
+    while ((packed = Steam_P2PReadReport(&size)) != NULL) {
+        Bytef* report = (Bytef*)malloc(CL_REPORT_MAX + 1);
+        uLongf len = CL_REPORT_MAX;
+
+        if (report && uncompress(report, &len, (const Bytef*)packed, (uLong)size) == Z_OK) {
+            report[len] = '\0';
+            CL_SaveMatchReport((const char*)report, (int)len);
+        }
+        free(report);
+        free(packed);
+    }
+}

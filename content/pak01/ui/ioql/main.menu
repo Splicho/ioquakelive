@@ -1,0 +1,206 @@
+#include "ui/menudef.h"
+
+{
+    assetGlobalDef {
+        font            "fonts/font" 16
+        smallFont       "fonts/smallfont" 12
+        bigFont         "fonts/bigfont" 20
+        cursor          "ui/assets/3_cursor3"
+        gradientBar     "ui/assets/gradientbar2.tga"
+        itemFocusSound  "sound/misc/menu2.wav"
+        fadeClamp       1.0
+        fadeCycle       1
+        fadeAmount      0.1
+        shadowColor     0.1 0.1 0.1 0.25
+    }
+
+    menuDef {
+        name "main"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_TRUE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen {
+            uiScript stopRefresh ;
+            uiScript loadGameInfo ;
+            uiScript homeOpen
+        }
+
+        onESC {
+            uiScript homeEscape
+        }
+
+        itemDef {
+            name home
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 602
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+
+    }
+
+    menuDef {
+        name "startmatch"
+        background "ui/assets/backscreen_smoke"
+        backgroundSize 0 0 1920 1080
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript startMatchOpen }
+        onESC { close startmatch ; open main }
+
+        itemDef {
+            name startmatch
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 600
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+
+    menuDef {
+        name "browser"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript browserOpen }
+        onESC { close browser ; open main }
+
+        itemDef {
+            name browser
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 605
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+
+    menuDef {
+        name "training"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript trainingOpen }
+        onESC { close training ; open main }
+
+        itemDef {
+            name training
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 604
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+
+    menuDef {
+        name "stats"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript statsOpen }
+        onESC { close stats ; open main }
+
+        itemDef {
+            name stats
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 606
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+
+    menuDef {
+        name "legal"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript legalOpen }
+        onESC { close legal ; open main }
+
+        itemDef {
+            name legal
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 608
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+
+    menuDef {
+        name "hudeditor"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript hudEditorOpen }
+        onESC { uiScript hudEditorEscape }
+
+        itemDef {
+            name hudeditor
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 609
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+
+    menuDef {
+        name "matches"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript matchesOpen }
+        onESC { close matches ; open main }
+
+        itemDef {
+            name matches
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 607
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+
+    menuDef {
+        name "settings"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript settingsOpen }
+        onESC { uiScript settingsClose }
+
+        itemDef {
+            name settings
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 601
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+}

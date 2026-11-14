@@ -1,0 +1,1514 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#include "g_local.h"
+#include "../qcommon/q_shared.h"
+#include "../botlib/botlib.h"
+#include "../botlib/be_aas.h"
+#include "../botlib/be_ea.h"
+#include "../botlib/be_ai_char.h"
+#include "../botlib/be_ai_chat.h"
+#include "../botlib/be_ai_gen.h"
+#include "../botlib/be_ai_goal.h"
+#include "../botlib/be_ai_move.h"
+#include "../botlib/be_ai_weap.h"
+#include "ai_main.h"
+#include "ai_dmq3.h"
+#include "ai_chat.h"
+#include "ai_cmd.h"
+#include "ai_dmnet.h"
+#include "ai_vcmd.h"
+
+#include "chars.h"
+#include "inv.h"
+#include "syn.h"
+
+bot_state_t* botstates[MAX_CLIENTS];
+int numbots;
+
+int BotNumBots(void) {
+    return numbots;
+}
+
+float BotGetSkill(int client) {
+    if (client < 0 || client >= MAX_CLIENTS || !botstates[client]) {
+        return 0;
+    }
+    return botstates[client]->settings.skill;
+}
+
+void BotSetSkill(int client, float skill) {
+    if (client >= 0 && client < MAX_CLIENTS && botstates[client]) {
+        botstates[client]->settings.skill = skill;
+    }
+}
+float floattime;
+float regularupdate_time;
+int bot_interbreed;
+int bot_interbreedmatchcount;
+vmCvar_t bot_thinktime;
+vmCvar_t bot_memorydump;
+vmCvar_t bot_saveroutingcache;
+vmCvar_t bot_pause;
+vmCvar_t bot_report;
+vmCvar_t bot_testsolid;
+vmCvar_t bot_testclusters;
+vmCvar_t bot_developer;
+vmCvar_t bot_log;
+vmCvar_t bot_interbreedchar;
+vmCvar_t bot_interbreedbots;
+vmCvar_t bot_interbreedcycle;
+vmCvar_t bot_interbreedwrite;
+
+void ExitLevel(void);
+
+void QDECL BotAI_Print(int type, char* fmt, ...) {
+    char str[2048];
+    va_list ap;
+
+    va_start(ap, fmt);
+    Q_vsnprintf(str, sizeof(str), fmt, ap);
+    va_end(ap);
+
+    switch (type) {
+        case PRT_MESSAGE: {
+            G_Printf("%s", str);
+            break;
+        }
+        case PRT_WARNING: {
+            G_Printf(S_COLOR_YELLOW "Warning: %s", str);
+            break;
+        }
+        case PRT_ERROR: {
+            G_Printf(S_COLOR_RED "Error: %s", str);
+            break;
+        }
+        case PRT_FATAL: {
+            G_Printf(S_COLOR_RED "Fatal: %s", str);
+            break;
+        }
+        case PRT_EXIT: {
+            G_Error(S_COLOR_RED "Exit: %s", str);
+            break;
+        }
+        default: {
+            G_Printf("unknown print type\n");
+            break;
+        }
+    }
+}
+
+void BotAI_Trace(bsp_trace_t* bsptrace, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int passent, int contentmask) {
+    trace_t trace;
+
+    trap_Trace(&trace, start, mins, maxs, end, passent, contentmask);
+    bsptrace->allsolid = trace.allsolid;
+    bsptrace->startsolid = trace.startsolid;
+    bsptrace->fraction = trace.fraction;
+    VectorCopy(trace.endpos, bsptrace->endpos);
+    bsptrace->plane.dist = trace.plane.dist;
+    VectorCopy(trace.plane.normal, bsptrace->plane.normal);
+    bsptrace->plane.signbits = trace.plane.signbits;
+    bsptrace->plane.type = trace.plane.type;
+    bsptrace->surface.value = 0;
+    bsptrace->surface.flags = trace.surfaceFlags;
+    bsptrace->ent = trace.entityNum;
+    bsptrace->exp_dist = 0;
+    bsptrace->sidenum = 0;
+    bsptrace->contents = 0;
+}
+
+int BotAI_GetClientState(int clientNum, playerState_t* state) {
+    gentity_t* ent;
+
+    ent = &g_entities[clientNum];
+    if (!ent->inuse) {
+        return qfalse;
+    }
+    if (!ent->client) {
+        return qfalse;
+    }
+
+    memcpy(state, &ent->client->ps, sizeof(playerState_t));
+    return qtrue;
+}
+
+int BotAI_GetEntityState(int entityNum, entityState_t* state) {
+    gentity_t* ent;
+
+    ent = &g_entities[entityNum];
+    memset(state, 0, sizeof(entityState_t));
+    if (!ent->inuse)
+        return qfalse;
+    if (!ent->r.linked)
+        return qfalse;
+    if (ent->r.svFlags & SVF_NOCLIENT)
+        return qfalse;
+    memcpy(state, &ent->s, sizeof(entityState_t));
+    return qtrue;
+}
+
+int BotAI_GetSnapshotEntity(int clientNum, int sequence, entityState_t* state) {
+    int entNum;
+
+    entNum = trap_BotGetSnapshotEntity(clientNum, sequence);
+    if (entNum == -1) {
+        memset(state, 0, sizeof(entityState_t));
+        return -1;
+    }
+
+    BotAI_GetEntityState(entNum, state);
+
+    return sequence + 1;
+}
+
+void QDECL BotAI_BotInitialChat(bot_state_t* bs, char* type, ...) {
+    int i, mcontext;
+    va_list ap;
+    char* p;
+    char* vars[MAX_MATCHVARIABLES];
+
+    memset(vars, 0, sizeof(vars));
+    va_start(ap, type);
+    p = va_arg(ap, char*);
+    for (i = 0; i < MAX_MATCHVARIABLES; i++) {
+        if (!p) {
+            break;
+        }
+        vars[i] = p;
+        p = va_arg(ap, char*);
+    }
+    va_end(ap);
+
+    mcontext = BotSynonymContext(bs);
+
+    trap_BotInitialChat(bs->cs, type, mcontext, vars[0], vars[1], vars[2], vars[3], vars[4], vars[5], vars[6], vars[7]);
+}
+
+void BotTestAAS(vec3_t origin) {
+    int areanum;
+    aas_areainfo_t info;
+
+    trap_Cvar_Update(&bot_testsolid);
+    trap_Cvar_Update(&bot_testclusters);
+    if (bot_testsolid.integer) {
+        if (!trap_AAS_Initialized())
+            return;
+        areanum = BotPointAreaNum(origin);
+        if (areanum)
+            BotAI_Print(PRT_MESSAGE, "\rempty area");
+        else
+            BotAI_Print(PRT_MESSAGE, "\r^1SOLID area");
+    } else if (bot_testclusters.integer) {
+        if (!trap_AAS_Initialized())
+            return;
+        areanum = BotPointAreaNum(origin);
+        if (!areanum)
+            BotAI_Print(PRT_MESSAGE, "\r^1Solid!                              ");
+        else {
+            trap_AAS_AreaInfo(areanum, &info);
+            BotAI_Print(PRT_MESSAGE, "\rarea %d, cluster %d       ", areanum, info.cluster);
+        }
+    }
+}
+
+void BotReportStatus(bot_state_t* bs) {
+    char goalname[MAX_MESSAGE_SIZE];
+    char netname[MAX_MESSAGE_SIZE];
+    char *leader, flagstatus[32];
+    ClientName(bs->client, netname, sizeof(netname));
+    if (Q_stricmp(netname, bs->teamleader) == 0)
+        leader = "L";
+    else
+        leader = " ";
+
+    strcpy(flagstatus, "  ");
+    if (gametype == GT_CTF) {
+        if (BotCTFCarryingFlag(bs)) {
+            if (BotTeam(bs) == TEAM_RED)
+                strcpy(flagstatus, S_COLOR_RED "F ");
+            else
+                strcpy(flagstatus, S_COLOR_BLUE "F ");
+        }
+    } else if (gametype == GT_1FCTF) {
+        if (Bot1FCTFCarryingFlag(bs)) {
+            if (BotTeam(bs) == TEAM_RED)
+                strcpy(flagstatus, S_COLOR_RED "F ");
+            else
+                strcpy(flagstatus, S_COLOR_BLUE "F ");
+        }
+    } else if (gametype == GT_HARVESTER) {
+        if (BotHarvesterCarryingCubes(bs)) {
+            if (BotTeam(bs) == TEAM_RED)
+                Com_sprintf(flagstatus, sizeof(flagstatus), S_COLOR_RED "%2d", bs->inventory[INVENTORY_REDCUBE]);
+            else
+                Com_sprintf(flagstatus, sizeof(flagstatus), S_COLOR_BLUE "%2d", bs->inventory[INVENTORY_BLUECUBE]);
+        }
+    }
+
+    switch (bs->ltgtype) {
+        case LTG_TEAMHELP: {
+            EasyClientName(bs->teammate, goalname, sizeof(goalname));
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: helping %s\n", netname, leader, flagstatus, goalname);
+            break;
+        }
+        case LTG_TEAMACCOMPANY: {
+            EasyClientName(bs->teammate, goalname, sizeof(goalname));
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: accompanying %s\n", netname, leader, flagstatus, goalname);
+            break;
+        }
+        case LTG_DEFENDKEYAREA: {
+            trap_BotGoalName(bs->teamgoal.number, goalname, sizeof(goalname));
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: defending %s\n", netname, leader, flagstatus, goalname);
+            break;
+        }
+        case LTG_GETITEM: {
+            trap_BotGoalName(bs->teamgoal.number, goalname, sizeof(goalname));
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: getting item %s\n", netname, leader, flagstatus, goalname);
+            break;
+        }
+        case LTG_KILL: {
+            ClientName(bs->teamgoal.entitynum, goalname, sizeof(goalname));
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: killing %s\n", netname, leader, flagstatus, goalname);
+            break;
+        }
+        case LTG_CAMP:
+        case LTG_CAMPORDER: {
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: camping\n", netname, leader, flagstatus);
+            break;
+        }
+        case LTG_PATROL: {
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: patrolling\n", netname, leader, flagstatus);
+            break;
+        }
+        case LTG_GETFLAG: {
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: capturing flag\n", netname, leader, flagstatus);
+            break;
+        }
+        case LTG_RUSHBASE: {
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: rushing base\n", netname, leader, flagstatus);
+            break;
+        }
+        case LTG_RETURNFLAG: {
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: returning flag\n", netname, leader, flagstatus);
+            break;
+        }
+        case LTG_ATTACKENEMYBASE: {
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: attacking the enemy base\n", netname, leader, flagstatus);
+            break;
+        }
+        case LTG_HARVEST: {
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: harvesting\n", netname, leader, flagstatus);
+            break;
+        }
+        default: {
+            BotAI_Print(PRT_MESSAGE, "%-20s%s%s: roaming\n", netname, leader, flagstatus);
+            break;
+        }
+    }
+}
+
+void BotTeamplayReport(void) {
+    int i;
+    char buf[MAX_INFO_STRING];
+
+    BotAI_Print(PRT_MESSAGE, S_COLOR_RED "RED\n");
+    for (i = 0; i < level.maxclients; i++) {
+        if (!botstates[i] || !botstates[i]->inuse)
+            continue;
+        trap_GetConfigstring(CS_PLAYERS + i, buf, sizeof(buf));
+        if (!strlen(buf) || !strlen(Info_ValueForKey(buf, "n")))
+            continue;
+        if (atoi(Info_ValueForKey(buf, "t")) == TEAM_RED) {
+            BotReportStatus(botstates[i]);
+        }
+    }
+    BotAI_Print(PRT_MESSAGE, S_COLOR_BLUE "BLUE\n");
+    for (i = 0; i < level.maxclients; i++) {
+        if (!botstates[i] || !botstates[i]->inuse)
+            continue;
+        trap_GetConfigstring(CS_PLAYERS + i, buf, sizeof(buf));
+        if (!strlen(buf) || !strlen(Info_ValueForKey(buf, "n")))
+            continue;
+        if (atoi(Info_ValueForKey(buf, "t")) == TEAM_BLUE) {
+            BotReportStatus(botstates[i]);
+        }
+    }
+}
+
+void BotInterbreedBots(void) {
+    float ranks[MAX_CLIENTS];
+    int parent1, parent2, child;
+    int i;
+
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (botstates[i] && botstates[i]->inuse) {
+            ranks[i] = botstates[i]->num_kills * 2 - botstates[i]->num_deaths;
+        } else {
+            ranks[i] = -1;
+        }
+    }
+
+    if (trap_GeneticParentsAndChildSelection(MAX_CLIENTS, ranks, &parent1, &parent2, &child)) {
+        trap_BotInterbreedGoalFuzzyLogic(botstates[parent1]->gs, botstates[parent2]->gs, botstates[child]->gs);
+        trap_BotMutateGoalFuzzyLogic(botstates[child]->gs, 1);
+    }
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (botstates[i] && botstates[i]->inuse) {
+            botstates[i]->num_kills = 0;
+            botstates[i]->num_deaths = 0;
+        }
+    }
+}
+
+void BotWriteInterbreeded(char* filename) {
+    float rank, bestrank;
+    int i, bestbot;
+
+    bestrank = 0;
+    bestbot = -1;
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (botstates[i] && botstates[i]->inuse) {
+            rank = botstates[i]->num_kills * 2 - botstates[i]->num_deaths;
+        } else {
+            rank = -1;
+        }
+        if (rank > bestrank) {
+            bestrank = rank;
+            bestbot = i;
+        }
+    }
+    if (bestbot >= 0) {
+        trap_BotSaveGoalFuzzyLogic(botstates[bestbot]->gs, filename);
+    }
+}
+
+void BotInterbreedEndMatch(void) {
+    if (!bot_interbreed)
+        return;
+    bot_interbreedmatchcount++;
+    if (bot_interbreedmatchcount >= bot_interbreedcycle.integer) {
+        bot_interbreedmatchcount = 0;
+        trap_Cvar_Update(&bot_interbreedwrite);
+        if (strlen(bot_interbreedwrite.string)) {
+            BotWriteInterbreeded(bot_interbreedwrite.string);
+            trap_Cvar_Set("bot_interbreedwrite", "");
+        }
+        BotInterbreedBots();
+    }
+}
+
+void BotInterbreeding(void) {
+    int i;
+
+    trap_Cvar_Update(&bot_interbreedchar);
+    if (!strlen(bot_interbreedchar.string))
+        return;
+    if (gametype != GT_DUEL) {
+        trap_Cvar_Set("g_gametype", va("%d", GT_DUEL));
+        ExitLevel();
+        return;
+    }
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (botstates[i] && botstates[i]->inuse) {
+            BotAIShutdownClient(botstates[i]->client, qfalse);
+        }
+    }
+    trap_BotLibVarSet("bot_reloadcharacters", "1");
+    for (i = 0; i < bot_interbreedbots.integer; i++) {
+        trap_SendConsoleCommand(EXEC_INSERT, va("addbot %s 4 free %i %s%d\n",
+                                                bot_interbreedchar.string, i * 50, bot_interbreedchar.string, i));
+    }
+    trap_Cvar_Set("bot_interbreedchar", "");
+    bot_interbreed = qtrue;
+}
+
+void BotEntityInfo(int entnum, aas_entityinfo_t* info) {
+    trap_AAS_EntityInfo(entnum, info);
+}
+
+int NumBots(void) {
+    return numbots;
+}
+
+int BotTeamLeader(bot_state_t* bs) {
+    int leader;
+
+    leader = ClientFromName(bs->teamleader);
+    if (leader < 0)
+        return qfalse;
+    if (!botstates[leader] || !botstates[leader]->inuse)
+        return qfalse;
+    return qtrue;
+}
+
+float AngleDifference(float ang1, float ang2) {
+    float diff;
+
+    diff = ang1 - ang2;
+    if (ang1 > ang2) {
+        if (diff > 180.0)
+            diff -= 360.0;
+    } else {
+        if (diff < -180.0)
+            diff += 360.0;
+    }
+    return diff;
+}
+
+float BotChangeViewAngle(float angle, float ideal_angle, float speed) {
+    float move;
+
+    angle = AngleMod(angle);
+    ideal_angle = AngleMod(ideal_angle);
+    if (angle == ideal_angle)
+        return angle;
+    move = ideal_angle - angle;
+    if (ideal_angle > angle) {
+        if (move > 180.0)
+            move -= 360.0;
+    } else {
+        if (move < -180.0)
+            move += 360.0;
+    }
+    if (move > 0) {
+        if (move > speed)
+            move = speed;
+    } else {
+        if (move < -speed)
+            move = -speed;
+    }
+    return AngleMod(angle + move);
+}
+
+void BotChangeViewAngles(bot_state_t* bs, float thinktime) {
+    float diff, factor, maxchange, anglespeed, disired_speed;
+    int i;
+
+    if (bs->ideal_viewangles[PITCH] > 180)
+        bs->ideal_viewangles[PITCH] -= 360;
+    if (bs->enemy >= 0) {
+        factor = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_FACTOR, 0.01f, 1);
+        maxchange = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_MAXCHANGE, 1, 1800);
+    } else {
+        factor = 0.05f;
+        maxchange = 360;
+    }
+    if (maxchange < 240)
+        maxchange = 240;
+    maxchange *= thinktime;
+    for (i = 0; i < 2; i++) {
+        if (bot_challenge.integer) {
+            diff = fabs(AngleDifference(bs->viewangles[i], bs->ideal_viewangles[i]));
+            anglespeed = diff * factor;
+            if (anglespeed > maxchange)
+                anglespeed = maxchange;
+            bs->viewangles[i] = BotChangeViewAngle(bs->viewangles[i],
+                                                   bs->ideal_viewangles[i], anglespeed);
+        } else {
+            bs->viewangles[i] = AngleMod(bs->viewangles[i]);
+            bs->ideal_viewangles[i] = AngleMod(bs->ideal_viewangles[i]);
+            diff = AngleDifference(bs->viewangles[i], bs->ideal_viewangles[i]);
+            disired_speed = diff * factor;
+            bs->viewanglespeed[i] += (bs->viewanglespeed[i] - disired_speed);
+            if (bs->viewanglespeed[i] > 180)
+                bs->viewanglespeed[i] = maxchange;
+            if (bs->viewanglespeed[i] < -180)
+                bs->viewanglespeed[i] = -maxchange;
+            anglespeed = bs->viewanglespeed[i];
+            if (anglespeed > maxchange)
+                anglespeed = maxchange;
+            if (anglespeed < -maxchange)
+                anglespeed = -maxchange;
+            bs->viewangles[i] += anglespeed;
+            bs->viewangles[i] = AngleMod(bs->viewangles[i]);
+            bs->viewanglespeed[i] *= 0.45 * (1 - factor);
+        }
+    }
+    if (bs->viewangles[PITCH] > 180)
+        bs->viewangles[PITCH] -= 360;
+    trap_EA_View(bs->client, bs->viewangles);
+}
+
+void BotInputToUserCommand(bot_input_t* bi, usercmd_t* ucmd, int delta_angles[3], int time) {
+    vec3_t angles, forward, right;
+    short temp;
+    int j;
+    float f, r, u, m;
+
+    memset(ucmd, 0, sizeof(usercmd_t));
+    ucmd->serverTime = time;
+    if (bi->actionflags & ACTION_DELAYEDJUMP) {
+        bi->actionflags |= ACTION_JUMP;
+        bi->actionflags &= ~ACTION_DELAYEDJUMP;
+    }
+    if (bi->actionflags & ACTION_RESPAWN)
+        ucmd->buttons = BUTTON_ATTACK;
+    if (bi->actionflags & ACTION_ATTACK)
+        ucmd->buttons |= BUTTON_ATTACK;
+    if (bi->actionflags & ACTION_TALK)
+        ucmd->buttons |= BUTTON_TALK;
+    if (bi->actionflags & ACTION_GESTURE)
+        ucmd->buttons |= BUTTON_GESTURE;
+    if (bi->actionflags & ACTION_USE)
+        ucmd->buttons |= BUTTON_USE_HOLDABLE;
+    if (bi->actionflags & ACTION_WALK)
+        ucmd->buttons |= BUTTON_WALKING;
+    if (bi->actionflags & ACTION_AFFIRMATIVE)
+        ucmd->buttons |= BUTTON_AFFIRMATIVE;
+    if (bi->actionflags & ACTION_NEGATIVE)
+        ucmd->buttons |= BUTTON_NEGATIVE;
+    if (bi->actionflags & ACTION_GETFLAG)
+        ucmd->buttons |= BUTTON_GETFLAG;
+    if (bi->actionflags & ACTION_GUARDBASE)
+        ucmd->buttons |= BUTTON_GUARDBASE;
+    if (bi->actionflags & ACTION_PATROL)
+        ucmd->buttons |= BUTTON_PATROL;
+    if (bi->actionflags & ACTION_FOLLOWME)
+        ucmd->buttons |= BUTTON_FOLLOWME;
+    ucmd->weapon = bi->weapon;
+    ucmd->angles[PITCH] = ANGLE2SHORT(bi->viewangles[PITCH]);
+    ucmd->angles[YAW] = ANGLE2SHORT(bi->viewangles[YAW]);
+    ucmd->angles[ROLL] = ANGLE2SHORT(bi->viewangles[ROLL]);
+    for (j = 0; j < 3; j++) {
+        temp = ucmd->angles[j] - delta_angles[j];
+        ucmd->angles[j] = temp;
+    }
+    if (bi->dir[2])
+        angles[PITCH] = bi->viewangles[PITCH];
+    else
+        angles[PITCH] = 0;
+    angles[YAW] = bi->viewangles[YAW];
+    angles[ROLL] = 0;
+    AngleVectors(angles, forward, right, NULL);
+    bi->speed = bi->speed * 127 / 400;
+    f = DotProduct(forward, bi->dir);
+    r = DotProduct(right, bi->dir);
+    u = fabs(forward[2]) * bi->dir[2];
+    m = fabs(f);
+
+    if (fabs(r) > m) {
+        m = fabs(r);
+    }
+
+    if (fabs(u) > m) {
+        m = fabs(u);
+    }
+
+    if (m > 0) {
+        f *= bi->speed / m;
+        r *= bi->speed / m;
+        u *= bi->speed / m;
+    }
+
+    ucmd->forwardmove = f;
+    ucmd->rightmove = r;
+    ucmd->upmove = u;
+
+    if (bi->actionflags & ACTION_MOVEFORWARD)
+        ucmd->forwardmove = 127;
+    if (bi->actionflags & ACTION_MOVEBACK)
+        ucmd->forwardmove = -127;
+    if (bi->actionflags & ACTION_MOVELEFT)
+        ucmd->rightmove = -127;
+    if (bi->actionflags & ACTION_MOVERIGHT)
+        ucmd->rightmove = 127;
+
+    if (bi->actionflags & ACTION_WALK) {
+        if (ucmd->forwardmove > 64) {
+            ucmd->forwardmove = 64;
+        } else if (ucmd->forwardmove < -64) {
+            ucmd->forwardmove = -64;
+        }
+        if (ucmd->rightmove > 64) {
+            ucmd->rightmove = 64;
+        } else if (ucmd->rightmove < -64) {
+            ucmd->rightmove = -64;
+        }
+    }
+    if (bi->actionflags & ACTION_JUMP)
+        ucmd->upmove = 127;
+    if (bi->actionflags & ACTION_CROUCH)
+        ucmd->upmove = -127;
+}
+
+void BotUpdateInput(bot_state_t* bs, int time, int elapsed_time) {
+    bot_input_t bi;
+    int j;
+
+    for (j = 0; j < 3; j++) {
+        bs->viewangles[j] = AngleMod(bs->viewangles[j] + SHORT2ANGLE(bs->cur_ps.delta_angles[j]));
+    }
+    BotChangeViewAngles(bs, (float)elapsed_time / 1000);
+    trap_EA_GetInput(bs->client, (float)time / 1000, &bi);
+    if (bi.actionflags & ACTION_RESPAWN) {
+        if (bs->lastucmd.buttons & BUTTON_ATTACK)
+            bi.actionflags &= ~(ACTION_RESPAWN | ACTION_ATTACK);
+    }
+    BotInputToUserCommand(&bi, &bs->lastucmd, bs->cur_ps.delta_angles, time);
+    for (j = 0; j < 3; j++) {
+        bs->viewangles[j] = AngleMod(bs->viewangles[j] - SHORT2ANGLE(bs->cur_ps.delta_angles[j]));
+    }
+}
+
+void BotAIRegularUpdate(void) {
+    if (regularupdate_time < FloatTime()) {
+        trap_BotUpdateEntityItems();
+        regularupdate_time = FloatTime() + 0.3;
+    }
+}
+
+void RemoveColorEscapeSequences(char* text) {
+    int i, l;
+
+    l = 0;
+    for (i = 0; text[i]; i++) {
+        if (Q_IsColorString(&text[i])) {
+            i++;
+            continue;
+        }
+        if (text[i] > 0x7E)
+            continue;
+        text[l++] = text[i];
+    }
+    text[l] = '\0';
+}
+
+int BotAI(int client, float thinktime) {
+    bot_state_t* bs;
+    char buf[1024], *args;
+    int j;
+
+    trap_EA_ResetInput(client);
+    bs = botstates[client];
+    if (!bs || !bs->inuse) {
+        BotAI_Print(PRT_FATAL, "BotAI: client %d is not setup\n", client);
+        return qfalse;
+    }
+
+    if (!BotAI_GetClientState(client, &bs->cur_ps)) {
+        BotAI_Print(PRT_FATAL, "BotAI: failed to get player state for player %d\n", client);
+        return qfalse;
+    }
+    while (trap_BotGetServerCommand(client, buf, sizeof(buf))) {
+        args = strchr(buf, ' ');
+        if (!args)
+            continue;
+        *args++ = '\0';
+
+        RemoveColorEscapeSequences(args);
+
+        if (!Q_stricmp(buf, "cp ")) {
+        } else if (!Q_stricmp(buf, "cs")) {
+        } else if (!Q_stricmp(buf, "print")) {
+            memmove(args, args + 1, strlen(args));
+            args[strlen(args) - 1] = '\0';
+            trap_BotQueueConsoleMessage(bs->cs, CMS_NORMAL, args);
+        } else if (!Q_stricmp(buf, "chat")) {
+            memmove(args, args + 1, strlen(args));
+            args[strlen(args) - 1] = '\0';
+            trap_BotQueueConsoleMessage(bs->cs, CMS_CHAT, args);
+        } else if (!Q_stricmp(buf, "tchat")) {
+            memmove(args, args + 1, strlen(args));
+            args[strlen(args) - 1] = '\0';
+            trap_BotQueueConsoleMessage(bs->cs, CMS_CHAT, args);
+        } else if (!Q_stricmp(buf, "vchat")) {
+            BotVoiceChatCommand(bs, SAY_ALL, args);
+        } else if (!Q_stricmp(buf, "vtchat")) {
+            BotVoiceChatCommand(bs, SAY_TEAM, args);
+        } else if (!Q_stricmp(buf, "vtell")) {
+            BotVoiceChatCommand(bs, SAY_TELL, args);
+        } else if (!Q_stricmp(buf, "scores")) {
+        } else if (!Q_stricmp(buf, "clientLevelShot")) {
+        }
+    }
+    for (j = 0; j < 3; j++) {
+        bs->viewangles[j] = AngleMod(bs->viewangles[j] + SHORT2ANGLE(bs->cur_ps.delta_angles[j]));
+    }
+    bs->ltime += thinktime;
+    bs->thinktime = thinktime;
+    VectorCopy(bs->cur_ps.origin, bs->origin);
+    VectorCopy(bs->cur_ps.origin, bs->eye);
+    bs->eye[2] += bs->cur_ps.viewheight;
+    bs->areanum = BotPointAreaNum(bs->origin);
+    BotDeathmatchAI(bs, thinktime);
+    trap_EA_SelectWeapon(bs->client, bs->weaponnum);
+    for (j = 0; j < 3; j++) {
+        bs->viewangles[j] = AngleMod(bs->viewangles[j] - SHORT2ANGLE(bs->cur_ps.delta_angles[j]));
+    }
+    g_entities[bs->client].client->trainerSayTime = (int)(bs->tourNextSay * 1000);
+    return qtrue;
+}
+
+void BotScheduleBotThink(void) {
+    int i, botnum;
+
+    botnum = 0;
+
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (!botstates[i] || !botstates[i]->inuse) {
+            continue;
+        }
+        botstates[i]->botthink_residual = bot_thinktime.integer * botnum / numbots;
+        botnum++;
+    }
+}
+
+void BotWriteSessionData(bot_state_t* bs) {
+    const char* s;
+    const char* var;
+
+    s = va(
+        "%i %i %i %i %i %i %i %i"
+        " %f %f %f"
+        " %f %f %f"
+        " %f %f %f"
+        " %f",
+        bs->lastgoal_decisionmaker,
+        bs->lastgoal_ltgtype,
+        bs->lastgoal_teammate,
+        bs->lastgoal_teamgoal.areanum,
+        bs->lastgoal_teamgoal.entitynum,
+        bs->lastgoal_teamgoal.flags,
+        bs->lastgoal_teamgoal.iteminfo,
+        bs->lastgoal_teamgoal.number,
+        bs->lastgoal_teamgoal.origin[0],
+        bs->lastgoal_teamgoal.origin[1],
+        bs->lastgoal_teamgoal.origin[2],
+        bs->lastgoal_teamgoal.mins[0],
+        bs->lastgoal_teamgoal.mins[1],
+        bs->lastgoal_teamgoal.mins[2],
+        bs->lastgoal_teamgoal.maxs[0],
+        bs->lastgoal_teamgoal.maxs[1],
+        bs->lastgoal_teamgoal.maxs[2],
+        bs->formation_dist);
+
+    var = va("botsession%i", bs->client);
+
+    trap_Cvar_Set(var, s);
+}
+
+void BotReadSessionData(bot_state_t* bs) {
+    char s[MAX_STRING_CHARS];
+    const char* var;
+
+    var = va("botsession%i", bs->client);
+    trap_Cvar_VariableStringBuffer(var, s, sizeof(s));
+
+    sscanf(s,
+           "%i %i %i %i %i %i %i %i"
+           " %f %f %f"
+           " %f %f %f"
+           " %f %f %f"
+           " %f",
+           &bs->lastgoal_decisionmaker,
+           &bs->lastgoal_ltgtype,
+           &bs->lastgoal_teammate,
+           &bs->lastgoal_teamgoal.areanum,
+           &bs->lastgoal_teamgoal.entitynum,
+           &bs->lastgoal_teamgoal.flags,
+           &bs->lastgoal_teamgoal.iteminfo,
+           &bs->lastgoal_teamgoal.number,
+           &bs->lastgoal_teamgoal.origin[0],
+           &bs->lastgoal_teamgoal.origin[1],
+           &bs->lastgoal_teamgoal.origin[2],
+           &bs->lastgoal_teamgoal.mins[0],
+           &bs->lastgoal_teamgoal.mins[1],
+           &bs->lastgoal_teamgoal.mins[2],
+           &bs->lastgoal_teamgoal.maxs[0],
+           &bs->lastgoal_teamgoal.maxs[1],
+           &bs->lastgoal_teamgoal.maxs[2],
+           &bs->formation_dist);
+}
+
+int BotAISetupClient(int client, struct bot_settings_s* settings, qboolean restart) {
+    char filename[144], name[144];
+    bot_state_t* bs;
+    int errnum;
+
+    if (!botstates[client])
+        botstates[client] = G_Alloc(sizeof(bot_state_t));
+    bs = botstates[client];
+
+    if (!bs) {
+        return qfalse;
+    }
+
+    if (bs && bs->inuse) {
+        BotAI_Print(PRT_FATAL, "BotAISetupClient: client %d already setup\n", client);
+        return qfalse;
+    }
+
+    if (!trap_AAS_Initialized()) {
+        BotAI_Print(PRT_FATAL, "AAS not initialized\n");
+        return qfalse;
+    }
+
+    bs->character = trap_BotLoadCharacter(settings->characterfile, settings->skill);
+    if (!bs->character) {
+        BotAI_Print(PRT_FATAL, "couldn't load skill %f from %s\n", settings->skill, settings->characterfile);
+        return qfalse;
+    }
+    memcpy(&bs->settings, settings, sizeof(bot_settings_t));
+    bs->gs = trap_BotAllocGoalState(client);
+    trap_Characteristic_String(bs->character, CHARACTERISTIC_ITEMWEIGHTS, filename, sizeof(filename));
+    errnum = trap_BotLoadItemWeights(bs->gs, filename);
+    if (errnum != BLERR_NOERROR) {
+        trap_BotFreeGoalState(bs->gs);
+        return qfalse;
+    }
+    bs->ws = trap_BotAllocWeaponState();
+    trap_Characteristic_String(bs->character, CHARACTERISTIC_WEAPONWEIGHTS, filename, sizeof(filename));
+    errnum = trap_BotLoadWeaponWeights(bs->ws, filename);
+    if (errnum != BLERR_NOERROR) {
+        trap_BotFreeGoalState(bs->gs);
+        trap_BotFreeWeaponState(bs->ws);
+        return qfalse;
+    }
+    bs->cs = trap_BotAllocChatState();
+    trap_Characteristic_String(bs->character, CHARACTERISTIC_CHAT_FILE, filename, sizeof(filename));
+    trap_Characteristic_String(bs->character, CHARACTERISTIC_NAME, name, sizeof(name));
+    trap_BotLoadChatFile(bs->cs, filename, name);
+
+    bs->inuse = qtrue;
+    bs->client = client;
+    bs->entitynum = client;
+    bs->setupcount = 4;
+    bs->entergame_time = FloatTime();
+    bs->ms = trap_BotAllocMoveState();
+    bs->walker = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_WALKER, 0, 1);
+    numbots++;
+
+    BotScheduleBotThink();
+    if (bot_interbreed) {
+        trap_BotMutateGoalFuzzyLogic(bs->gs, 1);
+    }
+    if (restart) {
+        BotReadSessionData(bs);
+    }
+    return qtrue;
+}
+
+int BotAIShutdownClient(int client, qboolean restart) {
+    bot_state_t* bs;
+
+    bs = botstates[client];
+    if (!bs || !bs->inuse) {
+        return qfalse;
+    }
+
+    if (restart) {
+        BotWriteSessionData(bs);
+    }
+
+    if (bs->cs) trap_BotFreeChatState(bs->cs);
+
+    trap_BotFreeMoveState(bs->ms);
+    trap_BotFreeGoalState(bs->gs);
+    trap_BotFreeWeaponState(bs->ws);
+    trap_BotFreeCharacter(bs->character);
+    BotFreeWaypoints(bs->checkpoints);
+    BotFreeWaypoints(bs->patrolpoints);
+    BotClearActivateGoalStack(bs);
+    memset(bs, 0, sizeof(bot_state_t));
+    bs->inuse = qfalse;
+    numbots--;
+    return qtrue;
+}
+
+void BotResetState(bot_state_t* bs) {
+    int client, entitynum, inuse;
+    int movestate, goalstate, chatstate, weaponstate;
+    bot_settings_t settings;
+    int character;
+    playerState_t ps;
+    float entergame_time;
+
+    memcpy(&settings, &bs->settings, sizeof(bot_settings_t));
+    memcpy(&ps, &bs->cur_ps, sizeof(playerState_t));
+    inuse = bs->inuse;
+    client = bs->client;
+    entitynum = bs->entitynum;
+    character = bs->character;
+    movestate = bs->ms;
+    goalstate = bs->gs;
+    chatstate = bs->cs;
+    weaponstate = bs->ws;
+    entergame_time = bs->entergame_time;
+    BotFreeWaypoints(bs->checkpoints);
+    BotFreeWaypoints(bs->patrolpoints);
+    memset(bs, 0, sizeof(bot_state_t));
+    bs->ms = movestate;
+    bs->gs = goalstate;
+    bs->cs = chatstate;
+    bs->ws = weaponstate;
+    memcpy(&bs->cur_ps, &ps, sizeof(playerState_t));
+    memcpy(&bs->settings, &settings, sizeof(bot_settings_t));
+    bs->inuse = inuse;
+    bs->client = client;
+    bs->entitynum = entitynum;
+    bs->character = character;
+    bs->entergame_time = entergame_time;
+    if (bs->ms)
+        trap_BotResetMoveState(bs->ms);
+    if (bs->gs)
+        trap_BotResetGoalState(bs->gs);
+    if (bs->ws)
+        trap_BotResetWeaponState(bs->ws);
+    if (bs->gs)
+        trap_BotResetAvoidGoals(bs->gs);
+    if (bs->ms)
+        trap_BotResetAvoidReach(bs->ms);
+}
+
+int BotAILoadMap(int restart) {
+    int i;
+    vmCvar_t mapname;
+
+    if (!restart) {
+        trap_Cvar_Register(&mapname, "mapname", "", CVAR_SERVERINFO | CVAR_ROM);
+        trap_BotLibLoadMap(mapname.string);
+    }
+
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (botstates[i] && botstates[i]->inuse) {
+            BotResetState(botstates[i]);
+            botstates[i]->setupcount = 4;
+        }
+    }
+
+    BotSetupDeathmatchAI();
+
+    return qtrue;
+}
+
+void ProximityMine_Trigger(gentity_t* trigger, gentity_t* other, trace_t* trace);
+
+static void BotHud(bot_state_t* bs) {
+    char enemyname[40], ltgname[144], nbgname[144], ltgtype[144];
+    float enemydist = 0, ltgdist = 0, nbgdist = 0;
+    int goalarea = -1;
+    bot_goal_t goal;
+    vec3_t dir;
+    const char* type;
+
+    enemyname[0] = ltgname[0] = nbgname[0] = ltgtype[0] = '\0';
+    if (trap_BotGetTopGoal(bs->gs, &goal)) {
+        trap_BotGoalName(goal.number, ltgname, sizeof(ltgname));
+        VectorSubtract(goal.origin, bs->origin, dir);
+        ltgdist = VectorLength(dir);
+        goalarea = goal.areanum;
+    }
+    if (trap_BotGetSecondGoal(bs->gs, &goal)) {
+        trap_BotGoalName(goal.number, nbgname, sizeof(nbgname));
+        VectorSubtract(goal.origin, bs->origin, dir);
+        nbgdist = VectorLength(dir);
+    }
+    if (bs->enemy >= 0 && g_entities[bs->enemy].client &&
+        g_entities[bs->enemy].client->pers.connected == CON_CONNECTED) {
+        ClientName(bs->enemy, enemyname, sizeof(enemyname));
+        VectorSubtract(g_entities[bs->enemy].r.currentOrigin, bs->origin, dir);
+        enemydist = VectorLength(dir);
+        goalarea = BotPointAreaNum(g_entities[bs->enemy].r.currentOrigin);
+    }
+    switch (bs->ltgtype) {
+        case 1: type = "helping"; break;
+        case 2: type = "escorting"; break;
+        case 3: type = "defending"; break;
+        case 4: type = "get flag"; break;
+        case 5: type = "rush base"; break;
+        case 6: type = "return flag"; break;
+        case 7:
+        case 8: type = "camping"; break;
+        case 9: type = "patroling"; break;
+        case 10: type = "get item"; break;
+        case 11: type = "kill"; break;
+        case 12: type = "harvest"; break;
+        case 13: type = "attack base"; break;
+        case 16: type = "following"; break;
+        case 17: type = "training"; break;
+        case 18: type = "touring"; break;
+        case 19: type = "tormenting"; break;
+        case 20: type = "target"; break;
+        case 21: type = "insta-gibbing"; break;
+        default: type = "roaming"; break;
+    }
+    Q_strncpyz(ltgtype, type, sizeof(ltgtype));
+    trap_SetConfigstring(CS_BOTINFO,
+        va("e\\%s\\ed\\%.1f\\tg\\%s\\tgd\\%.1f\\sg\\%s\\sgd\\%.1f\\ainode\\%s\\ltg\\%s\\ban\\%i\\gan\\%i\\bh\\%i\\ba\\%i\\sk\\%.1f\\eh\\%i\\",
+           enemyname, enemydist, ltgname, ltgdist, nbgname, nbgdist, bs->ainodename, ltgtype, bs->areanum,
+           goalarea, g_entities[bs->client].health, g_entities[bs->client].client->ps.stats[STAT_ARMOR],
+           bs->settings.skill, bs->enemyHeard));
+}
+
+static void BotItemDelayTime(int time) {
+    float skill;
+
+    if (!bot_gauntletOnly.integer)
+        return;
+    skill = trap_Cvar_VariableValue("g_spSkill");
+    trap_Cvar_Set("bot_itemDelayTime", "0");
+    if (skill > 3 && time > 60)
+        trap_Cvar_Set("bot_itemDelayTime", "10");
+}
+
+static int BotLocalHuman(void) {
+    int i;
+
+    for (i = 0; i < level.maxclients; i++) {
+        if (g_entities[i].inuse && g_entities[i].client->pers.connected == CON_CONNECTED &&
+            g_entities[i].client->pers.localClient)
+            return i;
+    }
+    return -1;
+}
+
+static void BotLogSkill(bot_state_t* bs, int diff, float skill, int time) {
+    if (bs->numSkillLog >= 32) {
+        memmove(&bs->skillLog[0], &bs->skillLog[1], sizeof(bs->skillLog[0]) * 31);
+        bs->numSkillLog = 31;
+    }
+    bs->skillLog[bs->numSkillLog].diff = diff;
+    bs->skillLog[bs->numSkillLog].skill = skill;
+    bs->skillLog[bs->numSkillLog].time = time;
+    bs->numSkillLog++;
+}
+
+static void BotDynamicSkill(int time) {
+    static int nextcheck;
+    bot_settings_t settings;
+    char userinfo[MAX_INFO_STRING];
+    char filename[144];
+    int now, human, humankills, i, diff, forced, character;
+    float skill, oldskill;
+    bot_state_t* bs;
+
+    if (!bot_dynamicSkill.integer || !trap_Cvar_VariableValue("cl_running") || level.warmupTime)
+        return;
+    now = (time - level.startTime) / 1000;
+    if (now >= nextcheck - 5 && now < nextcheck)
+        return;
+    nextcheck = now + 5;
+    human = BotLocalHuman();
+    if (human == -1 || time > g_entities[human].client->lastUserCmdTime + 10000)
+        return;
+    humankills = g_entities[human].client->expandedStats.numKills;
+
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        bs = botstates[i];
+        if (!bs || !bs->inuse || !g_entities[i].client || g_entities[i].client->pers.connected != CON_CONNECTED)
+            continue;
+        skill = bs->settings.skill;
+        diff = humankills - g_entities[i].client->expandedStats.numKills;
+        forced = (skill < 2 && bs->walker != 1) || (skill >= 2 && bs->walker != 0);
+        if (diff != bs->skillLastDiff) {
+            bs->skillLastDiff = diff;
+            bs->skillDiffTime = now;
+        }
+        oldskill = skill;
+        if (!forced) {
+            if (bs->skillStep != 0) {
+                if (now - bs->skillDiffTime > 30) {
+                    bs->skillStep = 0;
+                    BotLogSkill(bs, diff, skill, now);
+                }
+                if (bs->skillStep > 0) {
+                    if (diff < bs->skillBestDiff) {
+                        bs->skillStep = 0;
+                        BotLogSkill(bs, diff, skill, now);
+                    } else if (diff > bs->skillBestDiff) {
+                        bs->skillBestDiff = diff;
+                    }
+                } else if (bs->skillStep < 0) {
+                    if (diff > bs->skillBestDiff) {
+                        bs->skillStep = 0;
+                        BotLogSkill(bs, diff, skill, now);
+                    } else if (diff < bs->skillBestDiff) {
+                        bs->skillBestDiff = diff;
+                    }
+                }
+                skill += bs->skillStep;
+            } else if (diff < -1 && diff < bs->skillBestDiff) {
+                bs->skillStep = -1.0f / 12;
+                skill += bs->skillStep;
+                BotLogSkill(bs, diff, skill, now);
+            } else if (diff > 2 && diff > bs->skillBestDiff) {
+                bs->skillStep = 1.0f / 12;
+                skill += bs->skillStep;
+                BotLogSkill(bs, diff, skill, now);
+            } else {
+                continue;
+            }
+        }
+        if (skill < 1)
+            skill = 1;
+        else if (skill > 5)
+            skill = 5;
+        if (!forced && oldskill == skill)
+            continue;
+
+        trap_GetUserinfo(i, userinfo, sizeof(userinfo));
+        Info_SetValueForKey(userinfo, "skill", va("%1.2f", skill));
+        if (skill >= 1 && skill < 2)
+            Info_SetValueForKey(userinfo, "handicap", "50");
+        else if (skill < 3)
+            Info_SetValueForKey(userinfo, "handicap", "70");
+        else if (skill < 4)
+            Info_SetValueForKey(userinfo, "handicap", "90");
+        else
+            Info_SetValueForKey(userinfo, "handicap", "0");
+        memset(&settings, 0, sizeof(settings));
+        Q_strncpyz(settings.characterfile, Info_ValueForKey(userinfo, "characterfile"), sizeof(settings.characterfile));
+        settings.skill = atof(Info_ValueForKey(userinfo, "skill"));
+        Q_strncpyz(settings.team, Info_ValueForKey(userinfo, "team"), sizeof(settings.team));
+        character = trap_BotLoadCharacter(settings.characterfile, settings.skill);
+        if (!character) {
+            BotAI_Print(PRT_FATAL, "couldn't load skill %f from %s\n", settings.skill, settings.characterfile);
+            break;
+        }
+        trap_Characteristic_String(character, CHARACTERISTIC_ITEMWEIGHTS, filename, sizeof(filename));
+        if (trap_BotLoadItemWeights(bs->gs, filename) != BLERR_NOERROR)
+            break;
+        trap_Characteristic_String(character, CHARACTERISTIC_WEAPONWEIGHTS, filename, sizeof(filename));
+        if (trap_BotLoadWeaponWeights(bs->ws, filename) != BLERR_NOERROR)
+            break;
+        if (skill < 3)
+            g_entities[i].flags |= FL_NOPOWERUP;
+        else
+            g_entities[i].flags &= ~FL_NOPOWERUP;
+        trap_SetUserinfo(i, userinfo);
+        bs->character = character;
+        bs->walker = (forced ? oldskill : skill) >= 2 ? 0 : 1;
+        bs->settings = settings;
+        ClientUserinfoChanged(i);
+        if (g_training.integer)
+            trap_Cvar_Set("g_spSkill", va("%f", skill));
+    }
+}
+
+int BotAIStartFrame(int time) {
+    int i;
+    gentity_t* ent;
+    bot_entitystate_t state;
+    int elapsed_time, thinktime;
+    static int local_time;
+    static int botlib_residual;
+    static int lastbotthink_time;
+
+    G_CheckBotSpawn();
+
+    trap_Cvar_Update(&bot_rocketjump);
+    trap_Cvar_Update(&bot_grapple);
+    trap_Cvar_Update(&bot_fastchat);
+    trap_Cvar_Update(&bot_nochat);
+    trap_Cvar_Update(&bot_testrchat);
+    trap_Cvar_Update(&bot_thinktime);
+    trap_Cvar_Update(&bot_memorydump);
+    trap_Cvar_Update(&bot_saveroutingcache);
+    trap_Cvar_Update(&bot_pause);
+    trap_Cvar_Update(&bot_report);
+
+    if (bot_pause.integer) {
+        for (i = 0; i < MAX_CLIENTS; i++) {
+            if (!botstates[i] || !botstates[i]->inuse) {
+                continue;
+            }
+            if (g_entities[i].client->pers.connected != CON_CONNECTED) {
+                continue;
+            }
+            botstates[i]->lastucmd.forwardmove = 0;
+            botstates[i]->lastucmd.rightmove = 0;
+            botstates[i]->lastucmd.upmove = 0;
+            botstates[i]->lastucmd.buttons = 0;
+            botstates[i]->lastucmd.serverTime = time;
+            trap_BotUserCommand(botstates[i]->client, &botstates[i]->lastucmd);
+        }
+        return qtrue;
+    }
+
+    if (bot_memorydump.integer) {
+        trap_BotLibVarSet("memorydump", "1");
+        trap_Cvar_Set("bot_memorydump", "0");
+    }
+    if (bot_saveroutingcache.integer) {
+        trap_BotLibVarSet("saveroutingcache", "1");
+        trap_Cvar_Set("bot_saveroutingcache", "0");
+    }
+    BotInterbreeding();
+    if (bot_thinktime.integer > 200) {
+        trap_Cvar_Set("bot_thinktime", "200");
+    }
+    if (bot_thinktime.integer != lastbotthink_time) {
+        lastbotthink_time = bot_thinktime.integer;
+        BotScheduleBotThink();
+    }
+
+    elapsed_time = time - local_time;
+    local_time = time;
+
+    botlib_residual += elapsed_time;
+
+    if (elapsed_time > bot_thinktime.integer)
+        thinktime = elapsed_time;
+    else
+        thinktime = bot_thinktime.integer;
+
+    if (botlib_residual >= thinktime) {
+        botlib_residual -= thinktime;
+
+        trap_BotLibStartFrame((float)time / 1000);
+
+        if (!trap_AAS_Initialized())
+            return qfalse;
+
+        for (i = 0; i < MAX_GENTITIES; i++) {
+            ent = &g_entities[i];
+            if (!ent->inuse) {
+                trap_BotLibUpdateEntity(i, NULL);
+                continue;
+            }
+            if (!ent->r.linked) {
+                trap_BotLibUpdateEntity(i, NULL);
+                continue;
+            }
+            if ((ent->r.svFlags & SVF_NOCLIENT) && !(ent->item && ent->nextthink)) {
+                trap_BotLibUpdateEntity(i, NULL);
+                continue;
+            }
+            if (ent->s.eType == ET_MISSILE && ent->s.weapon != WP_GRAPPLING_HOOK) {
+                trap_BotLibUpdateEntity(i, NULL);
+                continue;
+            }
+            if (ent->s.eType > ET_EVENTS) {
+                trap_BotLibUpdateEntity(i, NULL);
+                continue;
+            }
+            if (ent->r.contents == CONTENTS_TRIGGER) {
+                if (ent->touch == ProximityMine_Trigger) {
+                    trap_BotLibUpdateEntity(i, NULL);
+                    continue;
+                }
+            }
+            memset(&state, 0, sizeof(bot_entitystate_t));
+            VectorCopy(ent->r.currentOrigin, state.origin);
+            if (i < MAX_CLIENTS) {
+                VectorCopy(ent->s.apos.trBase, state.angles);
+            } else {
+                VectorCopy(ent->r.currentAngles, state.angles);
+            }
+            VectorCopy(ent->s.origin2, state.old_origin);
+            VectorCopy(ent->r.mins, state.mins);
+            VectorCopy(ent->r.maxs, state.maxs);
+            state.type = ent->s.eType;
+            state.flags = ent->s.eFlags;
+            if (ent->r.bmodel)
+                state.solid = SOLID_BSP;
+            else
+                state.solid = SOLID_BBOX;
+            state.groundent = ent->s.groundEntityNum;
+            state.modelindex = ent->s.modelindex;
+            state.modelindex2 = ent->s.modelindex2;
+            state.frame = ent->s.frame;
+            state.event = ent->s.event;
+            state.eventParm = ent->s.eventParm;
+            state.powerups = ent->s.powerups;
+            state.legsAnim = ent->s.legsAnim;
+            state.torsoAnim = ent->s.torsoAnim;
+            state.weapon = ent->s.weapon;
+            state.nextthink = (float)(ent->nextthink / 1000);
+            state.powerupPickup = !(ent->flags & FL_NOPOWERUP);
+            if (ent->item) {
+                state.itemQuantity = ent->item->quantity;
+                state.itemType = ent->item->giType;
+                state.itemTag = ent->item->giTag;
+            }
+            if (ent->client) {
+                int w;
+
+                state.health = ent->health;
+                state.maxHealth = ent->client->ps.stats[STAT_MAX_HEALTH];
+                state.carriesFlag = ent->client->ps.powerups[PW_REDFLAG] || ent->client->ps.powerups[PW_BLUEFLAG];
+                for (w = 0; w < 16; w++) {
+                    int ammo = ent->client->ps.ammo[w];
+                    int max = w < WP_NUM_WEAPONS ? maxAmmoStandard[w] : 0;
+
+                    state.ammoFull[w] = !(ammo < max && ammo != -1);
+                }
+            }
+            trap_BotLibUpdateEntity(i, &state);
+        }
+
+        BotAIRegularUpdate();
+    }
+
+    floattime = trap_AAS_Time();
+
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (!botstates[i] || !botstates[i]->inuse) {
+            continue;
+        }
+        botstates[i]->botthink_residual += elapsed_time;
+        if (botstates[i]->botthink_residual >= thinktime) {
+            botstates[i]->botthink_residual -= thinktime;
+
+            if (!trap_AAS_Initialized())
+                return qfalse;
+
+            if (g_entities[i].client->pers.connected == CON_CONNECTED) {
+                BotAI(i, (float)thinktime / 1000);
+            }
+        }
+    }
+
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (!botstates[i] || !botstates[i]->inuse) {
+            continue;
+        }
+        if (g_entities[i].client->pers.connected != CON_CONNECTED) {
+            continue;
+        }
+
+        BotUpdateInput(botstates[i], time, elapsed_time);
+        trap_BotUserCommand(botstates[i]->client, &botstates[i]->lastucmd);
+    }
+
+    if (bot_hud.integer == -1) {
+        trap_SetConfigstring(CS_BOTINFO, "");
+    } else {
+        for (i = 0; i < MAX_CLIENTS; i++) {
+            if (i == bot_hud.integer && botstates[i] && botstates[i]->inuse &&
+                g_entities[i].client->pers.connected == CON_CONNECTED) {
+                BotHud(botstates[i]);
+            }
+        }
+    }
+    BotItemDelayTime(time);
+    BotDynamicSkill(time);
+    G_TrainingFrame();
+
+    return qtrue;
+}
+
+int BotInitLibrary(void) {
+    char buf[144];
+
+    Com_sprintf(buf, sizeof(buf), "%d", level.maxclients);
+    trap_BotLibVarSet("maxclients", buf);
+    Com_sprintf(buf, sizeof(buf), "%d", MAX_GENTITIES);
+    trap_BotLibVarSet("maxentities", buf);
+    trap_Cvar_VariableStringBuffer("sv_mapChecksum", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("sv_mapChecksum", buf);
+    trap_Cvar_VariableStringBuffer("max_aaslinks", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("max_aaslinks", buf);
+    trap_Cvar_VariableStringBuffer("max_levelitems", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("max_levelitems", buf);
+    trap_Cvar_VariableStringBuffer("g_gametype", buf, sizeof(buf));
+    if (!strlen(buf))
+        strcpy(buf, "0");
+    trap_BotLibVarSet("g_gametype", buf);
+    trap_BotLibVarSet("bot_developer", bot_developer.string);
+    trap_Cvar_VariableStringBuffer("bot_log", buf, sizeof(buf));
+    trap_BotLibVarSet("bot_log", buf);
+    trap_Cvar_VariableStringBuffer("bot_nochat", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("nochat", buf);
+    trap_Cvar_VariableStringBuffer("bot_visualizejumppads", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("bot_visualizejumppads", buf);
+    trap_Cvar_VariableStringBuffer("bot_forceclustering", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("forceclustering", buf);
+    trap_Cvar_VariableStringBuffer("bot_forcereachability", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("forcereachability", buf);
+    trap_Cvar_VariableStringBuffer("bot_forcewrite", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("forcewrite", buf);
+    trap_Cvar_VariableStringBuffer("bot_aasoptimize", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("aasoptimize", buf);
+    trap_Cvar_VariableStringBuffer("bot_saveroutingcache", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("saveroutingcache", buf);
+    trap_Cvar_VariableStringBuffer("bot_reloadcharacters", buf, sizeof(buf));
+    if (!strlen(buf))
+        strcpy(buf, "0");
+    trap_BotLibVarSet("bot_reloadcharacters", buf);
+    trap_Cvar_VariableStringBuffer("fs_basepath", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("basedir", buf);
+    trap_Cvar_VariableStringBuffer("fs_game", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("gamedir", buf);
+    trap_Cvar_VariableStringBuffer("fs_cdpath", buf, sizeof(buf));
+    if (strlen(buf))
+        trap_BotLibVarSet("cddir", buf);
+    trap_BotLibDefine("MISSIONPACK");
+    return trap_BotLibSetup();
+}
+
+int BotAISetup(int restart) {
+    int errnum;
+
+    trap_Cvar_Register(&bot_thinktime, "bot_thinktime", "100", CVAR_CHEAT);
+    trap_Cvar_Register(&bot_memorydump, "bot_memorydump", "0", CVAR_CHEAT);
+    trap_Cvar_Register(&bot_saveroutingcache, "bot_saveroutingcache", "0", 0);
+    trap_Cvar_Register(&bot_pause, "bot_pause", "0", CVAR_CHEAT);
+    trap_Cvar_Register(&bot_report, "bot_report", "0", CVAR_CHEAT);
+    trap_Cvar_Register(&bot_testsolid, "bot_testsolid", "0", CVAR_CHEAT);
+    trap_Cvar_Register(&bot_testclusters, "bot_testclusters", "0", CVAR_CHEAT);
+    trap_Cvar_Register(&bot_developer, "bot_developer", "0", CVAR_CHEAT);
+    trap_Cvar_Register(&bot_log, "bot_log", "0", 0);
+    trap_Cvar_Register(&bot_interbreedchar, "bot_interbreedchar", "", 0);
+    trap_Cvar_Register(&bot_interbreedbots, "bot_interbreedbots", "10", 0);
+    trap_Cvar_Register(&bot_interbreedcycle, "bot_interbreedcycle", "20", 0);
+    trap_Cvar_Register(&bot_interbreedwrite, "bot_interbreedwrite", "", 0);
+
+    if (restart) {
+        return qtrue;
+    }
+
+    memset(botstates, 0, sizeof(botstates));
+
+    errnum = BotInitLibrary();
+    if (errnum != BLERR_NOERROR) {
+        return qfalse;
+    }
+    return qtrue;
+}
+
+int BotAIShutdown(int restart) {
+    int i;
+
+    if (restart) {
+        for (i = 0; i < MAX_CLIENTS; i++) {
+            if (botstates[i] && botstates[i]->inuse) {
+                BotAIShutdownClient(botstates[i]->client, restart);
+            }
+        }
+    } else {
+        trap_BotLibShutdown();
+    }
+    return qtrue;
+}

@@ -1,0 +1,1347 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#define PSAPI_VERSION 1
+
+#include "../qcommon/q_shared.h"
+#include "../qcommon/qcommon.h"
+#include "sys_local.h"
+
+#include <windows.h>
+#include <winhttp.h>
+#include <shellapi.h>
+#ifdef _MSC_VER
+#pragma comment(lib, "winhttp.lib")
+#endif
+#include <lmerr.h>
+#include <lmcons.h>
+#include <lmwksta.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <direct.h>
+#include <io.h>
+#include <conio.h>
+#include <wincrypt.h>
+#include <shlobj.h>
+#include <psapi.h>
+#include <float.h>
+
+#ifndef KEY_WOW64_32KEY
+#define KEY_WOW64_32KEY 0x0200
+#endif
+
+static char homePath[MAX_OSPATH] = {0};
+
+static char steamPath[MAX_OSPATH] = {0};
+
+static UINT timerResolution = 0;
+
+#ifndef _RC_CHOP
+
+#define _MCW_EM 0x0008001fU
+#define _MCW_RC 0x00000300U
+#define _MCW_PC 0x00030000U
+#define _RC_NEAR 0x00000000U
+#define _PC_53 0x00010000U
+
+unsigned int _controlfp(unsigned int new, unsigned int mask);
+#endif
+
+#define FPUCWMASK1 (_MCW_RC | _MCW_EM)
+#define FPUCW (_RC_NEAR | _MCW_EM | _PC_53)
+
+#ifdef _WIN64
+#define FPUCWMASK (FPUCWMASK1)
+#else
+#define FPUCWMASK (FPUCWMASK1 | _MCW_PC)
+#endif
+
+void Sys_SetFloatEnv(void) {
+    _controlfp(FPUCW, FPUCWMASK);
+}
+
+#define HOMEPATH_UPSTREAM_NAME_WIN "quakelive"
+
+static void Sys_MoveUpstreamHomePath(const char* appData) {
+    char oldPath[MAX_OSPATH];
+    char newPath[MAX_OSPATH];
+    DWORD attributes;
+
+    Com_sprintf(oldPath, sizeof(oldPath), "%s%c%s", appData, PATH_SEP, HOMEPATH_UPSTREAM_NAME_WIN);
+    Com_sprintf(newPath, sizeof(newPath), "%s%c%s", appData, PATH_SEP, HOMEPATH_NAME_WIN);
+
+    if (GetFileAttributesA(newPath) != INVALID_FILE_ATTRIBUTES) {
+        return;
+    }
+    attributes = GetFileAttributesA(oldPath);
+    if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_DIRECTORY)) {
+        return;
+    }
+    if (MoveFileA(oldPath, newPath)) {
+        Com_Printf("Moved your data from %s to %s\n", oldPath, newPath);
+    } else {
+        Com_Printf("WARNING: couldn't move %s to %s (error %lu)\n", oldPath, newPath, GetLastError());
+    }
+}
+
+char* Sys_DefaultHomePath(void) {
+    TCHAR szPath[MAX_PATH];
+    FARPROC qSHGetFolderPath;
+    HMODULE shfolder = LoadLibrary("shfolder.dll");
+
+    if (shfolder == NULL) {
+        Com_Printf("Unable to load SHFolder.dll\n");
+        return NULL;
+    }
+
+    if (!*homePath && com_homepath) {
+        qSHGetFolderPath = GetProcAddress(shfolder, "SHGetFolderPathA");
+        if (qSHGetFolderPath == NULL) {
+            Com_Printf("Unable to find SHGetFolderPath in SHFolder.dll\n");
+            FreeLibrary(shfolder);
+            return NULL;
+        }
+
+        if (!SUCCEEDED(qSHGetFolderPath(NULL, CSIDL_APPDATA,
+                                        NULL, 0, szPath))) {
+            Com_Printf("Unable to detect CSIDL_APPDATA\n");
+            FreeLibrary(shfolder);
+            return NULL;
+        }
+
+        Com_sprintf(homePath, sizeof(homePath), "%s%c", szPath, PATH_SEP);
+
+        if (com_homepath->string[0]) {
+            Q_strcat(homePath, sizeof(homePath), com_homepath->string);
+        } else {
+            Sys_MoveUpstreamHomePath(szPath);
+            Q_strcat(homePath, sizeof(homePath), HOMEPATH_NAME_WIN);
+        }
+    }
+
+    FreeLibrary(shfolder);
+    return homePath;
+}
+
+char* Sys_DefaultCachePath(void) {
+    static char cachePath[MAX_OSPATH];
+    TCHAR szPath[MAX_PATH];
+    FARPROC qSHGetFolderPath;
+    HMODULE shfolder;
+
+    if (cachePath[0]) {
+        return cachePath;
+    }
+
+    shfolder = LoadLibrary("shfolder.dll");
+    if (shfolder == NULL) {
+        return NULL;
+    }
+    qSHGetFolderPath = GetProcAddress(shfolder, "SHGetFolderPathA");
+    if (qSHGetFolderPath && SUCCEEDED(qSHGetFolderPath(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, szPath))) {
+        Com_sprintf(cachePath, sizeof(cachePath), "%s%c%s", szPath, PATH_SEP,
+                    (com_homepath && com_homepath->string[0]) ? com_homepath->string : HOMEPATH_NAME_WIN);
+    }
+    FreeLibrary(shfolder);
+
+    return cachePath[0] ? cachePath : NULL;
+}
+
+qboolean Sys_RemoveDir(const char* path) {
+    return RemoveDirectoryA(path) ? qtrue : qfalse;
+}
+
+qboolean Sys_SteamRunning(void) {
+    DWORD pid = 0, size = sizeof(pid), code = 0;
+    HANDLE proc;
+    qboolean alive;
+
+    if (RegGetValueA(HKEY_CURRENT_USER, "Software\\Valve\\Steam\\ActiveProcess", "pid", RRF_RT_REG_DWORD, NULL, &pid,
+                     &size) != ERROR_SUCCESS ||
+        !pid) {
+        return qfalse;
+    }
+    proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!proc) {
+        return qfalse;
+    }
+    alive = GetExitCodeProcess(proc, &code) && code == STILL_ACTIVE ? qtrue : qfalse;
+    CloseHandle(proc);
+    return alive;
+}
+
+qboolean Sys_SteamReady(void) {
+    DWORD user = 0, size = sizeof(user);
+
+    if (RegGetValueA(HKEY_CURRENT_USER, "Software\\Valve\\Steam\\ActiveProcess", "ActiveUser", RRF_RT_REG_DWORD, NULL,
+                     &user, &size) != ERROR_SUCCESS) {
+        return qfalse;
+    }
+    return user && Sys_SteamRunning() ? qtrue : qfalse;
+}
+
+qboolean Sys_StartSteam(void) {
+    return (INT_PTR)ShellExecuteA(NULL, "open", "steam://open/main", NULL, NULL, SW_SHOWNORMAL) > 32 ? qtrue : qfalse;
+}
+
+#ifdef STEAMPATH_NAME
+static qboolean Sys_QLHasWebPak(const char* qlDir) {
+    char path[MAX_OSPATH];
+    FILE* f;
+
+    Com_sprintf(path, sizeof(path), "%s\\web.pak", qlDir);
+    f = fopen(path, "rb");
+    if (f) {
+        fclose(f);
+        return qtrue;
+    }
+    return qfalse;
+}
+
+static qboolean Sys_SteamQLFromLibraries(const char* steamRoot, char* out, int outSize) {
+    static const char* const vdfs[] = { "steamapps\\libraryfolders.vdf", "config\\libraryfolders.vdf" };
+    char vdfPath[MAX_OSPATH];
+    char* buf;
+    const char* p;
+    FILE* f;
+    long size;
+    size_t got;
+    int i;
+
+    for (i = 0; i < (int)ARRAY_LEN(vdfs); i++) {
+        Com_sprintf(vdfPath, sizeof(vdfPath), "%s\\%s", steamRoot, vdfs[i]);
+        f = fopen(vdfPath, "rb");
+        if (!f) {
+            continue;
+        }
+
+        fseek(f, 0, SEEK_END);
+        size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (size <= 0 || size > 4 * 1024 * 1024) {
+            fclose(f);
+            continue;
+        }
+
+        buf = Z_Malloc(size + 1);
+        got = fread(buf, 1, size, f);
+        fclose(f);
+        buf[got] = '\0';
+
+        p = buf;
+        while ((p = strstr(p, "\"path\"")) != NULL) {
+            char lib[MAX_OSPATH];
+            char cand[MAX_OSPATH];
+            int n = 0;
+
+            p += 6;
+            while (*p && *p != '"') {
+                p++;
+            }
+            if (*p != '"') {
+                break;
+            }
+            p++;
+            while (*p && *p != '"' && n < (int)sizeof(lib) - 1) {
+                if (*p == '\\' && p[1] == '\\') {
+                    lib[n++] = '\\';
+                    p += 2;
+                } else {
+                    lib[n++] = *p++;
+                }
+            }
+            lib[n] = '\0';
+            if (*p == '"') {
+                p++;
+            }
+
+            Com_sprintf(cand, sizeof(cand), "%s\\steamapps\\common\\%s", lib, STEAMPATH_NAME);
+            if (Sys_QLHasWebPak(cand)) {
+                Q_strncpyz(out, cand, outSize);
+                Z_Free(buf);
+                return qtrue;
+            }
+        }
+
+        Z_Free(buf);
+    }
+
+    return qfalse;
+}
+#endif
+
+char* Sys_SteamPath(void) {
+#if defined(STEAMPATH_NAME) || defined(STEAMPATH_APPID)
+    HKEY steamRegKey;
+    DWORD pathLen = MAX_OSPATH;
+    qboolean finishPath = qfalse;
+
+#ifdef STEAMPATH_APPID
+    if (!steamPath[0] && !RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App " STEAMPATH_APPID, 0, KEY_QUERY_VALUE | KEY_WOW64_32KEY, &steamRegKey)) {
+        pathLen = MAX_OSPATH;
+        if (RegQueryValueEx(steamRegKey, "InstallLocation", NULL, NULL, (LPBYTE)steamPath, &pathLen))
+            steamPath[0] = '\0';
+
+        RegCloseKey(steamRegKey);
+    }
+#endif
+
+#ifdef STEAMPATH_NAME
+    if (!steamPath[0] && !RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Valve\\Steam", 0, KEY_QUERY_VALUE, &steamRegKey)) {
+        pathLen = MAX_OSPATH;
+        if (RegQueryValueEx(steamRegKey, "SteamPath", NULL, NULL, (LPBYTE)steamPath, &pathLen))
+            if (RegQueryValueEx(steamRegKey, "InstallPath", NULL, NULL, (LPBYTE)steamPath, &pathLen))
+                steamPath[0] = '\0';
+
+        if (steamPath[0])
+            finishPath = qtrue;
+
+        RegCloseKey(steamRegKey);
+    }
+#endif
+
+    if (steamPath[0]) {
+        if (pathLen == MAX_OSPATH)
+            pathLen--;
+
+        steamPath[pathLen] = '\0';
+
+        {
+            char *s;
+            for (s = steamPath; *s; s++) {
+                if (*s == '/') *s = '\\';
+            }
+        }
+
+        if (finishPath) {
+#ifdef STEAMPATH_NAME
+            char steamRoot[MAX_OSPATH];
+            char found[MAX_OSPATH];
+
+            Q_strncpyz(steamRoot, steamPath, sizeof(steamRoot));
+            Q_strcat(steamPath, MAX_OSPATH, "\\SteamApps\\common\\" STEAMPATH_NAME);
+
+            if (!Sys_QLHasWebPak(steamPath) && Sys_SteamQLFromLibraries(steamRoot, found, sizeof(found)))
+                Q_strncpyz(steamPath, found, sizeof(steamPath));
+#else
+            Q_strcat(steamPath, MAX_OSPATH, "\\SteamApps\\common\\" STEAMPATH_NAME);
+#endif
+        }
+    }
+#endif
+
+    return steamPath;
+}
+
+int sys_timeBase;
+int Sys_Milliseconds(void) {
+    int sys_curtime;
+    static qboolean initialized = qfalse;
+
+    if (!initialized) {
+        sys_timeBase = timeGetTime();
+        initialized = qtrue;
+    }
+    sys_curtime = timeGetTime() - sys_timeBase;
+
+    return sys_curtime;
+}
+
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+qboolean Sys_SleepMicroseconds(int64_t usec) {
+    static HANDLE timer;
+    static qboolean tried;
+    LARGE_INTEGER due;
+
+    if (!tried) {
+        tried = qtrue;
+        timer = CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+    }
+    if (!timer || usec <= 0) {
+        return qfalse;
+    }
+    due.QuadPart = -usec * 10;
+    if (!SetWaitableTimer(timer, &due, 0, NULL, NULL, FALSE)) {
+        return qfalse;
+    }
+    return WaitForSingleObject(timer, INFINITE) == WAIT_OBJECT_0 ? qtrue : qfalse;
+}
+
+int64_t Sys_Microseconds(void) {
+    static LARGE_INTEGER frequency;
+    static LARGE_INTEGER base;
+    LARGE_INTEGER now;
+
+    if (!frequency.QuadPart) {
+        QueryPerformanceFrequency(&frequency);
+        QueryPerformanceCounter(&base);
+        if (!frequency.QuadPart) {
+            return (int64_t)Sys_Milliseconds() * 1000;
+        }
+    }
+    QueryPerformanceCounter(&now);
+    return ((now.QuadPart - base.QuadPart) * 1000000LL) / frequency.QuadPart;
+}
+
+typedef struct {
+    void (*function)(void*);
+    void* argument;
+} sysThreadStart_t;
+
+static DWORD WINAPI Sys_ThreadEntry(LPVOID parameter) {
+    sysThreadStart_t* start = (sysThreadStart_t*)parameter;
+
+    start->function(start->argument);
+    return 0;
+}
+
+qboolean Sys_WebFetch(const char* url, const char* ospath, int maxBytes) {
+    wchar_t wideUrl[2048];
+    wchar_t host[256];
+    wchar_t path[1536];
+    URL_COMPONENTS parts;
+    HINTERNET session = NULL;
+    HINTERNET connection = NULL;
+    HINTERNET request = NULL;
+    FILE* out = NULL;
+    DWORD status = 0;
+    DWORD statusSize = sizeof(status);
+    DWORD available, read;
+    char buffer[16384];
+    int total = 0;
+    qboolean ok = qfalse;
+
+    if (!url || !ospath) {
+        return qfalse;
+    }
+
+    if (MultiByteToWideChar(CP_UTF8, 0, url, -1, wideUrl, (int)ARRAY_LEN(wideUrl)) == 0) {
+        return qfalse;
+    }
+
+    memset(&parts, 0, sizeof(parts));
+    parts.dwStructSize = sizeof(parts);
+    parts.lpszHostName = host;
+    parts.dwHostNameLength = (DWORD)ARRAY_LEN(host);
+    parts.lpszUrlPath = path;
+    parts.dwUrlPathLength = (DWORD)ARRAY_LEN(path);
+
+    if (!WinHttpCrackUrl(wideUrl, 0, 0, &parts)) {
+        return qfalse;
+    }
+    if (parts.nScheme != INTERNET_SCHEME_HTTP && parts.nScheme != INTERNET_SCHEME_HTTPS) {
+        return qfalse;
+    }
+
+    session = WinHttpOpen(L"ioquakelive", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+                          WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!session) {
+        return qfalse;
+    }
+    WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
+
+    connection = WinHttpConnect(session, host, parts.nPort, 0);
+    if (!connection) {
+        goto done;
+    }
+
+    request = WinHttpOpenRequest(connection, L"GET", path, NULL, WINHTTP_NO_REFERER,
+                                 WINHTTP_DEFAULT_ACCEPT_TYPES,
+                                 parts.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0);
+    if (!request) {
+        goto done;
+    }
+    {
+        DWORD policy = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
+
+        if (!WinHttpSetOption(request, WINHTTP_OPTION_REDIRECT_POLICY, &policy, sizeof(policy))) {
+            goto done;
+        }
+    }
+
+    if (!WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
+        !WinHttpReceiveResponse(request, NULL)) {
+        goto done;
+    }
+
+    if (!WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                             WINHTTP_HEADER_NAME_BY_INDEX, &status, &statusSize, WINHTTP_NO_HEADER_INDEX) ||
+        status != 200) {
+        goto done;
+    }
+
+    out = Sys_FOpen(ospath, "wb");
+    if (!out) {
+        goto done;
+    }
+
+    for (;;) {
+        available = 0;
+        if (!WinHttpQueryDataAvailable(request, &available)) {
+            goto done;
+        }
+        if (!available) {
+            break;
+        }
+        while (available > 0) {
+            DWORD want = available > sizeof(buffer) ? (DWORD)sizeof(buffer) : available;
+
+            if (!WinHttpReadData(request, buffer, want, &read) || read == 0) {
+                goto done;
+            }
+            if (maxBytes > 0 && total + (int)read > maxBytes) {
+                goto done;
+            }
+            if (fwrite(buffer, 1, read, out) != read) {
+                goto done;
+            }
+            total += (int)read;
+            available -= read;
+        }
+    }
+
+    ok = total > 0 ? qtrue : qfalse;
+
+done:
+    if (out) {
+        fclose(out);
+    }
+    if (request) {
+        WinHttpCloseHandle(request);
+    }
+    if (connection) {
+        WinHttpCloseHandle(connection);
+    }
+    if (session) {
+        WinHttpCloseHandle(session);
+    }
+    if (!ok) {
+        remove(ospath);
+    }
+
+    return ok;
+}
+
+typedef struct {
+    HANDLE process;
+    HANDLE input;
+} sysPipe_t;
+
+static void Sys_PipeQuote(char* line, int size, const char* arg) {
+    int n = (int)strlen(line);
+    int slashes = 0;
+
+    if (n + 2 >= size) {
+        return;
+    }
+    if (n) {
+        line[n++] = ' ';
+    }
+    line[n++] = '"';
+    for (; *arg && n + 4 < size; arg++) {
+        if (*arg == '\\') {
+            slashes++;
+        } else {
+            if (*arg == '"') {
+                while (slashes-- > -1 && n + 4 < size) {
+                    line[n++] = '\\';
+                }
+            }
+            slashes = 0;
+        }
+        line[n++] = *arg;
+    }
+    while (slashes-- > 0 && n + 4 < size) {
+        line[n++] = '\\';
+    }
+    line[n++] = '"';
+    line[n] = '\0';
+}
+
+void* Sys_PipeOpen(const char* const* argv, const char* logPath) {
+    SECURITY_ATTRIBUTES sa;
+    STARTUPINFOEXA si;
+    PROCESS_INFORMATION pi;
+    HANDLE readEnd, writeEnd, log;
+    HANDLE inherit[2];
+    SIZE_T attrSize = 0;
+    char line[4096];
+    sysPipe_t* p = NULL;
+    BOOL ok = FALSE;
+    int i;
+
+    Com_Memset(&sa, 0, sizeof(sa));
+    sa.nLength = sizeof(sa);
+    sa.bInheritHandle = TRUE;
+    if (!CreatePipe(&readEnd, &writeEnd, &sa, 1 << 20)) {
+        return NULL;
+    }
+    SetHandleInformation(writeEnd, HANDLE_FLAG_INHERIT, 0);
+    log = CreateFileA(logPath, GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (log == INVALID_HANDLE_VALUE) {
+        CloseHandle(readEnd);
+        CloseHandle(writeEnd);
+        return NULL;
+    }
+    inherit[0] = readEnd;
+    inherit[1] = log;
+    Com_Memset(&si, 0, sizeof(si));
+    si.StartupInfo.cb = sizeof(si);
+    si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    si.StartupInfo.hStdInput = readEnd;
+    si.StartupInfo.hStdOutput = log;
+    si.StartupInfo.hStdError = log;
+    line[0] = '\0';
+    for (i = 0; argv[i]; i++) {
+        Sys_PipeQuote(line, sizeof(line), argv[i]);
+    }
+    InitializeProcThreadAttributeList(NULL, 1, 0, &attrSize);
+    si.lpAttributeList = (LPPROC_THREAD_ATTRIBUTE_LIST)malloc(attrSize);
+    if (si.lpAttributeList && InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &attrSize)) {
+        if (UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherit, sizeof(inherit),
+                                      NULL, NULL)) {
+            ok = CreateProcessA(argv[0], line, NULL, NULL, TRUE, CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT, NULL, NULL,
+                                &si.StartupInfo, &pi);
+        }
+        DeleteProcThreadAttributeList(si.lpAttributeList);
+    }
+    free(si.lpAttributeList);
+    CloseHandle(readEnd);
+    CloseHandle(log);
+    if (ok) {
+        CloseHandle(pi.hThread);
+        p = (sysPipe_t*)malloc(sizeof(*p));
+    }
+    if (!p) {
+        if (ok) {
+            CloseHandle(pi.hProcess);
+        }
+        CloseHandle(writeEnd);
+        DeleteFileA(logPath);
+        return NULL;
+    }
+    p->process = pi.hProcess;
+    p->input = writeEnd;
+    return p;
+}
+
+qboolean Sys_PipeWrite(void* pipe, const void* data, int size) {
+    sysPipe_t* p = (sysPipe_t*)pipe;
+    const char* c = (const char*)data;
+
+    while (size > 0) {
+        DWORD written = 0;
+
+        if (!WriteFile(p->input, c, (DWORD)size, &written, NULL) || !written) {
+            return qfalse;
+        }
+        c += written;
+        size -= (int)written;
+    }
+    return qtrue;
+}
+
+qboolean Sys_PipeAlive(void* pipe) {
+    return WaitForSingleObject(((sysPipe_t*)pipe)->process, 0) == WAIT_TIMEOUT ? qtrue : qfalse;
+}
+
+void Sys_PipeKill(void* pipe) {
+    TerminateProcess(((sysPipe_t*)pipe)->process, 1);
+}
+
+static HANDLE sys_sharedHandle;
+
+void* Sys_SharedOpen(const char* name, int size, qboolean create) {
+    char full[128];
+    void* view;
+
+    Com_sprintf(full, sizeof(full), "Local\\ioql_%s", name);
+    sys_sharedHandle = create ? CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, (DWORD)size, full)
+                              : OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, full);
+    if (!sys_sharedHandle) {
+        return NULL;
+    }
+    view = MapViewOfFile(sys_sharedHandle, FILE_MAP_ALL_ACCESS, 0, 0, (SIZE_T)size);
+    if (!view) {
+        CloseHandle(sys_sharedHandle);
+        sys_sharedHandle = NULL;
+    }
+    return view;
+}
+
+void Sys_SharedClose(void* view) {
+    UnmapViewOfFile(view);
+    CloseHandle(sys_sharedHandle);
+    sys_sharedHandle = NULL;
+}
+
+void* Sys_SignalOpen(const char* name, qboolean create) {
+    char full[128];
+
+    Com_sprintf(full, sizeof(full), "Local\\ioql_%s", name);
+    return create ? CreateEventA(NULL, FALSE, FALSE, full) : OpenEventA(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, full);
+}
+
+void Sys_SignalRaise(void* signal) {
+    if (signal) {
+        SetEvent(signal);
+    }
+}
+
+void Sys_SignalWait(void* signal, int msec) {
+    if (signal) {
+        WaitForSingleObject(signal, (DWORD)msec);
+    } else {
+        Sleep(1);
+    }
+}
+
+void Sys_SignalClose(void* signal) {
+    if (signal) {
+        CloseHandle(signal);
+    }
+}
+
+int Sys_PipeClose(void* pipe) {
+    sysPipe_t* p = (sysPipe_t*)pipe;
+    DWORD code = 1;
+
+    CloseHandle(p->input);
+    WaitForSingleObject(p->process, INFINITE);
+    GetExitCodeProcess(p->process, &code);
+    CloseHandle(p->process);
+    free(p);
+    return (int)code;
+}
+
+void* Sys_ThreadCreate(void (*function)(void*), void* argument) {
+    static sysThreadStart_t starts[16];
+    static int next;
+    HANDLE handle;
+    DWORD id;
+    sysThreadStart_t* start;
+
+    if (next >= (int)ARRAY_LEN(starts)) {
+        return NULL;
+    }
+    start = &starts[next++];
+    start->function = function;
+    start->argument = argument;
+
+    handle = CreateThread(NULL, 0, Sys_ThreadEntry, start, 0, &id);
+    return (void*)handle;
+}
+
+void* Sys_MutexCreate(void) {
+    CRITICAL_SECTION* section = (CRITICAL_SECTION*)calloc(1, sizeof(CRITICAL_SECTION));
+
+    if (section) {
+        InitializeCriticalSection(section);
+    }
+    return section;
+}
+
+void Sys_MutexLock(void* mutex) {
+    EnterCriticalSection((CRITICAL_SECTION*)mutex);
+}
+
+void Sys_MutexUnlock(void* mutex) {
+    LeaveCriticalSection((CRITICAL_SECTION*)mutex);
+}
+
+void* Sys_SemaphoreCreate(void) {
+    return (void*)CreateSemaphore(NULL, 0, 0x7fffffff, NULL);
+}
+
+void Sys_SemaphorePost(void* semaphore) {
+    ReleaseSemaphore((HANDLE)semaphore, 1, NULL);
+}
+
+void Sys_SemaphoreWait(void* semaphore) {
+    WaitForSingleObject((HANDLE)semaphore, INFINITE);
+}
+
+void Sys_ThreadYield(void) {
+    SwitchToThread();
+}
+
+int Sys_ProcessorCount(void) {
+    SYSTEM_INFO info;
+
+    GetSystemInfo(&info);
+    return (int)info.dwNumberOfProcessors;
+}
+
+qboolean Sys_RandomBytes(byte* string, int len) {
+    HCRYPTPROV prov;
+
+    if (!CryptAcquireContext(&prov, NULL, NULL,
+                             PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+        return qfalse;
+    }
+
+    if (!CryptGenRandom(prov, len, (BYTE*)string)) {
+        CryptReleaseContext(prov, 0);
+        return qfalse;
+    }
+    CryptReleaseContext(prov, 0);
+    return qtrue;
+}
+
+char* Sys_GetCurrentUser(void) {
+    static char s_userName[1024];
+    unsigned long size = sizeof(s_userName);
+
+    if (!GetUserName(s_userName, &size))
+        strcpy(s_userName, "player");
+
+    if (!s_userName[0]) {
+        strcpy(s_userName, "player");
+    }
+
+    return s_userName;
+}
+
+#define MEM_THRESHOLD 96 * 1024 * 1024
+
+void Sys_Beep(void) {
+    MessageBeep(MB_OK);
+}
+
+qboolean Sys_LowPhysicalMemory(void) {
+    MEMORYSTATUS stat;
+    GlobalMemoryStatus(&stat);
+    return (stat.dwTotalPhys <= MEM_THRESHOLD) ? qtrue : qfalse;
+}
+
+const char* Sys_Basename(char* path) {
+    static char base[MAX_OSPATH] = {0};
+    int length;
+
+    length = strlen(path) - 1;
+
+    while (length > 0 && path[length] == '\\')
+        length--;
+
+    while (length > 0 && path[length - 1] != '\\')
+        length--;
+
+    Q_strncpyz(base, &path[length], sizeof(base));
+
+    length = strlen(base) - 1;
+
+    while (length > 0 && base[length] == '\\')
+        base[length--] = '\0';
+
+    return base;
+}
+
+const char* Sys_Dirname(char* path) {
+    static char dir[MAX_OSPATH] = {0};
+    int length;
+
+    Q_strncpyz(dir, path, sizeof(dir));
+    length = strlen(dir) - 1;
+
+    while (length > 0 && dir[length] != '\\')
+        length--;
+
+    dir[length] = '\0';
+
+    return dir;
+}
+
+FILE* Sys_FOpen(const char* ospath, const char* mode) {
+    size_t length;
+
+    length = strlen(ospath);
+    if (length == 0 || ospath[length - 1] == ' ' || ospath[length - 1] == '.') {
+        return NULL;
+    }
+
+    return fopen(ospath, mode);
+}
+
+qboolean Sys_Mkdir(const char* path) {
+    if (!CreateDirectory(path, NULL)) {
+        if (GetLastError() != ERROR_ALREADY_EXISTS)
+            return qfalse;
+    }
+
+    return qtrue;
+}
+
+FILE* Sys_Mkfifo(const char* ospath) {
+    return NULL;
+}
+
+char* Sys_Cwd(void) {
+    static char cwd[MAX_OSPATH];
+
+    _getcwd(cwd, sizeof(cwd) - 1);
+    cwd[MAX_OSPATH - 1] = 0;
+
+    return cwd;
+}
+
+#define MAX_FOUND_FILES 0x1000
+
+void Sys_ListFilteredFiles(const char* basedir, char* subdirs, char* filter, char** list, int* numfiles) {
+    char search[MAX_OSPATH], newsubdirs[MAX_OSPATH];
+    char filename[MAX_OSPATH];
+    intptr_t findhandle;
+    struct _finddata_t findinfo;
+
+    if (*numfiles >= MAX_FOUND_FILES - 1) {
+        return;
+    }
+
+    if (basedir[0] == '\0') {
+        return;
+    }
+
+    if (strlen(subdirs)) {
+        Com_sprintf(search, sizeof(search), "%s\\%s\\*", basedir, subdirs);
+    } else {
+        Com_sprintf(search, sizeof(search), "%s\\*", basedir);
+    }
+
+    findhandle = _findfirst(search, &findinfo);
+    if (findhandle == -1) {
+        return;
+    }
+
+    do {
+        if (findinfo.attrib & _A_SUBDIR) {
+            if (Q_stricmp(findinfo.name, ".") && Q_stricmp(findinfo.name, "..")) {
+                if (strlen(subdirs)) {
+                    Com_sprintf(newsubdirs, sizeof(newsubdirs), "%s\\%s", subdirs, findinfo.name);
+                } else {
+                    Com_sprintf(newsubdirs, sizeof(newsubdirs), "%s", findinfo.name);
+                }
+                Sys_ListFilteredFiles(basedir, newsubdirs, filter, list, numfiles);
+            }
+        }
+        if (*numfiles >= MAX_FOUND_FILES - 1) {
+            break;
+        }
+        Com_sprintf(filename, sizeof(filename), "%s\\%s", subdirs, findinfo.name);
+        if (!Com_FilterPath(filter, filename, qfalse))
+            continue;
+        list[*numfiles] = CopyString(filename);
+        (*numfiles)++;
+    } while (_findnext(findhandle, &findinfo) != -1);
+
+    _findclose(findhandle);
+}
+
+static qboolean strgtr(const char* s0, const char* s1) {
+    int l0, l1, i;
+
+    l0 = strlen(s0);
+    l1 = strlen(s1);
+
+    if (l1 < l0) {
+        l0 = l1;
+    }
+
+    for (i = 0; i < l0; i++) {
+        if (s1[i] > s0[i]) {
+            return qtrue;
+        }
+        if (s1[i] < s0[i]) {
+            return qfalse;
+        }
+    }
+    return qfalse;
+}
+
+char** Sys_ListFiles(const char* directory, const char* extension, char* filter, int* numfiles, qboolean wantsubs) {
+    char search[MAX_OSPATH];
+    int nfiles;
+    char** listCopy;
+    char* list[MAX_FOUND_FILES];
+    struct _finddata_t findinfo;
+    intptr_t findhandle;
+    int flag;
+    int i;
+    int extLen;
+
+    if (filter) {
+        nfiles = 0;
+        Sys_ListFilteredFiles(directory, "", filter, list, &nfiles);
+
+        list[nfiles] = 0;
+        *numfiles = nfiles;
+
+        if (!nfiles)
+            return NULL;
+
+        listCopy = Z_Malloc((nfiles + 1) * sizeof(*listCopy));
+        for (i = 0; i < nfiles; i++) {
+            listCopy[i] = list[i];
+        }
+        listCopy[i] = NULL;
+
+        return listCopy;
+    }
+
+    if (directory[0] == '\0') {
+        *numfiles = 0;
+        return NULL;
+    }
+
+    if (!extension) {
+        extension = "";
+    }
+
+    if (extension[0] == '/' && extension[1] == 0) {
+        extension = "";
+        flag = 0;
+    } else {
+        flag = _A_SUBDIR;
+    }
+
+    extLen = strlen(extension);
+
+    Com_sprintf(search, sizeof(search), "%s\\*%s", directory, extension);
+
+    nfiles = 0;
+
+    findhandle = _findfirst(search, &findinfo);
+    if (findhandle == -1) {
+        *numfiles = 0;
+        return NULL;
+    }
+
+    do {
+        if ((!wantsubs && flag ^ (findinfo.attrib & _A_SUBDIR)) || (wantsubs && findinfo.attrib & _A_SUBDIR)) {
+            if (*extension) {
+                if (strlen(findinfo.name) < extLen ||
+                    Q_stricmp(
+                        findinfo.name + strlen(findinfo.name) - extLen,
+                        extension)) {
+                    continue;
+                }
+            }
+            if (nfiles == MAX_FOUND_FILES - 1) {
+                break;
+            }
+            list[nfiles] = CopyString(findinfo.name);
+            nfiles++;
+        }
+    } while (_findnext(findhandle, &findinfo) != -1);
+
+    list[nfiles] = 0;
+
+    _findclose(findhandle);
+
+    *numfiles = nfiles;
+
+    if (!nfiles) {
+        return NULL;
+    }
+
+    listCopy = Z_Malloc((nfiles + 1) * sizeof(*listCopy));
+    for (i = 0; i < nfiles; i++) {
+        listCopy[i] = list[i];
+    }
+    listCopy[i] = NULL;
+
+    do {
+        flag = 0;
+        for (i = 1; i < nfiles; i++) {
+            if (strgtr(listCopy[i - 1], listCopy[i])) {
+                char* temp = listCopy[i];
+                listCopy[i] = listCopy[i - 1];
+                listCopy[i - 1] = temp;
+                flag = 1;
+            }
+        }
+    } while (flag);
+
+    return listCopy;
+}
+
+void Sys_FreeFileList(char** list) {
+    int i;
+
+    if (!list) {
+        return;
+    }
+
+    for (i = 0; list[i]; i++) {
+        Z_Free(list[i]);
+    }
+
+    Z_Free(list);
+}
+
+void Sys_Sleep(int msec) {
+    if (msec == 0)
+        return;
+
+    if (msec < 0)
+        return;
+
+    Sleep(msec);
+}
+
+void Sys_ErrorDialog(const char* error) {
+    Sys_Print(va("%s\n", error));
+
+    if (Sys_Dialog(DT_YES_NO, va("%s. Copy console log to clipboard?", error),
+                   "Error") == DR_YES) {
+        HGLOBAL memoryHandle;
+        char* clipMemory;
+
+        memoryHandle = GlobalAlloc(GMEM_MOVEABLE | GMEM_DDESHARE, CON_LogSize() + 1);
+        clipMemory = (char*)GlobalLock(memoryHandle);
+
+        if (clipMemory) {
+            char* p = clipMemory;
+            char buffer[1024];
+            unsigned int size;
+
+            while ((size = CON_LogRead(buffer, sizeof(buffer))) > 0) {
+                Com_Memcpy(p, buffer, size);
+                p += size;
+            }
+
+            *p = '\0';
+
+            if (OpenClipboard(NULL) && EmptyClipboard())
+                SetClipboardData(CF_TEXT, memoryHandle);
+
+            GlobalUnlock(clipMemory);
+            CloseClipboard();
+        }
+    }
+}
+
+dialogResult_t Sys_Dialog(dialogType_t type, const char* message, const char* title) {
+    UINT uType;
+
+    switch (type) {
+        default:
+        case DT_INFO:
+            uType = MB_ICONINFORMATION | MB_OK;
+            break;
+        case DT_WARNING:
+            uType = MB_ICONWARNING | MB_OK;
+            break;
+        case DT_ERROR:
+            uType = MB_ICONERROR | MB_OK;
+            break;
+        case DT_YES_NO:
+            uType = MB_ICONQUESTION | MB_YESNO;
+            break;
+        case DT_OK_CANCEL:
+            uType = MB_ICONWARNING | MB_OKCANCEL;
+            break;
+    }
+
+    switch (MessageBox(NULL, message, title, uType)) {
+        default:
+        case IDOK:
+            return DR_OK;
+        case IDCANCEL:
+            return DR_CANCEL;
+        case IDYES:
+            return DR_YES;
+        case IDNO:
+            return DR_NO;
+    }
+}
+
+void Sys_GLimpSafeInit(void) {
+}
+
+void Sys_GLimpInit(void) {
+}
+
+void Sys_PlatformInit(void) {
+    TIMECAPS ptc;
+
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+
+    Sys_SetFloatEnv();
+
+    if (timeGetDevCaps(&ptc, sizeof(ptc)) == MMSYSERR_NOERROR) {
+        timerResolution = ptc.wPeriodMin;
+
+        if (timerResolution > 1) {
+            Com_Printf(
+                "Warning: Minimum supported timer resolution is %ums "
+                "on this system, recommended resolution 1ms\n",
+                timerResolution);
+        }
+
+        timeBeginPeriod(timerResolution);
+    } else
+        timerResolution = 0;
+}
+
+void Sys_PlatformExit(void) {
+    if (timerResolution)
+        timeEndPeriod(timerResolution);
+}
+
+void Sys_SetEnv(const char* name, const char* value) {
+    if (value)
+        _putenv(va("%s=%s", name, value));
+    else
+        _putenv(va("%s=", name));
+}
+
+int Sys_PID(void) {
+    return GetCurrentProcessId();
+}
+
+qboolean Sys_PIDIsRunning(int pid) {
+    DWORD processes[1024];
+    DWORD numBytes, numProcesses;
+    int i;
+
+    if (!EnumProcesses(processes, sizeof(processes), &numBytes))
+        return qfalse;
+
+    numProcesses = numBytes / sizeof(DWORD);
+
+    for (i = 0; i < numProcesses; i++) {
+        if (processes[i] == pid)
+            return qtrue;
+    }
+
+    return qfalse;
+}
+
+qboolean Sys_ProcessExited(int pid) {
+    static HANDLE process;
+    static int opened;
+
+    if (opened != pid) {
+        if (process) {
+            CloseHandle(process);
+        }
+        process = OpenProcess(SYNCHRONIZE, FALSE, (DWORD)pid);
+        opened = pid;
+    }
+    return (qboolean)(process && WaitForSingleObject(process, 0) == WAIT_OBJECT_0);
+}
+
+qboolean Sys_DllExtension(const char* name) {
+    return COM_CompareExtension(name, DLL_EXT);
+}
+
+#define LAUNCHER_WAIT_MS 2000
+
+static qboolean Sys_StartLauncher(const wchar_t* args, DWORD wait) {
+    static wchar_t dir[1024], launcher[1024];
+    const wchar_t* mode;
+    wchar_t* slash;
+    wchar_t* line;
+    size_t size;
+    STARTUPINFOW si;
+    PROCESS_INFORMATION pi;
+    DWORD n, code = 0;
+    BOOL started;
+
+    n = GetModuleFileNameW(NULL, dir, ARRAY_LEN(dir));
+    if (!n || n >= ARRAY_LEN(dir) || !(slash = wcsrchr(dir, L'\\'))) {
+        return qfalse;
+    }
+    mode = wcsstr(slash, L"-vulkan") ? L"vulkan" : L"opengl";
+    *slash = L'\0';
+    if (_snwprintf(launcher, ARRAY_LEN(launcher) - 1, L"%ls\\ioquakelive-launcher.exe", dir) < 0) {
+        return qfalse;
+    }
+    launcher[ARRAY_LEN(launcher) - 1] = L'\0';
+    n = GetFileAttributesW(launcher);
+    if (n == INVALID_FILE_ATTRIBUTES || (n & FILE_ATTRIBUTE_DIRECTORY)) {
+        return qfalse;
+    }
+    size = wcslen(launcher) + wcslen(args) + 32;
+    line = malloc(size * sizeof(wchar_t));
+    if (!line) {
+        return qfalse;
+    }
+    _snwprintf(line, size, L"\"%ls\" --renderer %ls %ls", launcher, mode, args);
+    line[size - 1] = L'\0';
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+    started = CreateProcessW(launcher, line, NULL, NULL, FALSE, 0, NULL, dir, &si, &pi);
+    free(line);
+    if (!started) {
+        return qfalse;
+    }
+    CloseHandle(pi.hThread);
+    if (wait && WaitForSingleObject(pi.hProcess, wait) == WAIT_OBJECT_0) {
+        GetExitCodeProcess(pi.hProcess, &code);
+    }
+    CloseHandle(pi.hProcess);
+    return code == 0 ? qtrue : qfalse;
+}
+
+qboolean Sys_LauncherHandoff(int argc, char** argv) {
+    const wchar_t* p = GetCommandLineW();
+
+    (void)argc;
+    (void)argv;
+    if (GetEnvironmentVariableW(L"IOQUAKELIVE_LAUNCHER", NULL, 0)) {
+        return qfalse;
+    }
+    if (*p == L'"') {
+        for (p++; *p && *p != L'"'; p++) {
+        }
+        if (*p) {
+            p++;
+        }
+    } else {
+        while (*p && *p != L' ' && *p != L'\t') {
+            p++;
+        }
+    }
+    while (*p == L' ' || *p == L'\t') {
+        p++;
+    }
+    return Sys_StartLauncher(p, LAUNCHER_WAIT_MS);
+}
+
+static qboolean sys_launcherOpened;
+
+qboolean Sys_OpenLauncher(void) {
+    sys_launcherOpened = Sys_StartLauncher(L"", 0);
+    return sys_launcherOpened;
+}
+
+void Sys_ReturnToLauncher(void) {
+    wchar_t value[16];
+    DWORD n = GetEnvironmentVariableW(L"IOQUAKELIVE_LAUNCHER", value, ARRAY_LEN(value));
+
+    if (!sys_launcherOpened && n && n < ARRAY_LEN(value) && !wcscmp(value, L"return")) {
+        Sys_OpenLauncher();
+    }
+}

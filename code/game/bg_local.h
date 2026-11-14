@@ -1,0 +1,118 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#define MIN_WALK_NORMAL 0.7f
+
+#define STEPSIZE 18
+
+#define JUMP_VELOCITY 270
+
+#define TIMER_LAND 130
+#define TIMER_GESTURE (34 * 66 + 50)
+
+#define OVERCLIP 1.001f
+
+typedef struct {
+    vec3_t forward, right, up;
+    float frametime;
+
+    int msec;
+
+    qboolean walking;
+    qboolean groundPlane;
+    trace_t groundTrace;
+
+    float impactSpeed;
+
+    vec3_t previous_origin;
+    vec3_t previous_velocity;
+    int previous_waterlevel;
+
+    qboolean ladder;
+    int stepJumpFlag;
+    int crouchStepJumpFlag;
+} pml_t;
+
+extern pmove_t* pm;
+extern pml_t pml;
+
+extern float pm_stopspeed;
+extern float pm_duckScale;
+extern float pm_swimScale;
+
+extern float pm_accelerate;
+extern float pm_airaccelerate;
+extern float pm_wateraccelerate;
+extern float pm_flyaccelerate;
+
+extern float pm_friction;
+extern float pm_waterfriction;
+extern float pm_flightfriction;
+extern float pm_spectatorfriction;
+
+extern float pm_jumpVelocity;
+extern float pm_jumpVelocityMax;
+extern float pm_jumpVelocityScaleAdd;
+extern float pm_jumpVelocityTimeThreshold;
+extern float pm_jumpVelocityTimeThresholdOffset;
+extern float pm_chainJumpVelocity;
+extern float pm_stepJumpVelocity;
+extern float pm_jumpTimeDeltaMin;
+extern int pm_chainJump;
+extern int pm_rampJump;
+extern float pm_rampJumpScale;
+extern int pm_stepJump;
+extern int pm_crouchStepJump;
+extern int pm_autoHop;
+extern int pm_bunnyHop;
+extern float pm_airAccel;
+extern float pm_airStopAccel;
+extern float pm_airControl;
+extern float pm_strafeAccel;
+extern float pm_walkAccel;
+extern float pm_walkFriction;
+extern float pm_circleStrafeFriction;
+extern float pm_crouchSlideFriction;
+extern int pm_crouchSlideTime;
+extern int pm_airSteps;
+extern float pm_airStepFriction;
+extern float pm_stepHeight;
+extern float pm_waterSwimScale;
+extern float pm_waterWadeScale;
+extern float pm_wishSpeed;
+extern int pm_weaponDropTime;
+extern int pm_weaponRaiseTime;
+extern int pm_noPlayerClip;
+extern int pm_doubleJump;
+extern int pm_crouchSlide;
+extern float pm_velocityGH;
+
+extern int c_pmove;
+
+void PM_ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce);
+void PM_AddTouchEnt(int entityNum);
+void PM_AddEvent(int newEvent);
+
+qboolean PM_SlideMove(qboolean gravity);
+void PM_StepSlideMove(qboolean gravity);
+
+qboolean PM_WouldJump(void);
+void PM_DoJump(void);

@@ -1,0 +1,23 @@
+#include "ui/menudef.h"
+
+{
+    menuDef {
+        name "demo"
+        fullScreen MENU_TRUE
+        rect 0 0 640 480
+        visible MENU_FALSE
+        focusColor 1 .75 0 1
+        popup
+
+        onOpen { uiScript replaysOpen }
+        onESC { close demo ; open main }
+
+        itemDef {
+            name replays
+            type ITEM_TYPE_OWNERDRAW
+            ownerdraw 603
+            rect -2000 -1000 4640 2480
+            visible 1
+        }
+    }
+}

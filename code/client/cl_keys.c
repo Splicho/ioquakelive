@@ -1,0 +1,1463 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#include "client.h"
+
+field_t historyEditLines[COMMAND_HISTORY];
+
+int nextHistoryLine;
+int historyLine;
+
+field_t g_consoleField;
+field_t chatField;
+qboolean chat_team;
+
+int chat_playerNum;
+
+qboolean key_overstrikeMode;
+
+int anykeydown;
+qkey_t keys[MAX_KEYS];
+
+typedef struct {
+    char* name;
+    int keynum;
+} keyname_t;
+
+keyname_t keynames[] =
+    {
+        {"TAB", K_TAB},
+        {"ENTER", K_ENTER},
+        {"ESCAPE", K_ESCAPE},
+        {"SPACE", K_SPACE},
+        {"BACKSPACE", K_BACKSPACE},
+        {"UPARROW", K_UPARROW},
+        {"DOWNARROW", K_DOWNARROW},
+        {"LEFTARROW", K_LEFTARROW},
+        {"RIGHTARROW", K_RIGHTARROW},
+
+        {"ALT", K_ALT},
+        {"CTRL", K_CTRL},
+        {"SHIFT", K_SHIFT},
+
+        {"COMMAND", K_COMMAND},
+
+        {"CAPSLOCK", K_CAPSLOCK},
+
+        {"F1", K_F1},
+        {"F2", K_F2},
+        {"F3", K_F3},
+        {"F4", K_F4},
+        {"F5", K_F5},
+        {"F6", K_F6},
+        {"F7", K_F7},
+        {"F8", K_F8},
+        {"F9", K_F9},
+        {"F10", K_F10},
+        {"F11", K_F11},
+        {"F12", K_F12},
+        {"F13", K_F13},
+        {"F14", K_F14},
+        {"F15", K_F15},
+
+        {"INS", K_INS},
+        {"DEL", K_DEL},
+        {"PGDN", K_PGDN},
+        {"PGUP", K_PGUP},
+        {"HOME", K_HOME},
+        {"END", K_END},
+
+        {"MOUSE1", K_MOUSE1},
+        {"MOUSE2", K_MOUSE2},
+        {"MOUSE3", K_MOUSE3},
+        {"MOUSE4", K_MOUSE4},
+        {"MOUSE5", K_MOUSE5},
+
+        {"MWHEELUP", K_MWHEELUP},
+        {"MWHEELDOWN", K_MWHEELDOWN},
+
+        {"JOY1", K_JOY1},
+        {"JOY2", K_JOY2},
+        {"JOY3", K_JOY3},
+        {"JOY4", K_JOY4},
+        {"JOY5", K_JOY5},
+        {"JOY6", K_JOY6},
+        {"JOY7", K_JOY7},
+        {"JOY8", K_JOY8},
+        {"JOY9", K_JOY9},
+        {"JOY10", K_JOY10},
+        {"JOY11", K_JOY11},
+        {"JOY12", K_JOY12},
+        {"JOY13", K_JOY13},
+        {"JOY14", K_JOY14},
+        {"JOY15", K_JOY15},
+        {"JOY16", K_JOY16},
+        {"JOY17", K_JOY17},
+        {"JOY18", K_JOY18},
+        {"JOY19", K_JOY19},
+        {"JOY20", K_JOY20},
+        {"JOY21", K_JOY21},
+        {"JOY22", K_JOY22},
+        {"JOY23", K_JOY23},
+        {"JOY24", K_JOY24},
+        {"JOY25", K_JOY25},
+        {"JOY26", K_JOY26},
+        {"JOY27", K_JOY27},
+        {"JOY28", K_JOY28},
+        {"JOY29", K_JOY29},
+        {"JOY30", K_JOY30},
+        {"JOY31", K_JOY31},
+        {"JOY32", K_JOY32},
+
+        {"AUX1", K_AUX1},
+        {"AUX2", K_AUX2},
+        {"AUX3", K_AUX3},
+        {"AUX4", K_AUX4},
+        {"AUX5", K_AUX5},
+        {"AUX6", K_AUX6},
+        {"AUX7", K_AUX7},
+        {"AUX8", K_AUX8},
+        {"AUX9", K_AUX9},
+        {"AUX10", K_AUX10},
+        {"AUX11", K_AUX11},
+        {"AUX12", K_AUX12},
+        {"AUX13", K_AUX13},
+        {"AUX14", K_AUX14},
+        {"AUX15", K_AUX15},
+        {"AUX16", K_AUX16},
+
+        {"KP_HOME", K_KP_HOME},
+        {"KP_UPARROW", K_KP_UPARROW},
+        {"KP_PGUP", K_KP_PGUP},
+        {"KP_LEFTARROW", K_KP_LEFTARROW},
+        {"KP_5", K_KP_5},
+        {"KP_RIGHTARROW", K_KP_RIGHTARROW},
+        {"KP_END", K_KP_END},
+        {"KP_DOWNARROW", K_KP_DOWNARROW},
+        {"KP_PGDN", K_KP_PGDN},
+        {"KP_ENTER", K_KP_ENTER},
+        {"KP_INS", K_KP_INS},
+        {"KP_DEL", K_KP_DEL},
+        {"KP_SLASH", K_KP_SLASH},
+        {"KP_MINUS", K_KP_MINUS},
+        {"KP_PLUS", K_KP_PLUS},
+        {"KP_NUMLOCK", K_KP_NUMLOCK},
+        {"KP_STAR", K_KP_STAR},
+        {"KP_EQUALS", K_KP_EQUALS},
+
+        {"PAUSE", K_PAUSE},
+
+        {"SEMICOLON", ';'},
+
+        {"WORLD_0", K_WORLD_0},
+        {"WORLD_1", K_WORLD_1},
+        {"WORLD_2", K_WORLD_2},
+        {"WORLD_3", K_WORLD_3},
+        {"WORLD_4", K_WORLD_4},
+        {"WORLD_5", K_WORLD_5},
+        {"WORLD_6", K_WORLD_6},
+        {"WORLD_7", K_WORLD_7},
+        {"WORLD_8", K_WORLD_8},
+        {"WORLD_9", K_WORLD_9},
+        {"WORLD_10", K_WORLD_10},
+        {"WORLD_11", K_WORLD_11},
+        {"WORLD_12", K_WORLD_12},
+        {"WORLD_13", K_WORLD_13},
+        {"WORLD_14", K_WORLD_14},
+        {"WORLD_15", K_WORLD_15},
+        {"WORLD_16", K_WORLD_16},
+        {"WORLD_17", K_WORLD_17},
+        {"WORLD_18", K_WORLD_18},
+        {"WORLD_19", K_WORLD_19},
+        {"WORLD_20", K_WORLD_20},
+        {"WORLD_21", K_WORLD_21},
+        {"WORLD_22", K_WORLD_22},
+        {"WORLD_23", K_WORLD_23},
+        {"WORLD_24", K_WORLD_24},
+        {"WORLD_25", K_WORLD_25},
+        {"WORLD_26", K_WORLD_26},
+        {"WORLD_27", K_WORLD_27},
+        {"WORLD_28", K_WORLD_28},
+        {"WORLD_29", K_WORLD_29},
+        {"WORLD_30", K_WORLD_30},
+        {"WORLD_31", K_WORLD_31},
+        {"WORLD_32", K_WORLD_32},
+        {"WORLD_33", K_WORLD_33},
+        {"WORLD_34", K_WORLD_34},
+        {"WORLD_35", K_WORLD_35},
+        {"WORLD_36", K_WORLD_36},
+        {"WORLD_37", K_WORLD_37},
+        {"WORLD_38", K_WORLD_38},
+        {"WORLD_39", K_WORLD_39},
+        {"WORLD_40", K_WORLD_40},
+        {"WORLD_41", K_WORLD_41},
+        {"WORLD_42", K_WORLD_42},
+        {"WORLD_43", K_WORLD_43},
+        {"WORLD_44", K_WORLD_44},
+        {"WORLD_45", K_WORLD_45},
+        {"WORLD_46", K_WORLD_46},
+        {"WORLD_47", K_WORLD_47},
+        {"WORLD_48", K_WORLD_48},
+        {"WORLD_49", K_WORLD_49},
+        {"WORLD_50", K_WORLD_50},
+        {"WORLD_51", K_WORLD_51},
+        {"WORLD_52", K_WORLD_52},
+        {"WORLD_53", K_WORLD_53},
+        {"WORLD_54", K_WORLD_54},
+        {"WORLD_55", K_WORLD_55},
+        {"WORLD_56", K_WORLD_56},
+        {"WORLD_57", K_WORLD_57},
+        {"WORLD_58", K_WORLD_58},
+        {"WORLD_59", K_WORLD_59},
+        {"WORLD_60", K_WORLD_60},
+        {"WORLD_61", K_WORLD_61},
+        {"WORLD_62", K_WORLD_62},
+        {"WORLD_63", K_WORLD_63},
+        {"WORLD_64", K_WORLD_64},
+        {"WORLD_65", K_WORLD_65},
+        {"WORLD_66", K_WORLD_66},
+        {"WORLD_67", K_WORLD_67},
+        {"WORLD_68", K_WORLD_68},
+        {"WORLD_69", K_WORLD_69},
+        {"WORLD_70", K_WORLD_70},
+        {"WORLD_71", K_WORLD_71},
+        {"WORLD_72", K_WORLD_72},
+        {"WORLD_73", K_WORLD_73},
+        {"WORLD_74", K_WORLD_74},
+        {"WORLD_75", K_WORLD_75},
+        {"WORLD_76", K_WORLD_76},
+        {"WORLD_77", K_WORLD_77},
+        {"WORLD_78", K_WORLD_78},
+        {"WORLD_79", K_WORLD_79},
+        {"WORLD_80", K_WORLD_80},
+        {"WORLD_81", K_WORLD_81},
+        {"WORLD_82", K_WORLD_82},
+        {"WORLD_83", K_WORLD_83},
+        {"WORLD_84", K_WORLD_84},
+        {"WORLD_85", K_WORLD_85},
+        {"WORLD_86", K_WORLD_86},
+        {"WORLD_87", K_WORLD_87},
+        {"WORLD_88", K_WORLD_88},
+        {"WORLD_89", K_WORLD_89},
+        {"WORLD_90", K_WORLD_90},
+        {"WORLD_91", K_WORLD_91},
+        {"WORLD_92", K_WORLD_92},
+        {"WORLD_93", K_WORLD_93},
+        {"WORLD_94", K_WORLD_94},
+        {"WORLD_95", K_WORLD_95},
+
+        {"WINDOWS", K_SUPER},
+        {"COMPOSE", K_COMPOSE},
+        {"MODE", K_MODE},
+        {"HELP", K_HELP},
+        {"PRINT", K_PRINT},
+        {"SYSREQ", K_SYSREQ},
+        {"SCROLLOCK", K_SCROLLOCK},
+        {"BREAK", K_BREAK},
+        {"MENU", K_MENU},
+        {"POWER", K_POWER},
+        {"EURO", K_EURO},
+        {"UNDO", K_UNDO},
+
+        {"PAD0_A", K_PAD0_A},
+        {"PAD0_B", K_PAD0_B},
+        {"PAD0_X", K_PAD0_X},
+        {"PAD0_Y", K_PAD0_Y},
+        {"PAD0_BACK", K_PAD0_BACK},
+        {"PAD0_GUIDE", K_PAD0_GUIDE},
+        {"PAD0_START", K_PAD0_START},
+        {"PAD0_LEFTSTICK_CLICK", K_PAD0_LEFTSTICK_CLICK},
+        {"PAD0_RIGHTSTICK_CLICK", K_PAD0_RIGHTSTICK_CLICK},
+        {"PAD0_LEFTSHOULDER", K_PAD0_LEFTSHOULDER},
+        {"PAD0_RIGHTSHOULDER", K_PAD0_RIGHTSHOULDER},
+        {"PAD0_DPAD_UP", K_PAD0_DPAD_UP},
+        {"PAD0_DPAD_DOWN", K_PAD0_DPAD_DOWN},
+        {"PAD0_DPAD_LEFT", K_PAD0_DPAD_LEFT},
+        {"PAD0_DPAD_RIGHT", K_PAD0_DPAD_RIGHT},
+
+        {"PAD0_LEFTSTICK_LEFT", K_PAD0_LEFTSTICK_LEFT},
+        {"PAD0_LEFTSTICK_RIGHT", K_PAD0_LEFTSTICK_RIGHT},
+        {"PAD0_LEFTSTICK_UP", K_PAD0_LEFTSTICK_UP},
+        {"PAD0_LEFTSTICK_DOWN", K_PAD0_LEFTSTICK_DOWN},
+        {"PAD0_RIGHTSTICK_LEFT", K_PAD0_RIGHTSTICK_LEFT},
+        {"PAD0_RIGHTSTICK_RIGHT", K_PAD0_RIGHTSTICK_RIGHT},
+        {"PAD0_RIGHTSTICK_UP", K_PAD0_RIGHTSTICK_UP},
+        {"PAD0_RIGHTSTICK_DOWN", K_PAD0_RIGHTSTICK_DOWN},
+        {"PAD0_LEFTTRIGGER", K_PAD0_LEFTTRIGGER},
+        {"PAD0_RIGHTTRIGGER", K_PAD0_RIGHTTRIGGER},
+
+        {"PAD0_MISC1", K_PAD0_MISC1},
+        {"PAD0_PADDLE1", K_PAD0_PADDLE1},
+        {"PAD0_PADDLE2", K_PAD0_PADDLE2},
+        {"PAD0_PADDLE3", K_PAD0_PADDLE3},
+        {"PAD0_PADDLE4", K_PAD0_PADDLE4},
+        {"PAD0_TOUCHPAD", K_PAD0_TOUCHPAD},
+
+        {NULL, 0}};
+
+void Field_VariableSizeDraw(field_t* edit, int x, int y, int width, int size, qboolean showCursor, qboolean noColorEscape) {
+    int len;
+    int drawLen;
+    int prestep;
+    int cursorChar;
+    char str[MAX_STRING_CHARS];
+    int i;
+
+    drawLen = edit->widthInChars - 1;
+    len = strlen(edit->buffer);
+
+    if (len <= drawLen) {
+        prestep = 0;
+    } else {
+        if (edit->scroll + drawLen > len) {
+            edit->scroll = len - drawLen;
+            if (edit->scroll < 0) {
+                edit->scroll = 0;
+            }
+        }
+        prestep = edit->scroll;
+    }
+
+    if (prestep + drawLen > len) {
+        drawLen = len - prestep;
+    }
+
+    if (drawLen >= MAX_STRING_CHARS) {
+        Com_Error(ERR_DROP, "drawLen >= MAX_STRING_CHARS");
+    }
+
+    Com_Memcpy(str, edit->buffer + prestep, drawLen);
+    str[drawLen] = 0;
+
+    if (size == SMALLCHAR_WIDTH) {
+        float color[4];
+
+        color[0] = color[1] = color[2] = color[3] = 1.0;
+        SCR_DrawSmallStringExt(x, y, str, color, qfalse, noColorEscape);
+    } else {
+        SCR_DrawBigString(x, y, str, 1.0, noColorEscape);
+    }
+
+    if (showCursor) {
+        if ((int)(cls.realtime >> 8) & 1) {
+            return;
+        }
+
+        if (key_overstrikeMode) {
+            cursorChar = 11;
+        } else {
+            cursorChar = 10;
+        }
+
+        i = drawLen - strlen(str);
+
+        if (size == SMALLCHAR_WIDTH) {
+            SCR_DrawSmallChar(x + (edit->cursor - prestep - i) * size, y, cursorChar);
+        } else {
+            str[0] = cursorChar;
+            str[1] = 0;
+            SCR_DrawBigString(x + (edit->cursor - prestep - i) * size, y, str, 1.0, qfalse);
+        }
+    }
+}
+
+void Field_Draw(field_t* edit, int x, int y, int width, qboolean showCursor, qboolean noColorEscape) {
+    Field_VariableSizeDraw(edit, x, y, width, SMALLCHAR_WIDTH, showCursor, noColorEscape);
+}
+
+void Field_BigDraw(field_t* edit, int x, int y, int width, qboolean showCursor, qboolean noColorEscape) {
+    Field_VariableSizeDraw(edit, x, y, width, BIGCHAR_WIDTH, showCursor, noColorEscape);
+}
+
+void Field_Paste(field_t* edit) {
+    char* cbd;
+    int pasteLen, i;
+
+    cbd = Sys_GetClipboardData();
+
+    if (!cbd) {
+        return;
+    }
+
+    pasteLen = strlen(cbd);
+    for (i = 0; i < pasteLen;) {
+        unsigned char c = (unsigned char)cbd[i];
+        int codepoint, extra, n;
+
+        if (c < 0x80) {
+            codepoint = c;
+            extra = 0;
+        } else if ((c & 0xE0) == 0xC0) {
+            codepoint = c & 0x1F;
+            extra = 1;
+        } else if ((c & 0xF0) == 0xE0) {
+            codepoint = c & 0x0F;
+            extra = 2;
+        } else if ((c & 0xF8) == 0xF0) {
+            codepoint = c & 0x07;
+            extra = 3;
+        } else {
+            i++;
+            continue;
+        }
+        i++;
+        for (n = 0; n < extra && i < pasteLen && ((unsigned char)cbd[i] & 0xC0) == 0x80; n++, i++) {
+            codepoint = (codepoint << 6) | ((unsigned char)cbd[i] & 0x3F);
+        }
+        if (n == extra) {
+            Field_CharEvent(edit, codepoint);
+        }
+    }
+
+    Z_Free(cbd);
+}
+
+void Field_KeyDownEvent(field_t* edit, int key) {
+    int len;
+
+    if (((key == K_INS) || (key == K_KP_INS)) && keys[K_SHIFT].down) {
+        Field_Paste(edit);
+        return;
+    }
+
+    key = tolower(key);
+    len = strlen(edit->buffer);
+
+    switch (key) {
+        case K_DEL:
+            if (edit->cursor < len) {
+                int next = Q_UTF8_Next(edit->buffer, edit->cursor);
+
+                memmove(edit->buffer + edit->cursor,
+                        edit->buffer + next, len + 1 - next);
+            }
+            break;
+
+        case K_RIGHTARROW:
+            if (Con_GetStyle() == 1 && keys[K_CTRL].down) {
+                const char* c = edit->buffer + edit->cursor;
+                if (*c != ' ') {
+                    while (*c != '\0' && *c != ' ')
+                        c++;
+                }
+                while (*c != '\0' && *c == ' ')
+                    c++;
+                edit->cursor = (int)(c - edit->buffer);
+            } else if (Con_GetStyle() == 1 && keys[K_SHIFT].down) {
+                int currentArg, lastArg;
+                Cmd_TokenizeString(edit->buffer);
+                currentArg = Cmd_ArgIndexFromOffset(edit->cursor);
+                lastArg = Cmd_Argc() - 1;
+                if (currentArg == lastArg) {
+                    edit->cursor = len;
+                } else if (currentArg >= 0 && currentArg < lastArg) {
+                    edit->cursor = Cmd_ArgOffset(currentArg + 1);
+                }
+            } else if (edit->cursor < len) {
+                edit->cursor++;
+            }
+            break;
+
+        case K_LEFTARROW:
+            if (Con_GetStyle() == 1 && keys[K_CTRL].down) {
+                const char* const s = edit->buffer;
+                const char* c = s + edit->cursor;
+                if (c > s && c[-1] == ' ') {
+                    while (c > s && c[-1] == ' ')
+                        c--;
+                }
+                while (c > s && c[-1] != ' ')
+                    c--;
+                edit->cursor = (int)(c - edit->buffer);
+            } else if (Con_GetStyle() == 1 && keys[K_SHIFT].down) {
+                int currentArg, currentArgOff;
+                Cmd_TokenizeString(edit->buffer);
+                currentArg = Cmd_ArgIndexFromOffset(edit->cursor);
+                if (currentArg == -1) {
+                    currentArg = Cmd_Argc() - 1;
+                }
+                currentArgOff = Cmd_ArgOffset(currentArg);
+                if (currentArgOff < edit->cursor) {
+                    edit->cursor = currentArgOff;
+                } else if (currentArg > 0) {
+                    edit->cursor = Cmd_ArgOffset(currentArg - 1);
+                }
+            } else if (edit->cursor > 0) {
+                edit->cursor--;
+            }
+            break;
+
+        case K_HOME:
+            edit->cursor = 0;
+            break;
+
+        case K_END:
+            edit->cursor = len;
+            break;
+
+        case K_INS:
+            key_overstrikeMode = !key_overstrikeMode;
+            break;
+
+        default:
+            break;
+    }
+
+    if (edit->cursor < edit->scroll) {
+        edit->scroll = edit->cursor;
+    } else if (edit->cursor >= edit->scroll + edit->widthInChars && edit->cursor <= len) {
+        edit->scroll = edit->cursor - edit->widthInChars + 1;
+    }
+}
+
+void Field_CharEvent(field_t* edit, int ch) {
+    int len;
+
+    if (ch == 'v' - 'a' + 1) {
+        Field_Paste(edit);
+        return;
+    }
+
+    if (ch == 'c' - 'a' + 1) {
+        Field_Clear(edit);
+        return;
+    }
+
+    len = strlen(edit->buffer);
+
+    if (ch == 'h' - 'a' + 1) {
+        if (edit->cursor > 0) {
+            int start = Q_UTF8_Start(edit->buffer, edit->cursor);
+
+            memmove(edit->buffer + start,
+                    edit->buffer + edit->cursor, len + 1 - edit->cursor);
+            edit->cursor = start;
+            if (edit->cursor < edit->scroll) {
+                edit->scroll = edit->cursor;
+            }
+        }
+        return;
+    }
+
+    if (ch == 'a' - 'a' + 1) {
+        edit->cursor = 0;
+        edit->scroll = 0;
+        return;
+    }
+
+    if (ch == 'e' - 'a' + 1) {
+        edit->cursor = len;
+        edit->scroll = edit->cursor - edit->widthInChars;
+        return;
+    }
+
+    if (ch < 32) {
+        return;
+    }
+
+    {
+        char utf8[4];
+        int bytes = Q_UTF8_Encode(utf8, ch);
+
+        if (bytes < 1) {
+            return;
+        }
+        if (key_overstrikeMode) {
+            if (edit->cursor + bytes > MAX_EDIT_LINE - 2)
+                return;
+            Com_Memcpy(edit->buffer + edit->cursor, utf8, bytes);
+            if (edit->cursor + bytes > len) {
+                edit->buffer[edit->cursor + bytes] = '\0';
+            }
+            edit->cursor += bytes;
+        } else {
+            if (len + bytes > MAX_EDIT_LINE - 2) {
+                return;
+            }
+            memmove(edit->buffer + edit->cursor + bytes,
+                    edit->buffer + edit->cursor, len + 1 - edit->cursor);
+            Com_Memcpy(edit->buffer + edit->cursor, utf8, bytes);
+            edit->cursor += bytes;
+        }
+    }
+
+    if (edit->cursor >= edit->widthInChars) {
+        edit->scroll++;
+    }
+
+    if (edit->cursor == len + 1) {
+        edit->buffer[edit->cursor] = 0;
+    }
+}
+
+void Console_Key(int key) {
+    if (key == K_MOUSE1 && Con_MouseClick()) {
+        return;
+    }
+
+    if (Con_HandleMarkMode(keys[K_CTRL].down, keys[K_SHIFT].down, key)) {
+        return;
+    }
+
+    if (key != K_TAB) {
+        Field_ResetCompletionCycle();
+    }
+
+    if (key == 'l' && keys[K_CTRL].down) {
+        Cbuf_AddText("clear\n");
+        return;
+    }
+
+    if (key == K_ENTER || key == K_KP_ENTER) {
+        if (!cl_allowConsoleChat->integer &&
+            g_consoleField.buffer[0] &&
+            g_consoleField.buffer[0] != '\\' &&
+            g_consoleField.buffer[0] != '/') {
+            char temp[MAX_EDIT_LINE - 1];
+
+            Q_strncpyz(temp, g_consoleField.buffer, sizeof(temp));
+            Com_sprintf(g_consoleField.buffer, sizeof(g_consoleField.buffer), "\\%s", temp);
+            g_consoleField.cursor++;
+        }
+
+        Com_Printf("]%s\n", g_consoleField.buffer);
+
+        if (g_consoleField.buffer[0] == '\\' || g_consoleField.buffer[0] == '/') {
+            Cbuf_AddText(g_consoleField.buffer + 1);
+            Cbuf_AddText("\n");
+        } else {
+            if (!g_consoleField.buffer[0]) {
+                return;
+            } else {
+                Cbuf_AddText("cmd say ");
+                Cbuf_AddText(g_consoleField.buffer);
+                Cbuf_AddText("\n");
+            }
+        }
+
+        historyEditLines[nextHistoryLine % COMMAND_HISTORY] = g_consoleField;
+        nextHistoryLine++;
+        historyLine = nextHistoryLine;
+
+        Field_Clear(&g_consoleField);
+
+        g_consoleField.widthInChars = g_console_field_width;
+
+        if (!con_history || con_history->integer) {
+            CL_SaveConsoleHistory();
+        }
+
+        if (clc.state == CA_DISCONNECTED) {
+            SCR_UpdateScreen();
+        }
+        return;
+    }
+
+    if (key == K_TAB) {
+        Field_AutoComplete(&g_consoleField);
+        return;
+    }
+
+    if ((key == K_MWHEELUP && keys[K_SHIFT].down && Con_GetStyle() == 0) || (key == K_UPARROW) || (key == K_KP_UPARROW) ||
+        ((tolower(key) == 'p') && keys[K_CTRL].down)) {
+        if (nextHistoryLine - historyLine < COMMAND_HISTORY && historyLine > 0) {
+            historyLine--;
+        }
+        g_consoleField = historyEditLines[historyLine % COMMAND_HISTORY];
+        return;
+    }
+
+    if ((key == K_MWHEELDOWN && keys[K_SHIFT].down && Con_GetStyle() == 0) || (key == K_DOWNARROW) || (key == K_KP_DOWNARROW) ||
+        ((tolower(key) == 'n') && keys[K_CTRL].down)) {
+        historyLine++;
+        if (historyLine >= nextHistoryLine) {
+            historyLine = nextHistoryLine;
+            Field_Clear(&g_consoleField);
+            g_consoleField.widthInChars = g_console_field_width;
+            return;
+        }
+        g_consoleField = historyEditLines[historyLine % COMMAND_HISTORY];
+        return;
+    }
+
+    if (Con_GetStyle() == 1) {
+        if (key == K_MWHEELUP) {
+            Con_ScrollLines(keys[K_SHIFT].down ? -6 : -2);
+            return;
+        }
+        if (key == K_MWHEELDOWN) {
+            Con_ScrollLines(keys[K_SHIFT].down ? 6 : 2);
+            return;
+        }
+        if (key == K_PGUP) {
+            if (keys[K_SHIFT].down) {
+                Con_ScrollPages(-1);
+            } else {
+                Con_ScrollLines(-6);
+            }
+            return;
+        }
+        if (key == K_PGDN) {
+            if (keys[K_SHIFT].down) {
+                Con_ScrollPages(1);
+            } else {
+                Con_ScrollLines(6);
+            }
+            return;
+        }
+    }
+
+    if (key == K_PGUP) {
+        Con_PageUp();
+        return;
+    }
+
+    if (key == K_PGDN) {
+        Con_PageDown();
+        return;
+    }
+
+    if (key == K_MWHEELUP) {
+        Con_PageUp();
+        if (keys[K_CTRL].down) {
+            Con_PageUp();
+            Con_PageUp();
+        }
+        return;
+    }
+
+    if (key == K_MWHEELDOWN) {
+        Con_PageDown();
+        if (keys[K_CTRL].down) {
+            Con_PageDown();
+            Con_PageDown();
+        }
+        return;
+    }
+
+    if (key == K_HOME && keys[K_CTRL].down) {
+        Con_Top();
+        return;
+    }
+
+    if (key == K_END && keys[K_CTRL].down) {
+        Con_Bottom();
+        return;
+    }
+
+    if (keys[K_CTRL].down && (key == 'i' || key == 'I')) {
+        const char* name;
+
+        Cmd_TokenizeString(g_consoleField.buffer);
+        name = Cmd_Argv(0);
+        if (name[0] == '\\' || name[0] == '/') {
+            name++;
+        }
+        if (name[0]) {
+            const cvar_t* const cvar = Cvar_Find(name);
+            if (cvar) {
+                Field_InsertCVarValue(&g_consoleField, cvar, qfalse);
+            } else if (Cmd_Argc() >= 2 && !Q_stricmp(name, "bind")) {
+                char keyName[MAX_TOKEN_CHARS];
+                const int keynum = Key_StringToKeynum(Cmd_Argv(1));
+                if (keynum >= 0) {
+                    Q_strncpyz(keyName, Cmd_Argv(1), sizeof(keyName));
+                    Field_InsertBindCommand(&g_consoleField, keyName, Key_GetBinding(keynum));
+                }
+            }
+        }
+        return;
+    }
+
+    if (keys[K_CTRL].down && (key == 'd' || key == 'D')) {
+        const char* name;
+
+        Cmd_TokenizeString(g_consoleField.buffer);
+        name = Cmd_Argv(0);
+        if (name[0] == '\\' || name[0] == '/') {
+            name++;
+        }
+        if (name[0]) {
+            const cvar_t* const cvar = Cvar_Find(name);
+            if (cvar) {
+                Field_InsertCVarValue(&g_consoleField, cvar, qtrue);
+            }
+        }
+        return;
+    }
+
+    if (keys[K_CTRL].down && (key == 'f' || key == 'F')) {
+        Q_strncpyz(g_consoleField.buffer, "\\searchconsole ", sizeof(g_consoleField.buffer));
+        g_consoleField.cursor = strlen(g_consoleField.buffer);
+        return;
+    }
+
+    if (key == K_F3) {
+        Con_ContinueSearch(keys[K_SHIFT].down ? qfalse : qtrue);
+        return;
+    }
+
+    Field_KeyDownEvent(&g_consoleField, key);
+}
+
+void Message_Key(int key) {
+    char buffer[MAX_STRING_CHARS];
+
+    if (key == K_ESCAPE) {
+        Key_SetCatcher(Key_GetCatcher() & ~KEYCATCH_MESSAGE);
+        Field_Clear(&chatField);
+        return;
+    }
+
+    if (key == K_ENTER || key == K_KP_ENTER) {
+        if (chatField.buffer[0] && clc.state == CA_ACTIVE) {
+            if (chat_playerNum != -1)
+
+                Com_sprintf(buffer, sizeof(buffer), "tell %i \"%s\"\n", chat_playerNum, chatField.buffer);
+
+            else if (chat_team)
+
+                Com_sprintf(buffer, sizeof(buffer), "say_team \"%s\"\n", chatField.buffer);
+            else
+                Com_sprintf(buffer, sizeof(buffer), "say \"%s\"\n", chatField.buffer);
+
+            CL_AddReliableCommand(buffer, qfalse);
+        }
+        Key_SetCatcher(Key_GetCatcher() & ~KEYCATCH_MESSAGE);
+        Field_Clear(&chatField);
+        return;
+    }
+
+    Field_KeyDownEvent(&chatField, key);
+}
+
+qboolean Key_GetOverstrikeMode(void) {
+    return key_overstrikeMode;
+}
+
+void Key_SetOverstrikeMode(qboolean state) {
+    key_overstrikeMode = state;
+}
+
+qboolean Key_IsDown(int keynum) {
+    if (keynum < 0 || keynum >= MAX_KEYS) {
+        return qfalse;
+    }
+
+    return keys[keynum].down;
+}
+
+int Key_StringToKeynum(char* str) {
+    keyname_t* kn;
+    int n;
+
+    if (!str || !str[0]) {
+        return -1;
+    }
+    if (!str[1]) {
+        return tolower(str[0]);
+    }
+
+    n = Com_HexStrToInt(str);
+    if (n >= 0 && n < MAX_KEYS) {
+        return n;
+    }
+
+    for (kn = keynames; kn->name; kn++) {
+        if (!Q_stricmp(str, kn->name))
+            return kn->keynum;
+    }
+
+    return -1;
+}
+
+char* Key_KeynumToString(int keynum) {
+    keyname_t* kn;
+    static char tinystr[5];
+    int i, j;
+
+    if (keynum == -1) {
+        return "<KEY NOT FOUND>";
+    }
+
+    if (keynum < 0 || keynum >= MAX_KEYS) {
+        return "<OUT OF RANGE>";
+    }
+
+    if (keynum > 32 && keynum < 127 && keynum != '"' && keynum != ';') {
+        tinystr[0] = keynum;
+        tinystr[1] = 0;
+        return tinystr;
+    }
+
+    for (kn = keynames; kn->name; kn++) {
+        if (keynum == kn->keynum) {
+            return kn->name;
+        }
+    }
+
+    i = keynum >> 4;
+    j = keynum & 15;
+
+    tinystr[0] = '0';
+    tinystr[1] = 'x';
+    tinystr[2] = i > 9 ? i - 10 + 'a' : i + '0';
+    tinystr[3] = j > 9 ? j - 10 + 'a' : j + '0';
+    tinystr[4] = 0;
+
+    return tinystr;
+}
+
+void Key_SetBinding(int keynum, const char* binding) {
+    if (keynum < 0 || keynum >= MAX_KEYS) {
+        return;
+    }
+
+    if (keys[keynum].binding) {
+        Z_Free(keys[keynum].binding);
+    }
+
+    keys[keynum].binding = CopyString(binding);
+
+    cvar_modifiedFlags |= CVAR_ARCHIVE;
+}
+
+char* Key_GetBinding(int keynum) {
+    if (keynum < 0 || keynum >= MAX_KEYS) {
+        return "";
+    }
+
+    return keys[keynum].binding;
+}
+
+int Key_GetKey(const char* binding) {
+    int i;
+
+    if (binding) {
+        for (i = 0; i < MAX_KEYS; i++) {
+            if (keys[i].binding && Q_stricmp(binding, keys[i].binding) == 0) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+void Key_Unbind_f(void) {
+    int b;
+
+    if (Cmd_Argc() != 2) {
+        Com_Printf("unbind <key> : remove commands from a key\n");
+        return;
+    }
+
+    b = Key_StringToKeynum(Cmd_Argv(1));
+    if (b == -1) {
+        Com_Printf("\"%s\" isn't a valid key\n", Cmd_Argv(1));
+        return;
+    }
+
+    Key_SetBinding(b, "");
+}
+
+void Key_Unbindall_f(void) {
+    int i;
+
+    for (i = 0; i < MAX_KEYS; i++)
+        if (keys[i].binding)
+            Key_SetBinding(i, "");
+}
+
+void Key_Bind_f(void) {
+    int i, c, b;
+    char cmd[1024];
+
+    c = Cmd_Argc();
+
+    if (c < 2) {
+        Com_Printf("bind <key> [command] : attach a command to a key\n");
+        return;
+    }
+    b = Key_StringToKeynum(Cmd_Argv(1));
+    if (b == -1) {
+        Com_Printf("\"%s\" isn't a valid key\n", Cmd_Argv(1));
+        return;
+    }
+
+    if (c == 2) {
+        if (keys[b].binding && keys[b].binding[0])
+            Com_Printf("\"%s\" = \"%s\"\n", Key_KeynumToString(b), keys[b].binding);
+        else
+            Com_Printf("\"%s\" is not bound\n", Key_KeynumToString(b));
+        return;
+    }
+
+    cmd[0] = 0;
+    for (i = 2; i < c; i++) {
+        strcat(cmd, Cmd_Argv(i));
+        if (i != (c - 1))
+            strcat(cmd, " ");
+    }
+
+    Key_SetBinding(b, cmd);
+}
+
+void Key_WriteBindings(fileHandle_t f) {
+    int i;
+
+    FS_Printf(f, "unbindall\n");
+
+    for (i = 0; i < MAX_KEYS; i++) {
+        if (keys[i].binding && keys[i].binding[0]) {
+            FS_Printf(f, "bind %s \"%s\"\n", Key_KeynumToString(i), keys[i].binding);
+        }
+    }
+}
+
+void Key_Bindlist_f(void) {
+    int i;
+
+    for (i = 0; i < MAX_KEYS; i++) {
+        if (keys[i].binding && keys[i].binding[0]) {
+            Com_Printf("%s \"%s\"\n", Key_KeynumToString(i), keys[i].binding);
+        }
+    }
+}
+
+static void Key_BindKeyList_f(void) {
+    int i;
+
+    for (i = 0; keynames[i].name != NULL; i++) {
+        Com_Printf("%s\n", keynames[i].name);
+    }
+}
+
+void Key_KeynameCompletion(void (*callback)(const char* s)) {
+    int i;
+
+    for (i = 0; keynames[i].name != NULL; i++)
+        callback(keynames[i].name);
+}
+
+static void Key_CompleteUnbind(char* args, int argNum) {
+    if (argNum == 2) {
+        char* p = Com_SkipTokens(args, 1, " ");
+
+        if (p > args)
+            Field_CompleteKeyname();
+    }
+}
+
+static void Key_CompleteBind(char* args, int argNum) {
+    char* p;
+
+    if (argNum == 2) {
+        p = Com_SkipTokens(args, 1, " ");
+
+        if (p > args)
+            Field_CompleteKeyname();
+    } else if (argNum >= 3) {
+        p = Com_SkipTokens(args, 2, " ");
+
+        if (p > args)
+            Field_CompleteCommand(p, qtrue, qtrue);
+    }
+}
+
+void CL_InitKeyCommands(void) {
+    Cmd_AddCommand("bind", Key_Bind_f);
+    Cmd_SetCommandCompletionFunc("bind", Key_CompleteBind);
+    Cmd_AddCommand("unbind", Key_Unbind_f);
+    Cmd_SetCommandCompletionFunc("unbind", Key_CompleteUnbind);
+    Cmd_AddCommand("unbindall", Key_Unbindall_f);
+    Cmd_AddCommand("bindlist", Key_Bindlist_f);
+    Cmd_AddCommand("bindkeylist", Key_BindKeyList_f);
+}
+
+static qboolean CL_BindUICommand(const char* cmd) {
+    if (Key_GetCatcher() & KEYCATCH_CONSOLE)
+        return qfalse;
+
+    if (!Q_stricmp(cmd, "toggleconsole"))
+        return qtrue;
+    if (!Q_stricmp(cmd, "togglemenu"))
+        return qtrue;
+
+    return qfalse;
+}
+
+void CL_ParseBinding(int key, qboolean down, unsigned time) {
+    char buf[MAX_STRING_CHARS], *p = buf, *end;
+    qboolean allCommands, allowUpCmds;
+
+    if (clc.state == CA_DISCONNECTED && Key_GetCatcher() == 0)
+        return;
+    if (!keys[key].binding || !keys[key].binding[0])
+        return;
+    Q_strncpyz(buf, keys[key].binding, sizeof(buf));
+
+    allCommands = (Key_GetCatcher() == 0);
+
+    allowUpCmds = (clc.state != CA_DISCONNECTED);
+
+    while (1) {
+        while (isspace(*p))
+            p++;
+        end = strchr(p, ';');
+        if (end)
+            *end = '\0';
+        if (*p == '+') {
+            if (allCommands || (allowUpCmds && !down)) {
+                char cmd[1024];
+                Com_sprintf(cmd, sizeof(cmd), "%c%s %d %d\n",
+                            (down) ? '+' : '-', p + 1, key, time);
+                Cbuf_AddText(cmd);
+            }
+        } else if (down) {
+            if (allCommands || CL_BindUICommand(p)) {
+                Cbuf_AddText(p);
+                Cbuf_AddText("\n");
+            }
+        }
+        if (!end)
+            break;
+        p = end + 1;
+    }
+}
+
+static const char *CL_DemoKeyCommand(int key) {
+    switch (key) {
+    case K_SPACE:
+        return "toggle cl_freezeDemo\n";
+    case K_RIGHTARROW:
+    case K_MWHEELUP:
+        return cl_freezeDemo->integer ? "timescale 1; cl_freezeDemo 0; wait; wait; cl_freezeDemo 1\n"
+                                      : "cvarAdd timescale 0.1\n";
+    case K_LEFTARROW:
+    case K_MWHEELDOWN:
+        return "cvarAdd timescale -0.1\n";
+    case K_DOWNARROW:
+    case K_MOUSE3:
+        return "timescale 1\n";
+    case K_DEL:
+        return "toggle cg_drawDemoHUD\n";
+    case K_PGDN:
+        return "rewind 10\n";
+    case K_PGUP:
+        return "fastforward 10\n";
+    case K_HOME:
+        return "seekdemo 0\n";
+    case 'c':
+        return "toggle cg_freecam\n";
+    case 'f':
+        return "fragforward\n";
+    case 'r':
+        return "fragback\n";
+    case K_F1:
+        return "toggle cg_demoKeys\n";
+    case K_F9:
+        return "video\n";
+    case K_F10:
+        return "stopvideo\n";
+    }
+    return NULL;
+}
+
+void CL_KeyDownEvent(int key, unsigned time) {
+    keys[key].down = qtrue;
+    keys[key].repeats++;
+    if (keys[key].repeats == 1)
+        anykeydown++;
+
+    if (keys[K_ALT].down && key == K_ENTER) {
+        if (keys[K_ENTER].repeats > 1) {
+            return;
+        }
+
+        Cvar_SetValue("r_fullscreen",
+                      !Cvar_VariableIntegerValue("r_fullscreen"));
+        Cbuf_ExecuteText(EXEC_APPEND, "vid_restart fast\n");
+        return;
+    }
+
+    if (key == K_CONSOLE) {
+        Con_ToggleConsole_f();
+        Key_ClearStates();
+        return;
+    }
+
+    if (keys[K_SHIFT].down && key == K_ESCAPE) {
+        Con_ToggleConsole_Forced();
+        Key_ClearStates();
+        return;
+    }
+
+    if ((Key_GetCatcher() & KEYCATCH_CONSOLE) && Con_LinkPromptKey(key)) {
+        return;
+    }
+
+    if ((key < 128 || key == K_MOUSE1) && clc.state == CA_CINEMATIC && Key_GetCatcher() == 0) {
+        if (Cvar_VariableValue("com_cameraMode") == 0) {
+            Cvar_Set("nextdemo", "");
+            key = K_ESCAPE;
+        }
+    }
+
+    if (key == K_ESCAPE) {
+        if (Key_GetCatcher() & KEYCATCH_MESSAGE) {
+            Message_Key(key);
+            return;
+        }
+
+        if (Key_GetCatcher() & KEYCATCH_CGAME) {
+            VM_Call(cgvm, CG_EVENT_HANDLING, CGAME_EVENT_ESCAPE);
+        }
+
+        if (!(Key_GetCatcher() & KEYCATCH_UI)) {
+            if (clc.state == CA_ACTIVE && !clc.demoplaying) {
+                VM_Call(uivm, UI_SET_ACTIVE_MENU, UIMENU_INGAME);
+            } else if (clc.state != CA_DISCONNECTED) {
+                CL_Disconnect_f();
+                S_StopAllSounds();
+                VM_Call(uivm, UI_SET_ACTIVE_MENU, UIMENU_MAIN);
+            }
+            return;
+        }
+
+        VM_Call(uivm, UI_KEY_EVENT, key, qtrue);
+        return;
+    }
+
+    if (clc.demoplaying && !(Key_GetCatcher() & ~KEYCATCH_CGAME)) {
+        const char *cmd = CL_DemoKeyCommand(key);
+
+        if (cmd) {
+            Cbuf_ExecuteText(EXEC_APPEND, cmd);
+            return;
+        }
+    }
+
+    CL_ParseBinding(key, qtrue, time);
+
+    if (Key_GetCatcher() & KEYCATCH_CONSOLE) {
+        Console_Key(key);
+    } else if (Key_GetCatcher() & KEYCATCH_UI) {
+        if (uivm) {
+            VM_Call(uivm, UI_KEY_EVENT, key, qtrue);
+        }
+    } else if (Key_GetCatcher() & KEYCATCH_MESSAGE) {
+        Message_Key(key);
+    } else if (Key_GetCatcher() & KEYCATCH_CGAME) {
+        if (cgvm) {
+            VM_Call(cgvm, CG_KEY_EVENT, key, qtrue);
+        }
+    } else if (clc.state == CA_DISCONNECTED) {
+        Console_Key(key);
+    }
+}
+
+void CL_KeyUpEvent(int key, unsigned time) {
+    keys[key].repeats = 0;
+    keys[key].down = qfalse;
+    anykeydown--;
+
+    if (anykeydown < 0) {
+        anykeydown = 0;
+    }
+
+    if (key == K_CONSOLE || (key == K_ESCAPE && keys[K_SHIFT].down))
+        return;
+
+    CL_ParseBinding(key, qfalse, time);
+
+    if (Key_GetCatcher() & KEYCATCH_UI && uivm) {
+        VM_Call(uivm, UI_KEY_EVENT, key, qfalse);
+    } else if (Key_GetCatcher() & KEYCATCH_CGAME && cgvm) {
+        VM_Call(cgvm, CG_KEY_EVENT, key, qfalse);
+    }
+}
+
+void CL_KeyEvent(int key, qboolean down, unsigned time) {
+    if (CL_DemoWindowKey(key, down)) {
+        return;
+    }
+
+    if (down && key == K_MOUSE1 && cls.rendererStarted && re.LowLatencyFlash) {
+        re.LowLatencyFlash();
+    }
+
+    if (down)
+        CL_KeyDownEvent(key, time);
+    else
+        CL_KeyUpEvent(key, time);
+}
+
+void CL_CharEvent(int key) {
+    if (key == 127) {
+        return;
+    }
+
+    if (CL_DemoWindowChar(key)) {
+        return;
+    }
+
+    if (Key_GetCatcher() & KEYCATCH_CONSOLE) {
+        if (!Con_SwallowCharEvent(key)) {
+            Field_CharEvent(&g_consoleField, key);
+        }
+    } else if (Key_GetCatcher() & KEYCATCH_UI) {
+        VM_Call(uivm, UI_KEY_EVENT, key | K_CHAR_FLAG, qtrue);
+    } else if (Key_GetCatcher() & KEYCATCH_MESSAGE) {
+        Field_CharEvent(&chatField, key);
+    } else if (clc.state == CA_DISCONNECTED) {
+        Field_CharEvent(&g_consoleField, key);
+    }
+}
+
+void Key_ClearStates(void) {
+    int i;
+
+    anykeydown = 0;
+
+    for (i = 0; i < MAX_KEYS; i++) {
+        if (keys[i].down) {
+            CL_KeyEvent(i, qfalse, 0);
+        }
+        keys[i].down = 0;
+        keys[i].repeats = 0;
+    }
+}
+
+static int keyCatchers = 0;
+
+int Key_GetCatcher(void) {
+    return keyCatchers;
+}
+
+void Key_SetCatcher(int catcher) {
+    if (catcher != keyCatchers)
+        Key_ClearStates();
+
+    keyCatchers = catcher;
+}
+
+#define MAX_CONSOLE_SAVE_BUFFER 1024
+#define CONSOLE_HISTORY_FILE "consolehistory.txt"
+static char consoleSaveBuffer[MAX_CONSOLE_SAVE_BUFFER];
+static int consoleSaveBufferSize = 0;
+
+void CL_LoadConsoleHistory(void) {
+    char *token, *text_p;
+    int i, numChars, numLines = 0;
+    fileHandle_t f;
+
+    consoleSaveBufferSize = FS_FOpenFileRead(CONSOLE_HISTORY_FILE, &f, qfalse);
+    if (!f) {
+        Com_Printf("Couldn't read %s.\n", CONSOLE_HISTORY_FILE);
+        return;
+    }
+
+    if (consoleSaveBufferSize < MAX_CONSOLE_SAVE_BUFFER &&
+        FS_Read(consoleSaveBuffer, consoleSaveBufferSize, f) == consoleSaveBufferSize) {
+        consoleSaveBuffer[consoleSaveBufferSize] = '\0';
+        text_p = consoleSaveBuffer;
+
+        for (i = COMMAND_HISTORY - 1; i >= 0; i--) {
+            if (!*(token = COM_Parse(&text_p)))
+                break;
+
+            historyEditLines[i].cursor = atoi(token);
+
+            if (!*(token = COM_Parse(&text_p)))
+                break;
+
+            historyEditLines[i].scroll = atoi(token);
+
+            if (!*(token = COM_Parse(&text_p)))
+                break;
+
+            numChars = atoi(token);
+            text_p++;
+            if (numChars > (strlen(consoleSaveBuffer) - (text_p - consoleSaveBuffer))) {
+                Com_DPrintf(S_COLOR_YELLOW "WARNING: probable corrupt history\n");
+                break;
+            }
+            Com_Memcpy(historyEditLines[i].buffer,
+                       text_p, numChars);
+            historyEditLines[i].buffer[numChars] = '\0';
+            text_p += numChars;
+
+            numLines++;
+        }
+
+        memmove(&historyEditLines[0], &historyEditLines[i + 1],
+                numLines * sizeof(field_t));
+        for (i = numLines; i < COMMAND_HISTORY; i++)
+            Field_Clear(&historyEditLines[i]);
+
+        historyLine = nextHistoryLine = numLines;
+    } else
+        Com_Printf("Couldn't read %s.\n", CONSOLE_HISTORY_FILE);
+
+    FS_FCloseFile(f);
+}
+
+void CL_SaveConsoleHistory(void) {
+    int i;
+    int lineLength, saveBufferLength, additionalLength;
+    fileHandle_t f;
+
+    consoleSaveBuffer[0] = '\0';
+
+    i = (nextHistoryLine - 1) % COMMAND_HISTORY;
+    do {
+        if (historyEditLines[i].buffer[0]) {
+            lineLength = strlen(historyEditLines[i].buffer);
+            saveBufferLength = strlen(consoleSaveBuffer);
+
+            additionalLength = lineLength + strlen("999 999 999  ");
+
+            if (saveBufferLength + additionalLength < MAX_CONSOLE_SAVE_BUFFER) {
+                Q_strcat(consoleSaveBuffer, MAX_CONSOLE_SAVE_BUFFER,
+                         va("%d %d %d %s ",
+                            historyEditLines[i].cursor,
+                            historyEditLines[i].scroll,
+                            lineLength,
+                            historyEditLines[i].buffer));
+            } else
+                break;
+        }
+        i = (i - 1 + COMMAND_HISTORY) % COMMAND_HISTORY;
+    } while (i != (nextHistoryLine - 1) % COMMAND_HISTORY);
+
+    consoleSaveBufferSize = strlen(consoleSaveBuffer);
+
+    f = FS_FOpenFileWrite(CONSOLE_HISTORY_FILE);
+    if (!f) {
+        Com_Printf("Couldn't write %s.\n", CONSOLE_HISTORY_FILE);
+        return;
+    }
+
+    if (FS_Write(consoleSaveBuffer, consoleSaveBufferSize, f) < consoleSaveBufferSize)
+        Com_Printf("Couldn't write %s.\n", CONSOLE_HISTORY_FILE);
+
+    FS_FCloseFile(f);
+}

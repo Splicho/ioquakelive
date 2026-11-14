@@ -1,0 +1,224 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#define CMD_BACKUP 64
+#define CMD_MASK (CMD_BACKUP - 1)
+
+#define MAX_ENTITIES_IN_SNAPSHOT 256
+
+typedef struct {
+    int snapFlags;
+    int ping;
+
+    int serverTime;
+
+    byte areamask[MAX_MAP_AREA_BYTES];
+
+    playerState_t ps;
+
+    int numEntities;
+    entityState_t entities[MAX_ENTITIES_IN_SNAPSHOT];
+
+    int numServerCommands;
+    int serverCommandSequence;
+} snapshot_t;
+
+enum {
+    CGAME_EVENT_NONE,
+    CGAME_EVENT_TEAMMENU,
+    CGAME_EVENT_SCOREBOARD,
+    CGAME_EVENT_EDITHUD,
+    CGAME_EVENT_RESOLUTION,
+    CGAME_EVENT_ESCAPE
+};
+
+#define CGAME_IMPORT_API_VERSION 8
+
+typedef enum {
+    CG_PRINT,
+    CG_ERROR,
+    CG_MILLISECONDS,
+    CG_CVAR_REGISTER,
+    CG_CVAR_UPDATE,
+    CG_CVAR_SET,
+    CG_CVAR_VARIABLESTRINGBUFFER,
+    CG_ARGC,
+    CG_ARGV,
+    CG_ARGS,
+    CG_FS_FOPENFILE,
+    CG_FS_READ,
+    CG_FS_WRITE,
+    CG_FS_FCLOSEFILE,
+    CG_SENDCONSOLECOMMAND,
+    CG_ADDCOMMAND,
+    CG_SENDCLIENTCOMMAND,
+    CG_UPDATESCREEN,
+    CG_CM_LOADMAP,
+    CG_CM_NUMINLINEMODELS,
+    CG_CM_INLINEMODEL,
+    CG_CM_LOADMODEL,
+    CG_CM_TEMPBOXMODEL,
+    CG_CM_POINTCONTENTS,
+    CG_CM_TRANSFORMEDPOINTCONTENTS,
+    CG_CM_BOXTRACE,
+    CG_CM_TRANSFORMEDBOXTRACE,
+    CG_CM_MARKFRAGMENTS,
+    CG_S_STARTSOUND,
+    CG_S_STARTLOCALSOUND,
+    CG_S_CLEARLOOPINGSOUNDS,
+    CG_S_ADDLOOPINGSOUND,
+    CG_S_UPDATEENTITYPOSITION,
+    CG_S_RESPATIALIZE,
+    CG_S_REGISTERSOUND,
+    CG_S_STARTBACKGROUNDTRACK,
+    CG_R_LOADWORLDMAP,
+    CG_R_REGISTERMODEL,
+    CG_R_REGISTERSKIN,
+    CG_R_REGISTERSHADER,
+    CG_R_CLEARSCENE,
+    CG_R_ADDREFENTITYTOSCENE,
+    CG_R_ADDPOLYTOSCENE,
+    CG_R_ADDLIGHTTOSCENE,
+    CG_R_RENDERSCENE,
+    CG_R_SETCOLOR,
+    CG_R_DRAWSTRETCHPIC,
+    CG_R_MODELBOUNDS,
+    CG_R_LERPTAG,
+    CG_GETGLCONFIG,
+    CG_GETGAMESTATE,
+    CG_GETCURRENTSNAPSHOTNUMBER,
+    CG_GETSNAPSHOT,
+    CG_GETSERVERCOMMAND,
+    CG_GETCURRENTCMDNUMBER,
+    CG_GETUSERCMD,
+    CG_SETUSERCMDVALUE,
+    CG_R_REGISTERSHADERNOMIP,
+    CG_MEMORY_REMAINING,
+    CG_R_REGISTERFONT,
+    CG_KEY_ISDOWN,
+    CG_KEY_GETCATCHER,
+    CG_KEY_SETCATCHER,
+    CG_KEY_GETKEY,
+    CG_PC_ADD_GLOBAL_DEFINE,
+    CG_PC_LOAD_SOURCE,
+    CG_PC_FREE_SOURCE,
+    CG_PC_READ_TOKEN,
+    CG_PC_SOURCE_FILE_AND_LINE,
+    CG_S_STOPBACKGROUNDTRACK,
+    CG_REAL_TIME,
+    CG_SNAPVECTOR,
+    CG_REMOVECOMMAND,
+    CG_R_LIGHTFORPOINT,
+    CG_CIN_PLAYCINEMATIC,
+    CG_CIN_STOPCINEMATIC,
+    CG_CIN_RUNCINEMATIC,
+    CG_CIN_DRAWCINEMATIC,
+    CG_CIN_SETEXTENTS,
+    CG_R_REMAP_SHADER,
+    CG_S_ADDREALLOOPINGSOUND,
+    CG_S_STOPLOOPINGSOUND,
+
+    CG_CM_TEMPCAPSULEMODEL,
+    CG_CM_CAPSULETRACE,
+    CG_CM_TRANSFORMEDCAPSULETRACE,
+    CG_R_ADDADDITIVELIGHTTOSCENE,
+    CG_GET_ENTITY_TOKEN,
+    CG_R_ADDPOLYSTOSCENE,
+    CG_R_INPVS,
+    CG_FS_SEEK,
+
+    CG_MEMSET = 100,
+    CG_MEMCPY,
+    CG_STRNCPY,
+    CG_SIN,
+    CG_COS,
+    CG_ATAN2,
+    CG_SQRT,
+    CG_FLOOR,
+    CG_CEIL,
+    CG_TESTPRINTINT,
+    CG_TESTPRINTFLOAT,
+    CG_ACOS,
+    CG_GET_ADVERTISEMENTS,
+    CG_KEY_KEYNUMTOSTRINGBUF,
+    CG_VOICE_IS_IGNORED,
+    CG_VOICE_TOGGLE_IGNORE,
+
+    CG_R_FONT_DRAWSTRING,
+    CG_R_FONT_TEXTEXTENTS,
+    CG_R_GETGLYPHINFO,
+    CG_IME_SETCOMPOSITIONFONT,
+
+    CG_R_FONT_REGISTER,
+    CG_S_STARTLOCALSOUNDVOLUME,
+    CG_FS_GETFILELIST,
+    CG_S_CLEARSOUNDBUFFER,
+    CG_KEY_GETBINDINGBUF,
+    CG_CVAR_REGISTER_RANGE,
+    CG_R_BEGINBLOOMSCENE,
+    CG_R_APPLYBLOOM,
+    CG_WEBIMAGELINK,
+    CG_STEAM_AVATAR,
+    CG_CONSOLE_AVATAR,
+    CG_GETPENDINGCMD,
+    CG_CLUB_FLAG,
+    CG_R_SHADERIMAGESIZE,
+    CG_MATCH_ALERT
+} cgameImport_t;
+
+typedef enum {
+    CG_INIT,
+
+    CG_REGISTER_CVARS,
+
+    CG_SHUTDOWN,
+
+    CG_CONSOLE_COMMAND,
+
+    CG_DRAW_ACTIVE_FRAME,
+
+    CG_CROSSHAIR_PLAYER,
+
+    CG_LAST_ATTACKER,
+
+    CG_KEY_EVENT,
+
+    CG_MOUSE_EVENT,
+
+    CG_EVENT_HANDLING,
+
+    CG_LAST_CHAT_COMMAND,
+    CG_LAST_CHAT_COMMAND2,
+    CG_SET_KEY_CATCHER,
+    CG_CLEAR_KEY_CATCHER,
+    CG_GET_ACTIVE_FRAME,
+
+    CG_CLIENT_STEAM_ID = 15,
+
+    CG_CHAT_BAR_Y = 17,
+    CG_CHAT_BAR_WIDTH,
+    CG_CHAT_FIELD_CHARS,
+
+    CG_SET_CLIENT_TALKING,
+
+    CG_DEMO_REWIND
+} cgameExport_t;
+

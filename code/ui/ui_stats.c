@@ -1,0 +1,706 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#include "ui_web.h"
+#include "../qcommon/q_steamstats.h"
+
+typedef enum {
+    ST_HIT_NONE,
+    ST_HIT_TAB
+} stHitType_t;
+
+typedef struct {
+    const char* id;
+    const char* name;
+} stWeapon_t;
+
+static const stWeapon_t stWeapons[] = {
+    {"gauntlet", "Gauntlet"},       {"machinegun", "Machinegun"}, {"shotgun", "Shotgun"},
+    {"grenade", "Grenade Launcher"}, {"rocket", "Rocket Launcher"}, {"lightning", "Lightning Gun"},
+    {"railgun", "Railgun"},         {"plasma", "Plasma Gun"},     {"hmg", "HMG"},
+    {"bfg", "BFG"},                 {"nailgun", "Nailgun"},       {"proxmine", "Proximity Mines"},
+    {"chaingun", "Chaingun"},
+};
+#define ST_NUM_WEAPONS ((int)ARRAY_LEN(stWeapons))
+
+typedef struct {
+    const char* id;
+    qboolean optional;
+    const char* name;
+} stMod_t;
+
+static const stMod_t stMods[] = {
+    {"mod_water", qfalse, "Drowning"},   {"mod_slime", qfalse, "Slime"},     {"mod_lava", qfalse, "Lava"},
+    {"mod_crush", qfalse, "Crushed"},    {"mod_telefrag", qfalse, "Telefrag"}, {"mod_hurt", qfalse, "Environment"},
+    {"mod_kamikaze", qfalse, "Kamikaze"}, {"mod_falling", qfalse, "Falling"}, {"mod_suicide", qfalse, "Suicide"},
+    {"mod_juiced", qtrue, "Juiced"},     {"mod_other", qtrue, "Other"},
+};
+#define ST_NUM_MODS ((int)ARRAY_LEN(stMods))
+
+typedef struct {
+    const char* id;
+    const char* name;
+    const char* desc;
+} stMedal_t;
+
+static const stMedal_t stMedals[] = {
+    {"medal_firstfrag", "First Frag", "Score the first frag in a match."},
+    {"medal_gauntlet", "Humiliation", "Frag an enemy with the Gauntlet."},
+    {"medal_excellent", "Excellent", "Score two frags in two seconds."},
+    {"medal_revenge", "Revenge", "Frag an enemy that has fragged you three times."},
+    {"medal_combokill", "Combo Kill", "Frag an enemy by damaging them with a weapon and finish them with the Railgun."},
+    {"medal_midair", "Midair", "Frag an enemy with a projectile weapon while they are airborne."},
+    {"medal_perforated", "Perforated", "Telefrag an enemy by invading their space through a teleporter."},
+    {"medal_rampage", "Rampage", "Gib three enemies within three seconds of each frag."},
+    {"medal_impressive", "Impressive", "Hit two shots in a row with the Railgun."},
+    {"medal_capture", "Capture", "Help your team out by capturing a flag, Domination points, or Harvester skulls."},
+    {"medal_assist", "Assist", "Be the key teammate in another player's capture play."},
+    {"medal_defense", "Defense", "Frag an enemy while defending your base."},
+    {"medal_headshot", "Headshot", "Frag an enemy with a Railgun shot to the head."},
+    {"medal_quadgod", "Quad God", "Frag 10 enemies on a single Quad Damage spree."},
+    {"medal_perfect", "Perfect", "Win a round without taking any damage."},
+    {"medal_accuracy", "Accuracy", "Finish a round with over 50% accuracy."},
+};
+#define ST_NUM_MEDALS ((int)ARRAY_LEN(stMedals))
+
+typedef struct {
+    int kills, deaths, shots, hits;
+    float kdr;
+} stSummary_t;
+
+#define ST_AVATAR SM_Len(64.0f)
+#define ST_H1_LEFT SM_Len(6.4f)
+#define ST_BAR SM_Len(8.0f)
+#define ST_NAV_H SM_Len(30.0f)
+#define ST_NAV_PAD SM_Len(20.0f)
+#define ST_NAV_GAP SM_Len(15.0f)
+#define ST_PAD SM_Len(5.0f)
+#define ST_SHADOW SM_Len(2.0f)
+#define ST_CARD_W SM_Len(169.0f)
+#define ST_CARD_H SM_Len(125.0f)
+#define ST_CARD_GAP SM_Len(7.5f)
+#define ST_CARD_SIZE 21.333f
+#define ST_CARD_LINE SM_LineHeight(ST_CARD_SIZE, 1.2f)
+#define ST_BLOCK_GAP SM_Len(30.0f)
+#define ST_CELL_PAD SM_Len(15.0f)
+#define ST_ICON SM_Len(32.0f)
+#define ST_LINE SM_LineHeight(15.0f, 1.6f)
+#define ST_WEAPONS_GAP SM_Len(100.0f)
+#define ST_MODS_GAP SM_Len(50.0f)
+#define ST_MOD_W SM_Len(200.0f)
+#define ST_MOD_H SM_Len(45.0f)
+#define ST_MOD_TOP SM_Len(15.0f)
+#define ST_MOD_GAP SM_Len(8.0f)
+#define ST_MOD_NUMBER SM_Len(40.0f)
+#define ST_MOD_SIZE 21.333f
+#define ST_MOD_LINE SM_LineHeight(ST_MOD_SIZE, 1.6f)
+#define ST_MEDAL_W SM_Len(250.0f)
+#define ST_MEDAL_H SM_Len(125.0f)
+#define ST_MEDAL_GAP SM_Len(20.0f)
+#define ST_MEDAL_PAD SM_Len(10.0f)
+#define ST_MEDAL_PIC SM_Len(64.0f)
+#define ST_MEDAL_LINE SM_Len(30.0f)
+#define ST_MEDAL_TITLE_LINE SM_LineHeight(24.0f, 1.2f)
+#define ST_MEDAL_TEXT_LINE SM_LineHeight(12.0f, 1.6f)
+
+static const vec4_t stBlack80 = {0.0f, 0.0f, 0.0f, 0.8f};
+static const vec4_t stCard = SM_RGB(44, 41, 41);
+static const vec4_t stYellow = SM_RGB(247, 209, 0);
+static const vec4_t stBlack = {0.0f, 0.0f, 0.0f, 1.0f};
+
+static struct {
+    char steamId[24];
+    int tab;
+    uiUserStats_t data;
+    qboolean loaded;
+    qhandle_t weapon[ST_NUM_WEAPONS], mod[ST_NUM_MODS], medal[ST_NUM_MEDALS];
+    float scroll;
+    float content;
+} st;
+
+static char stPending[24];
+
+static uiUserStats_t stOwn;
+static int stCardPage = -2;
+
+static qboolean ST_Answered(const uiUserStats_t* d) {
+    return (qboolean)(d->state == UI_DETAILS_DONE || d->state == UI_DETAILS_FAILED);
+}
+
+static int ST_Index(const char* name) {
+    int i;
+
+    for (i = 0; i < STEAM_NUM_STATS && i < UI_STEAM_NUM_STATS; i++) {
+        if (!strcmp(steamStatNames[i], name)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static qboolean ST_Has(const uiUserStats_t* d, const char* name, int* value) {
+    int i = ST_Index(name);
+
+    if (i < 0 || d->state != UI_DETAILS_DONE) {
+        return qfalse;
+    }
+    *value = d->stats[i];
+    return qtrue;
+}
+
+static void ST_Print(const uiUserStats_t* d, const char* name, char* out, int size) {
+    int v;
+
+    if (ST_Has(d, name, &v)) {
+        Com_sprintf(out, size, "%i", v);
+    } else {
+        out[0] = '\0';
+    }
+}
+
+static void ST_Summarize(const uiUserStats_t* d, stSummary_t* s) {
+    int i;
+
+    Com_Memset(s, 0, sizeof(*s));
+    if (!ST_Answered(d)) {
+        return;
+    }
+    for (i = 0; i < STEAM_NUM_STATS && i < UI_STEAM_NUM_STATS; i++) {
+        const char* name = steamStatNames[i];
+
+        if (!Q_strncmp(name, "hits_", 5)) {
+            s->hits += d->stats[i];
+        }
+        if (!Q_strncmp(name, "shots_", 6)) {
+            s->shots += d->stats[i];
+        }
+        if (!Q_strncmp(name, "kill_", 5)) {
+            s->kills += d->stats[i];
+        }
+        if (!Q_strncmp(name, "mod_", 4)) {
+            s->deaths += d->stats[i];
+        }
+    }
+    s->kdr = s->deaths ? (float)s->kills / s->deaths : 0;
+}
+
+static void ST_Accuracy(const uiUserStats_t* d, const char* id, char* out, int size) {
+    int hits, shots, len;
+
+    out[0] = '\0';
+    if (!ST_Has(d, va("hits_%s", id), &hits) || !ST_Has(d, va("shots_%s", id), &shots)) {
+        return;
+    }
+    if (!shots) {
+        if (hits) {
+            Q_strncpyz(out, "NaN%", size);
+        }
+        return;
+    }
+    Com_sprintf(out, size, "%.2f", (int)((double)hits / shots * 10000.0) / 100.0);
+    len = strlen(out);
+    while (len > 0 && out[len - 1] == '0') {
+        out[--len] = '\0';
+    }
+    if (len > 0 && out[len - 1] == '.') {
+        out[--len] = '\0';
+    }
+    Q_strcat(out, size, "%");
+}
+
+static void ST_StripColors(const char* in, char* out, int size) {
+    int n = 0;
+
+    for (; *in && n < size - 1; in++) {
+        if (*in == '^') {
+            if (in[1] >= '0' && in[1] <= '9') {
+                in++;
+            }
+            continue;
+        }
+        out[n++] = *in;
+    }
+    out[n] = '\0';
+}
+
+void UI_Stats_CardFor(int page) {
+    if (page != stCardPage) {
+        stCardPage = page;
+        trap_SteamUserStats("", &stOwn, qtrue);
+    }
+}
+
+void UI_Stats_DrawCardLine(float x, float lineTop, float width) {
+    stSummary_t s;
+    char line[64];
+    int wins = 0;
+
+    trap_SteamUserStats("", &stOwn, qfalse);
+    if (!ST_Answered(&stOwn)) {
+        return;
+    }
+    ST_Summarize(&stOwn, &s);
+    ST_Has(&stOwn, "wins", &wins);
+    Com_sprintf(line, sizeof(line), "Wins: %i KDR: %.2f", wins, s.kdr);
+    SM_Text(x, SM_Baseline(FONT_SANS, 15.0f, lineTop, 24.0f), FONT_SANS, 15.0f, smText, line,
+            SM_Fit(FONT_SANS, 15.0f, line, width), qfalse);
+}
+
+static void ST_Load(void) {
+    int i;
+
+    if (st.loaded) {
+        return;
+    }
+    st.loaded = qtrue;
+    for (i = 0; i < ST_NUM_WEAPONS; i++) {
+        st.weapon[i] = trap_R_RegisterShaderNoMip(va("webui/img/weapons/%s.png", stWeapons[i].id));
+    }
+    for (i = 0; i < ST_NUM_MODS; i++) {
+        st.mod[i] = trap_R_RegisterShaderNoMip(va("webui/img/mod/%s.png", stMods[i].id));
+    }
+    for (i = 0; i < ST_NUM_MEDALS; i++) {
+        st.medal[i] = trap_R_RegisterShaderNoMip(va("webui/img/medals/%s.png", stMedals[i].id));
+    }
+}
+
+static float ST_TextBox(float width) {
+    return ceilf(width * smScale - 0.01f) / smScale;
+}
+
+static float ST_Max(float a, float b) {
+    return a > b ? a : b;
+}
+
+static void ST_Shadowed(float x, float baseline, int font, float size, const float* color, const char* text,
+                        qboolean bold) {
+    SM_Text(x + ST_SHADOW, baseline + ST_SHADOW, font, size, stBlack, text, -1, bold);
+    SM_Text(x, baseline, font, size, color, text, -1, bold);
+}
+
+static void ST_Heading(float x, float top, const char* text, const smRect_t* clip) {
+    float baseline = SM_Baseline(FONT_DEFAULT, 32.0f, top + SM_H1_PAD, SM_H1_LINE);
+
+    if (!SM_TextInside(baseline, 32.0f, clip)) {
+        return;
+    }
+    SM_SetSpacing(SM_SPACING_H1);
+    SM_Text(x + ST_H1_LEFT, baseline, FONT_DEFAULT, 32.0f, smText, text, -1, qfalse);
+    SM_SetSpacing(0);
+}
+
+static float ST_Tab(float x, float y, const char* label, int tab, const smRect_t* clip) {
+    char upper[32];
+    float w = SM_NavTabWidth(label);
+    float baseline = SM_Baseline(FONT_SANS, 11, y, ST_NAV_H);
+    qboolean chosen = (qboolean)(st.tab == tab);
+    qboolean over = SM_Over(ST_HIT_TAB, tab);
+
+    Q_strncpyz(upper, label, sizeof(upper));
+    Q_strupr(upper);
+    if (chosen) {
+        SM_Fill(x, y, w, ST_NAV_H, stYellow, clip);
+    }
+    if (SM_TextInside(baseline, 11, clip)) {
+        SM_SpacedText(x + ST_NAV_PAD, baseline, FONT_SANS, 11, chosen ? stBlack : over ? stYellow : smText, upper, 1.0f,
+                      qtrue);
+    }
+    SM_Hit(x, y, w, ST_NAV_H, ST_HIT_TAB, tab, clip);
+    return w;
+}
+
+static float ST_ColumnWidth(int col, const char* head, char cells[][24], int count) {
+    float w = ST_TextBox(SM_AdvanceBold(FONT_SANS, 15, head, -1, qtrue));
+    int i;
+
+    for (i = 0; i < count; i++) {
+        w = ST_Max(w, ST_TextBox(SM_Advance(FONT_SANS, 15, cells[i], -1)));
+    }
+    return w + (col == 0 ? 0 : ST_CELL_PAD) + (col == 6 ? 0 : ST_CELL_PAD);
+}
+
+static void ST_DrawCards(float x0, float y0, const smRect_t* clip) {
+    static const char* const cardTitles[5] = {"Kills", "Deaths", "KDR", "Record", "Played"};
+    char values[5][32];
+    stSummary_t s;
+    float titleTop = y0 + SM_Len(ST_CARD_SIZE * 0.25f);
+    float valueTop = titleTop + ST_CARD_LINE + ST_Max(SM_Len(ST_CARD_SIZE * 0.25f), SM_Len(20.0f));
+    int i;
+
+    ST_Summarize(&st.data, &s);
+    Com_sprintf(values[0], sizeof(values[0]), "%i", s.kills);
+    Com_sprintf(values[1], sizeof(values[1]), "%i", s.deaths);
+    Com_sprintf(values[2], sizeof(values[2]), "%.2f", s.kdr);
+    {
+        char wins[16], losses[16];
+
+        ST_Print(&st.data, "wins", wins, sizeof(wins));
+        ST_Print(&st.data, "losses", losses, sizeof(losses));
+        Com_sprintf(values[3], sizeof(values[3]), "%s / %s", wins, losses);
+    }
+    ST_Print(&st.data, "played", values[4], sizeof(values[4]));
+
+    SM_SetSpacing(SM_SPACING_H1);
+    for (i = 0; i < 5; i++) {
+        float cx = x0 + i * (ST_CARD_W + ST_CARD_GAP);
+        int len = strlen(values[i]);
+        float size = len > 10 ? 36.0f - 4.0f * (len - 10) : 36.0f;
+        float tb = SM_Baseline(FONT_DEFAULT, ST_CARD_SIZE, titleTop, ST_CARD_LINE);
+        float vb = SM_Baseline(FONT_SANS, size, valueTop, SM_LineHeight(size, 1.25f));
+
+        SM_Fill(cx, y0, ST_CARD_W, ST_CARD_H, stCard, clip);
+        if (SM_TextInside(tb, ST_CARD_SIZE, clip)) {
+            SM_Text(cx + SM_Len(ST_CARD_SIZE * 0.2f), tb, FONT_DEFAULT, ST_CARD_SIZE, smText, cardTitles[i], -1, qfalse);
+        }
+        if (SM_TextInside(vb, size, clip)) {
+            SM_Text(cx + SM_Center(ST_CARD_W, SM_Advance(FONT_SANS, size, values[i], -1)), vb, FONT_SANS, size, stYellow,
+                    values[i], SM_Fit(FONT_SANS, size, values[i], ST_CARD_W), qfalse);
+        }
+    }
+    SM_SetSpacing(0);
+}
+
+static float ST_DrawBasic(float x0, float y0, float innerW, qboolean draw, const smRect_t* clip) {
+    static const char* const heads[7] = {"", "", "Kills", "Deaths", "Hits", "Shots", "Accuracy"};
+    char cells[7][ST_NUM_WEAPONS][24];
+    float colW[7];
+    float strut = SM_LineAbove(FONT_SANS, 15, ST_LINE, qfalse);
+    float rowH = ST_Max(ST_ICON, strut) + ST_LINE - strut;
+    float textTop = (float)((SM_Px(rowH) - SM_Px(ST_LINE)) / 2) / smScale;
+    float y = y0 + ST_CARD_H + ST_BLOCK_GAP;
+    float weaponsH = SM_TITLE_H + ST_LINE + ST_NUM_WEAPONS * rowH + ST_BLOCK_GAP;
+    float modsW, modsH, mx, my, tableW, tableTop, bx;
+    int i, c, mods = 0;
+
+    for (i = 0; i < ST_NUM_WEAPONS; i++) {
+        Q_strncpyz(cells[0][i], stWeapons[i].name, sizeof(cells[0][i]));
+        cells[1][i][0] = '\0';
+        ST_Print(&st.data, va("kill_%s", stWeapons[i].id), cells[2][i], sizeof(cells[2][i]));
+        ST_Print(&st.data, va("mod_%s", stWeapons[i].id), cells[3][i], sizeof(cells[3][i]));
+        ST_Print(&st.data, va("hits_%s", stWeapons[i].id), cells[4][i], sizeof(cells[4][i]));
+        ST_Print(&st.data, va("shots_%s", stWeapons[i].id), cells[5][i], sizeof(cells[5][i]));
+        if (strcmp(stWeapons[i].id, "gauntlet")) {
+            ST_Accuracy(&st.data, stWeapons[i].id, cells[6][i], sizeof(cells[6][i]));
+        } else {
+            cells[6][i][0] = '\0';
+        }
+    }
+    tableW = 0;
+    for (c = 0; c < 7; c++) {
+        colW[c] = c == 1 ? ST_ICON + 2 * ST_CELL_PAD : ST_ColumnWidth(c, heads[c], cells[c], ST_NUM_WEAPONS);
+        tableW += colW[c];
+    }
+    for (i = 0; i < ST_NUM_MODS; i++) {
+        int v = 0;
+
+        if (!stMods[i].optional || (ST_Has(&st.data, stMods[i].id, &v) && v)) {
+            mods++;
+        }
+    }
+    SM_SetSpacing(SM_SPACING_H1);
+    modsW = ST_Max(ST_MOD_W, ST_H1_LEFT + ST_TextBox(SM_Advance(FONT_DEFAULT, 32.0f, "Other Deaths", -1)));
+    SM_SetSpacing(0);
+    modsH = SM_TITLE_H + SM_Len(25.0f) + mods * (ST_MOD_H + ST_MOD_GAP);
+    mx = x0 + ST_Max(tableW, ST_H1_LEFT) + ST_WEAPONS_GAP;
+    my = y;
+    if (mx + modsW + ST_MODS_GAP > x0 + innerW) {
+        mx = x0;
+        my = y + ST_Max(weaponsH, ST_LINE);
+    }
+
+    if (!draw) {
+        return my - y0 + (my == y ? ST_Max(ST_Max(weaponsH, modsH), ST_LINE) : ST_Max(modsH, ST_LINE));
+    }
+
+    ST_DrawCards(x0, y0, clip);
+
+    ST_Heading(x0, y, "Weapons", clip);
+    tableTop = y + SM_TITLE_H;
+    bx = x0;
+    for (c = 0; c < 7; c++) {
+        float right = bx + colW[c] - (c == 6 ? 0 : ST_CELL_PAD);
+        float hb = SM_Baseline(FONT_SANS, 15, tableTop, ST_LINE);
+
+        if (heads[c][0] && SM_TextInside(hb, 15, clip)) {
+            SM_Text(right - SM_AdvanceBold(FONT_SANS, 15, heads[c], -1, qtrue), hb, FONT_SANS, 15, smText, heads[c], -1,
+                    qtrue);
+        }
+        bx += colW[c];
+    }
+    for (i = 0; i < ST_NUM_WEAPONS; i++) {
+        float ry = tableTop + ST_LINE + i * rowH;
+        float baseline = SM_Baseline(FONT_SANS, 15, ry + textTop, ST_LINE);
+
+        bx = x0;
+        for (c = 0; c < 7; c++) {
+            float right = bx + colW[c] - (c == 6 ? 0 : ST_CELL_PAD);
+
+            if (c == 1) {
+                SM_Pic(bx + ST_CELL_PAD, ry + ST_Max(0, strut - ST_ICON), ST_ICON, ST_ICON, st.weapon[i], clip);
+            } else if (cells[c][i][0] && SM_TextInside(baseline, 15, clip)) {
+                SM_Text(right - SM_Advance(FONT_SANS, 15, cells[c][i], -1), baseline, FONT_SANS, 15, smText,
+                        cells[c][i], -1, qfalse);
+            }
+            bx += colW[c];
+        }
+    }
+
+    ST_Heading(mx, my, "Other Deaths", clip);
+    my += SM_TITLE_H + SM_Len(25.0f);
+    {
+        float space = SM_Advance(FONT_SANS, 15, " ", -1);
+        float above = ST_Max(strut, ST_Max(SM_LineAbove(FONT_DEFAULT, ST_MOD_SIZE, ST_MOD_LINE, qfalse),
+                                           SM_LineAbove(FONT_DEFAULT, ST_MOD_SIZE, ST_MOD_LINE, qtrue)));
+
+        for (i = 0; i < ST_NUM_MODS; i++) {
+            char number[16];
+            int v = 0;
+            float nb = my + ST_MOD_TOP + above;
+            float box = mx + ST_MOD_W - ST_MOD_NUMBER;
+
+            if (stMods[i].optional && (!ST_Has(&st.data, stMods[i].id, &v) || !v)) {
+                continue;
+            }
+            ST_Print(&st.data, stMods[i].id, number, sizeof(number));
+            SM_Pic(mx, my, ST_MOD_W, ST_MOD_H, st.mod[i], clip);
+            if (SM_TextInside(nb, ST_MOD_SIZE, clip)) {
+                ST_Shadowed(box - space - SM_Advance(FONT_DEFAULT, ST_MOD_SIZE, stMods[i].name, -1), nb, FONT_DEFAULT,
+                            ST_MOD_SIZE, smText, stMods[i].name, qfalse);
+                if (number[0]) {
+                    ST_Shadowed(box + SM_Center(ST_MOD_NUMBER, SM_AdvanceBold(FONT_DEFAULT, ST_MOD_SIZE, number, -1,
+                                                                              qtrue)),
+                                nb, FONT_DEFAULT, ST_MOD_SIZE, smText, number, qtrue);
+                }
+            }
+            my += ST_MOD_H + ST_MOD_GAP;
+        }
+    }
+    return 0;
+}
+
+static float ST_DrawMedals(float x0, float y0, float innerW, qboolean draw, const smRect_t* clip) {
+    float stepX = ST_MEDAL_W + ST_MEDAL_GAP;
+    float stepY = ST_MEDAL_H + ST_MEDAL_GAP;
+    float fullW = ST_MEDAL_W - 2 * ST_MEDAL_PAD;
+    float wrapW = fullW - ST_MEDAL_PIC - SM_Len(10.0f);
+    float strut = SM_LineAbove(FONT_DEFAULT, 36.0f, ST_MEDAL_LINE, qtrue);
+    float picLine = ST_Max(ST_MEDAL_PIC, strut) + ST_MEDAL_LINE - strut;
+    int cols = SM_Px(stepX) > 0 ? SM_Px(innerW) / SM_Px(stepX) : 1;
+    int i;
+
+    if (cols < 1) {
+        cols = 1;
+    }
+    if (!draw) {
+        return ((ST_NUM_MEDALS + cols - 1) / cols) * stepY;
+    }
+    for (i = 0; i < ST_NUM_MEDALS; i++) {
+        float mx = x0 + (i % cols) * stepX;
+        float my = y0 + (i / cols) * stepY;
+        float dx = mx + ST_MEDAL_W - ST_MEDAL_PAD - ST_MEDAL_PIC;
+        float dy = my + ST_MEDAL_PAD;
+        float titleTop = dy + SM_Len(6.0f);
+        float textTop = titleTop + ST_MEDAL_TITLE_LINE + SM_Len(5.0f);
+        float tb = SM_Baseline(FONT_DEFAULT, 24, titleTop, ST_MEDAL_TITLE_LINE);
+        char number[16];
+        int starts[SM_MAX_LINES], lens[SM_MAX_LINES];
+        int pos, k;
+        float floatBottom;
+
+        SM_Fill(mx, my, ST_MEDAL_W, ST_MEDAL_H, stBlack80, clip);
+        SM_Pic(dx, dy + ST_Max(ST_MEDAL_PIC, strut) - ST_MEDAL_PIC, ST_MEDAL_PIC, ST_MEDAL_PIC, st.medal[i], clip);
+        ST_Print(&st.data, stMedals[i].id, number, sizeof(number));
+        if (number[0]) {
+            int len = strlen(number);
+            float size = len > 3 ? 24.0f - 4.0f * (len - 3) : 36.0f;
+            float nb = dy + picLine + SM_LineAbove(FONT_DEFAULT, size, ST_MEDAL_LINE, qtrue);
+
+            if (SM_TextInside(nb, size, clip)) {
+                ST_Shadowed(dx + SM_Center(ST_MEDAL_PIC, SM_AdvanceBold(FONT_DEFAULT, size, number, -1, qtrue)), nb,
+                            FONT_DEFAULT, size, smText, number, qtrue);
+            }
+        }
+
+        if (SM_TextInside(tb, 24, clip)) {
+            SM_SetSpacing(SM_SPACING_H1);
+            SM_Text(mx + ST_MEDAL_PAD + SM_Len(4.8f), tb, FONT_DEFAULT, 24, stYellow, stMedals[i].name, -1, qfalse);
+            SM_SetSpacing(0);
+        }
+        floatBottom = dy + picLine + (number[0] ? ST_MEDAL_LINE : 0);
+        for (pos = 0, k = 0; stMedals[i].desc[pos] && k < SM_MAX_LINES; k++) {
+            float lineTop = textTop + k * ST_MEDAL_TEXT_LINE;
+            float lb = SM_Baseline(FONT_SANS, 12, lineTop, ST_MEDAL_TEXT_LINE);
+            const char* rest;
+
+            while (stMedals[i].desc[pos] == ' ') {
+                pos++;
+            }
+            rest = stMedals[i].desc + pos;
+            if (!SM_Wrap(FONT_SANS, 12, rest, lineTop < floatBottom ? wrapW : fullW, starts, lens)) {
+                break;
+            }
+            if (SM_TextInside(lb, 12, clip)) {
+                SM_Text(mx + ST_MEDAL_PAD, lb, FONT_SANS, 12, smText, rest + starts[0], lens[0], qfalse);
+            }
+            pos += starts[0] + lens[0];
+        }
+    }
+    return 0;
+}
+
+static float ST_TitleAbove(void) {
+    return ST_Max(ST_AVATAR, SM_LineAbove(FONT_DEFAULT, 32.0f, SM_H1_LINE, qfalse));
+}
+
+static float ST_TitleHeight(void) {
+    return 2 * SM_H1_PAD + ST_TitleAbove() + SM_H1_LINE - SM_LineAbove(FONT_DEFAULT, 32.0f, SM_H1_LINE, qfalse);
+}
+
+static void ST_DrawTitle(float left, float top, float width, const smRect_t* clip) {
+    char name[64];
+    float baseline = top + SM_H1_PAD + ST_TitleAbove();
+    float px = left + ST_H1_LEFT;
+    float py = baseline - ST_AVATAR;
+    float nx;
+
+    SM_Fill(left, top, width, ST_TitleHeight(), stBlack80, clip);
+    if (!st.steamId[0]) {
+        qhandle_t face = UI_Home_Face();
+
+        if (face) {
+            SM_Pic(px, py, ST_AVATAR, ST_AVATAR, face, clip);
+        }
+    } else if (SM_Avatar(st.steamId)) {
+        SM_Pic(px, py, ST_AVATAR, ST_AVATAR, SM_Avatar(st.steamId), clip);
+    } else {
+        char initial[8];
+        float edge = SM_LenBorder(2.0f);
+
+        SM_Fill(px, py, ST_AVATAR, ST_AVATAR, smPage, clip);
+        SM_Fill(px + edge, py + edge, ST_AVATAR - 2 * edge, ST_AVATAR - 2 * edge, smField, clip);
+        ST_StripColors(st.data.name, initial, 2);
+        if (initial[0] && SM_TextInside(SM_Baseline(FONT_DEFAULT, 32, py, ST_AVATAR), 32, clip)) {
+            SM_Text(px + SM_Center(ST_AVATAR, SM_Advance(FONT_DEFAULT, 32, initial, -1)),
+                    SM_Baseline(FONT_DEFAULT, 32, py, ST_AVATAR), FONT_DEFAULT, 32, smText, initial, -1, qfalse);
+        }
+    }
+    ST_StripColors(st.data.name, name, sizeof(name));
+    SM_SetSpacing(SM_SPACING_H1);
+    nx = px + ST_AVATAR + SM_Advance(FONT_DEFAULT, 32, " ", -1);
+    if (name[0] && SM_TextInside(baseline, 32, clip)) {
+        SM_Text(nx, baseline, FONT_DEFAULT, 32, smText, name, SM_Fit(FONT_DEFAULT, 32, name, left + width - nx), qfalse);
+    }
+    SM_SetSpacing(0);
+}
+
+static void ST_Request(void) {
+    trap_SteamUserStats(st.steamId, &st.data, qtrue);
+}
+
+void UI_Stats_Show(const char* steamId) {
+    Q_strncpyz(stPending, steamId ? steamId : "", sizeof(stPending));
+    Menus_CloseAll();
+    Menus_ActivateByName("stats");
+}
+
+void UI_Stats_Open(void) {
+    menuDef_t* menu;
+    itemDef_t* item;
+
+    ST_Load();
+    Q_strncpyz(st.steamId, stPending, sizeof(st.steamId));
+    st.tab = 0;
+    st.scroll = 0;
+    ST_Request();
+
+    menu = Menus_FindByName("stats");
+    item = menu ? Menu_FindItemByName(menu, "stats") : NULL;
+    if (item) {
+        item->window.flags |= WINDOW_HASFOCUS;
+    }
+}
+
+void UI_Stats_Paint(void) {
+    float left = UI_Home_Left();
+    float width = HM_CONTAINER_W - ST_BAR;
+    float view = UI_Home_FrameBottom() - HM_NAV_H;
+    float top, navY, y, inner;
+    smRect_t clip;
+
+    SM_BeginFrame();
+    ST_Load();
+    trap_SteamUserStats(st.steamId, &st.data, qfalse);
+    UI_Home_Backdrop();
+    UI_Home_PageTop(HM_NAV_STATS);
+
+    inner = st.tab == 0 ? ST_DrawBasic(left + ST_PAD, 0, width - 2 * ST_PAD, qfalse, NULL)
+                        : ST_DrawMedals(left + ST_PAD, 0, width - 2 * ST_PAD, qfalse, NULL);
+    st.content = ST_TitleHeight() + ST_NAV_H + ST_NAV_GAP + 2 * ST_PAD + inner;
+    if (st.scroll > st.content - view) {
+        st.scroll = st.content - view;
+    }
+    if (st.scroll < 0) {
+        st.scroll = 0;
+    }
+    clip = SM_R(left, HM_NAV_H, HM_CONTAINER_W, view);
+    top = HM_NAV_H - st.scroll;
+
+    ST_DrawTitle(left, top, width, &clip);
+    navY = top + ST_TitleHeight();
+    SM_Fill(left, navY, width, ST_NAV_H, stBlack80, &clip);
+    ST_Tab(left + ST_Tab(left, navY, "Statistics", 0, &clip), navY, "Medals", 1, &clip);
+
+    y = navY + ST_NAV_H + ST_NAV_GAP;
+    SM_Fill(left, y, width, inner + 2 * ST_PAD, stBlack80, &clip);
+    if (st.tab == 0) {
+        ST_DrawBasic(left + ST_PAD, y + ST_PAD, width - 2 * ST_PAD, qtrue, &clip);
+    } else {
+        ST_DrawMedals(left + ST_PAD, y + ST_PAD, width - 2 * ST_PAD, qtrue, &clip);
+    }
+
+    UI_Home_Banner();
+    SM_EndFrame();
+}
+
+qboolean UI_Stats_HandleKey(int key) {
+    const smHit_t* hit;
+
+    if (key & K_CHAR_FLAG) {
+        return qtrue;
+    }
+    if (key == K_MWHEELUP || key == K_MWHEELDOWN) {
+        st.scroll += key == K_MWHEELUP ? -60.0f : 60.0f;
+        return qtrue;
+    }
+    if (key != K_MOUSE1) {
+        return qfalse;
+    }
+    if (UI_Home_NavClick()) {
+        return qtrue;
+    }
+    hit = SM_HitAt(smMX, smMY);
+    if (hit && hit->type == ST_HIT_TAB) {
+        st.tab = hit->index;
+        st.scroll = 0;
+        ST_Request();
+    }
+    return qtrue;
+}

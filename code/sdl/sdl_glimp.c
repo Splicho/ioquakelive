@@ -1,0 +1,1644 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#include <SDL3/SDL.h>
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+#include "../renderercommon/tr_common.h"
+#include "../sys/sys_local.h"
+#include "sdl_icon.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#ifdef USE_VULKAN_API
+#include "../renderercommon/vulkan/vulkan.h"
+#include <SDL3/SDL_vulkan.h>
+#endif
+
+typedef enum {
+    RSERR_OK,
+
+    RSERR_INVALID_FULLSCREEN,
+    RSERR_INVALID_MODE,
+
+    RSERR_UNKNOWN
+} rserr_t;
+
+SDL_Window* SDL_window = NULL;
+static SDL_GLContext SDL_glContext = NULL;
+
+#ifdef USE_VULKAN_API
+static qboolean glimp_vulkan;
+static PFN_vkGetInstanceProcAddr qvkGetInstanceProcAddr;
+#endif
+
+cvar_t* r_allowSoftwareGL;
+cvar_t* r_centerWindow;
+cvar_t* r_sdlDriver;
+cvar_t* r_preferOpenGLES;
+
+int qglMajorVersion, qglMinorVersion;
+int qglesMajorVersion, qglesMinorVersion;
+
+#ifdef GLIMP_EXTERNAL_QGL
+#define GLIMP_QGL static
+#else
+#define GLIMP_QGL
+#endif
+
+GLIMP_QGL void(APIENTRYP qglActiveTextureARB)(GLenum texture);
+GLIMP_QGL void(APIENTRYP qglClientActiveTextureARB)(GLenum texture);
+GLIMP_QGL void(APIENTRYP qglMultiTexCoord2fARB)(GLenum target, GLfloat s, GLfloat t);
+
+GLIMP_QGL void(APIENTRYP qglLockArraysEXT)(GLint first, GLsizei count);
+GLIMP_QGL void(APIENTRYP qglUnlockArraysEXT)(void);
+
+#define GLE(ret, name, ...) GLIMP_QGL name##proc* qgl##name = NULL;
+QGL_1_1_PROCS;
+QGL_1_1_FIXED_FUNCTION_PROCS;
+QGL_DESKTOP_1_1_PROCS;
+QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS;
+QGL_ES_1_1_PROCS;
+QGL_ES_1_1_FIXED_FUNCTION_PROCS;
+QGL_1_3_PROCS;
+QGL_1_5_PROCS;
+QGL_2_0_PROCS;
+QGL_3_0_PROCS;
+QGL_ARB_sync_PROCS;
+QGL_ARB_occlusion_query_PROCS;
+QGL_ARB_framebuffer_object_PROCS;
+QGL_ARB_vertex_array_object_PROCS;
+QGL_EXT_direct_state_access_PROCS;
+#undef GLE
+
+void GLimp_Shutdown(void) {
+    ri.IN_Shutdown();
+
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
+void GLimp_Minimize(void) {
+    SDL_MinimizeWindow(SDL_window);
+}
+
+void GLimp_LogComment(char* comment) {
+}
+
+static int GLimp_CompareModes(const void* a, const void* b) {
+    const float ASPECT_EPSILON = 0.001f;
+    SDL_Rect* modeA = (SDL_Rect*)a;
+    SDL_Rect* modeB = (SDL_Rect*)b;
+    float aspectA = (float)modeA->w / (float)modeA->h;
+    float aspectB = (float)modeB->w / (float)modeB->h;
+    int areaA = modeA->w * modeA->h;
+    int areaB = modeB->w * modeB->h;
+    float aspectDiffA = fabs(aspectA - displayAspect);
+    float aspectDiffB = fabs(aspectB - displayAspect);
+    float aspectDiffsDiff = aspectDiffA - aspectDiffB;
+
+    if (aspectDiffsDiff > ASPECT_EPSILON)
+        return 1;
+    else if (aspectDiffsDiff < -ASPECT_EPSILON)
+        return -1;
+    else
+        return areaA - areaB;
+}
+
+static void GLimp_DetectAvailableModes(void) {
+    int i, j;
+    char buf[MAX_STRING_CHARS] = {0};
+    int numSDLModes = 0;
+    SDL_Rect* modes;
+    int numModes = 0;
+    SDL_DisplayMode** sdlModes;
+    const SDL_DisplayMode* desktopMode;
+    SDL_DisplayID display = SDL_GetDisplayForWindow(SDL_window);
+
+    if (!display) {
+        ri.Printf(PRINT_WARNING, "Couldn't get window display, no resolutions detected: %s\n", SDL_GetError());
+        return;
+    }
+
+    desktopMode = SDL_GetDesktopDisplayMode(display);
+    sdlModes = SDL_GetFullscreenDisplayModes(display, &numSDLModes);
+
+    if (!desktopMode || !sdlModes || numSDLModes <= 0) {
+        ri.Printf(PRINT_WARNING, "Couldn't get the display modes, no resolutions detected: %s\n", SDL_GetError());
+        SDL_free(sdlModes);
+        return;
+    }
+
+    modes = SDL_calloc((size_t)numSDLModes, sizeof(SDL_Rect));
+    if (!modes) {
+        ri.Error(ERR_FATAL, "Out of memory");
+    }
+
+    for (i = 0; i < numSDLModes; i++) {
+        const SDL_DisplayMode* mode = sdlModes[i];
+
+        if (!mode->w || !mode->h) {
+            ri.Printf(PRINT_ALL, "Display supports any resolution\n");
+            SDL_free(sdlModes);
+            SDL_free(modes);
+            return;
+        }
+
+        if (desktopMode->format != mode->format)
+            continue;
+
+        for (j = 0; j < numModes; j++) {
+            if (mode->w == modes[j].w && mode->h == modes[j].h)
+                break;
+        }
+
+        if (j != numModes)
+            continue;
+
+        modes[numModes].w = mode->w;
+        modes[numModes].h = mode->h;
+        numModes++;
+    }
+
+    SDL_free(sdlModes);
+
+    if (numModes > 1)
+        qsort(modes, numModes, sizeof(SDL_Rect), GLimp_CompareModes);
+
+    for (i = 0; i < numModes; i++) {
+        const char* newModeString = va("%ux%u ", modes[i].w, modes[i].h);
+
+        if (strlen(newModeString) < (int)sizeof(buf) - strlen(buf))
+            Q_strcat(buf, sizeof(buf), newModeString);
+        else
+            ri.Printf(PRINT_WARNING, "Skipping mode %ux%u, buffer too small\n", modes[i].w, modes[i].h);
+    }
+
+    if (*buf) {
+        buf[strlen(buf) - 1] = 0;
+        ri.Printf(PRINT_ALL, "Available modes: '%s'\n", buf);
+        ri.Cvar_Set("r_availableModes", buf);
+    }
+    SDL_free(modes);
+}
+
+static void APIENTRY GLimp_GLES_ClearDepth(GLclampd depth) {
+    qglClearDepthf(depth);
+}
+
+static void APIENTRY GLimp_GLES_DepthRange(GLclampd near_val, GLclampd far_val) {
+    qglDepthRangef(near_val, far_val);
+}
+
+static void APIENTRY GLimp_GLES_DrawBuffer(GLenum mode) {
+}
+
+static void APIENTRY GLimp_GLES_PolygonMode(GLenum face, GLenum mode) {
+}
+
+static qboolean GLimp_GetProcAddresses(qboolean fixedFunction) {
+    qboolean success = qtrue;
+    const char* version;
+
+#ifdef __SDL_NOGETPROCADDR__
+#define GLE(ret, name, ...) qgl##name = gl #name;
+#else
+#define GLE(ret, name, ...)                                                      \
+    qgl##name = (name##proc*)SDL_GL_GetProcAddress("gl" #name);                  \
+    if (qgl##name == NULL) {                                                     \
+        ri.Printf(PRINT_ALL, "ERROR: Missing OpenGL function %s\n", "gl" #name); \
+        success = qfalse;                                                        \
+    }
+#endif
+
+    GLE(const GLubyte*, GetString, GLenum name)
+
+    if (!qglGetString) {
+        Com_Error(ERR_FATAL, "glGetString is NULL");
+    }
+
+    version = (const char*)qglGetString(GL_VERSION);
+
+    if (!version) {
+        Com_Error(ERR_FATAL, "GL_VERSION is NULL");
+    }
+
+    if (Q_stricmpn("OpenGL ES", version, 9) == 0) {
+        char profile[6];
+        sscanf(version, "OpenGL %5s %d.%d", profile, &qglesMajorVersion, &qglesMinorVersion);
+        if (Q_stricmp(profile, "ES-CL") == 0) {
+            qglesMajorVersion = 0;
+            qglesMinorVersion = 0;
+        }
+    } else {
+        sscanf(version, "%d.%d", &qglMajorVersion, &qglMinorVersion);
+    }
+
+    if (fixedFunction) {
+        if (QGL_VERSION_ATLEAST(1, 1)) {
+            QGL_1_1_PROCS;
+            QGL_1_1_FIXED_FUNCTION_PROCS;
+            QGL_DESKTOP_1_1_PROCS;
+            QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS;
+        } else if (qglesMajorVersion == 1 && qglesMinorVersion >= 1) {
+            QGL_1_1_PROCS;
+            QGL_1_1_FIXED_FUNCTION_PROCS;
+            QGL_ES_1_1_PROCS;
+            QGL_ES_1_1_FIXED_FUNCTION_PROCS;
+            Com_Error(ERR_FATAL, "Unsupported OpenGL Version: %s", version);
+        } else {
+            Com_Error(ERR_FATAL, "Unsupported OpenGL Version (%s), OpenGL 1.1 is required", version);
+        }
+    } else {
+        if (QGL_VERSION_ATLEAST(2, 0)) {
+            QGL_1_1_PROCS;
+            QGL_DESKTOP_1_1_PROCS;
+            QGL_1_3_PROCS;
+            QGL_1_5_PROCS;
+            QGL_2_0_PROCS;
+        } else if (QGLES_VERSION_ATLEAST(2, 0)) {
+            QGL_1_1_PROCS;
+            QGL_ES_1_1_PROCS;
+            QGL_1_3_PROCS;
+            QGL_1_5_PROCS;
+            QGL_2_0_PROCS;
+
+            qglClearDepth = GLimp_GLES_ClearDepth;
+            qglDepthRange = GLimp_GLES_DepthRange;
+            qglDrawBuffer = GLimp_GLES_DrawBuffer;
+            qglPolygonMode = GLimp_GLES_PolygonMode;
+        } else {
+            Com_Error(ERR_FATAL, "Unsupported OpenGL Version (%s), OpenGL 2.0 is required", version);
+        }
+    }
+
+    if (QGL_VERSION_ATLEAST(3, 0) || QGLES_VERSION_ATLEAST(3, 0)) {
+        QGL_3_0_PROCS;
+    }
+
+    if (QGL_VERSION_ATLEAST(3, 2) || QGLES_VERSION_ATLEAST(3, 0)) {
+        QGL_ARB_sync_PROCS;
+    }
+
+#undef GLE
+
+    return success;
+}
+
+static void GLimp_ClearProcAddresses(void) {
+#define GLE(ret, name, ...) qgl##name = NULL;
+
+    qglMajorVersion = 0;
+    qglMinorVersion = 0;
+    qglesMajorVersion = 0;
+    qglesMinorVersion = 0;
+
+    QGL_1_1_PROCS;
+    QGL_1_1_FIXED_FUNCTION_PROCS;
+    QGL_DESKTOP_1_1_PROCS;
+    QGL_DESKTOP_1_1_FIXED_FUNCTION_PROCS;
+    QGL_ES_1_1_PROCS;
+    QGL_ES_1_1_FIXED_FUNCTION_PROCS;
+    QGL_1_3_PROCS;
+    QGL_1_5_PROCS;
+    QGL_2_0_PROCS;
+    QGL_3_0_PROCS;
+    QGL_ARB_occlusion_query_PROCS;
+    QGL_ARB_framebuffer_object_PROCS;
+    QGL_ARB_vertex_array_object_PROCS;
+    QGL_EXT_direct_state_access_PROCS;
+
+    qglActiveTextureARB = NULL;
+    qglClientActiveTextureARB = NULL;
+    qglMultiTexCoord2fARB = NULL;
+
+    qglLockArraysEXT = NULL;
+    qglUnlockArraysEXT = NULL;
+
+#undef GLE
+}
+
+static void GLimp_PlaceWindow(qboolean center) {
+    SDL_Rect usable;
+    int x, y, w, h, nx, ny;
+    int top = 0, left = 0, bottom = 0, right = 0;
+
+    if (!SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(SDL_window), &usable)) {
+        return;
+    }
+    if (!SDL_GetWindowPosition(SDL_window, &x, &y) || !SDL_GetWindowSize(SDL_window, &w, &h)) {
+        return;
+    }
+    SDL_GetWindowBordersSize(SDL_window, &top, &left, &bottom, &right);
+
+    nx = x;
+    ny = y;
+    if (center) {
+        nx = usable.x + (usable.w - w) / 2;
+        ny = usable.y + (usable.h - h) / 2;
+    }
+    if (ny - top < usable.y) {
+        ny = usable.y + top;
+    }
+    if (nx != x || ny != y) {
+        SDL_SetWindowPosition(SDL_window, nx, ny);
+    }
+}
+
+static qboolean GLimp_ApplyFullscreen(int fullscreen) {
+    if (fullscreen == 1) {
+        SDL_DisplayMode mode;
+        SDL_DisplayID display = SDL_GetDisplayForWindow(SDL_window);
+
+        if (!display)
+            display = SDL_GetPrimaryDisplay();
+
+        if (!SDL_GetClosestFullscreenDisplayMode(display, glConfig.vidWidth, glConfig.vidHeight,
+                                                 (float)ri.Cvar_VariableIntegerValue("r_displayRefresh"), false, &mode)) {
+            ri.Printf(PRINT_DEVELOPER, "SDL_GetClosestFullscreenDisplayMode failed: %s\n", SDL_GetError());
+            return qfalse;
+        }
+
+        if (!SDL_SetWindowFullscreenMode(SDL_window, &mode)) {
+            ri.Printf(PRINT_DEVELOPER, "SDL_SetWindowFullscreenMode failed: %s\n", SDL_GetError());
+            return qfalse;
+        }
+
+        glConfig.displayFrequency = (int)(mode.refresh_rate + 0.5f);
+    } else if (fullscreen) {
+        SDL_SetWindowFullscreenMode(SDL_window, NULL);
+    }
+
+    if (!SDL_SetWindowFullscreen(SDL_window, fullscreen ? true : false)) {
+        ri.Printf(PRINT_DEVELOPER, "SDL_SetWindowFullscreen failed: %s\n", SDL_GetError());
+        return qfalse;
+    }
+
+    SDL_SyncWindow(SDL_window);
+    return qtrue;
+}
+
+#ifdef _WIN32
+static qboolean GLimp_SoftwarePixelFormat(void) {
+    PIXELFORMATDESCRIPTOR pfd;
+    HDC hdc;
+    int format;
+
+    hdc = (HDC)SDL_GetPointerProperty(SDL_GetWindowProperties(SDL_window), SDL_PROP_WINDOW_WIN32_HDC_POINTER, NULL);
+    if (!hdc)
+        return qfalse;
+
+    format = GetPixelFormat(hdc);
+    if (format <= 0 || !DescribePixelFormat(hdc, format, sizeof(pfd), &pfd))
+        return qfalse;
+
+    if (!(pfd.dwFlags & PFD_GENERIC_FORMAT))
+        return qfalse;
+
+    ri.Printf(PRINT_ALL, "...PFD %d rejected, software acceleration\n", format);
+    return qtrue;
+}
+#endif
+
+static int GLimp_SetMode(int mode, int fullscreen, qboolean noborder, qboolean fixedFunction) {
+    struct GLimp_ContextType {
+        int profileMask;
+        int majorVersion;
+        int minorVersion;
+    } contexts[4];
+    int numContexts, type;
+    const char* glstring;
+    int perChannelColorBits;
+    int colorBits, depthBits, stencilBits;
+    int samples;
+    int i = 0;
+    SDL_Surface* icon = NULL;
+    SDL_WindowFlags flags = SDL_WINDOW_OPENGL;
+    SDL_DisplayMode desktopMode;
+    const SDL_DisplayMode* desktop;
+    SDL_DisplayID display = SDL_GetPrimaryDisplay();
+    int x = SDL_WINDOWPOS_UNDEFINED, y = SDL_WINDOWPOS_UNDEFINED;
+    int aspectRatio;
+
+#ifdef USE_VULKAN_API
+    if (glimp_vulkan)
+        flags = SDL_WINDOW_VULKAN;
+#endif
+
+    ri.Printf(PRINT_ALL, "Initializing OpenGL display\n");
+
+    if (!r_fullscreen->integer) {
+        flags |= SDL_WINDOW_RESIZABLE;
+    }
+
+#ifdef USE_ICON
+    icon = SDL_CreateSurfaceFrom(
+        CLIENT_WINDOW_ICON.width,
+        CLIENT_WINDOW_ICON.height,
+        SDL_PIXELFORMAT_RGBA32,
+        (void*)CLIENT_WINDOW_ICON.pixel_data,
+        CLIENT_WINDOW_ICON.bytes_per_pixel * CLIENT_WINDOW_ICON.width);
+#endif
+
+    if (SDL_window != NULL) {
+        SDL_DisplayID current = SDL_GetDisplayForWindow(SDL_window);
+
+        if (current)
+            display = current;
+        else
+            ri.Printf(PRINT_DEVELOPER, "SDL_GetDisplayForWindow() failed: %s\n", SDL_GetError());
+    }
+
+    desktop = SDL_GetDesktopDisplayMode(display);
+    if (desktop) {
+        desktopMode = *desktop;
+        displayAspect = (float)desktopMode.w / (float)desktopMode.h;
+
+        ri.Printf(PRINT_ALL, "Display aspect: %.3f\n", displayAspect);
+    } else {
+        Com_Memset(&desktopMode, 0, sizeof(SDL_DisplayMode));
+
+        ri.Printf(PRINT_ALL,
+                  "Cannot determine display aspect, assuming 1.333\n");
+    }
+
+    ri.Printf(PRINT_ALL, "...setting mode %d:", mode);
+
+    if (mode == -2) {
+        if (desktopMode.h > 0) {
+            glConfig.vidWidth = desktopMode.w;
+            glConfig.vidHeight = desktopMode.h;
+        } else {
+            glConfig.vidWidth = SCREEN_WIDTH;
+            glConfig.vidHeight = SCREEN_HEIGHT;
+            ri.Printf(PRINT_ALL,
+                      "Cannot determine display resolution, assuming %ix%i\n", SCREEN_WIDTH, SCREEN_HEIGHT);
+        }
+
+        glConfig.windowAspect = (float)glConfig.vidWidth / (float)glConfig.vidHeight;
+        aspectRatio = R_AspectRatioOf(glConfig.vidWidth, glConfig.vidHeight);
+    } else if (!R_GetModeInfo(&glConfig.vidWidth, &glConfig.vidHeight, &glConfig.windowAspect, &aspectRatio, mode, fullscreen)) {
+        ri.Printf(PRINT_ALL, " invalid mode\n");
+        return RSERR_INVALID_MODE;
+    }
+    ri.Printf(PRINT_ALL, " %d %d\n", glConfig.vidWidth, glConfig.vidHeight);
+
+    ri.Cvar_Set("r_aspectRatio", va("%d", aspectRatio));
+
+    if (r_centerWindow->integer && !fullscreen) {
+        x = (desktopMode.w / 2) - (glConfig.vidWidth / 2);
+        y = (desktopMode.h / 2) - (glConfig.vidHeight / 2);
+    }
+
+    if (SDL_glContext != NULL) {
+        GLimp_ClearProcAddresses();
+        SDL_GL_DestroyContext(SDL_glContext);
+        SDL_glContext = NULL;
+    }
+
+    if (SDL_window != NULL) {
+        SDL_GetWindowPosition(SDL_window, &x, &y);
+        ri.Printf(PRINT_DEVELOPER, "Existing window at %dx%d before being destroyed\n", x, y);
+        SDL_DestroyWindow(SDL_window);
+        SDL_window = NULL;
+    }
+
+    if (fullscreen == 2) {
+        SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
+        flags |= SDL_WINDOW_FULLSCREEN;
+        glConfig.isFullscreen = qtrue;
+    } else if (fullscreen) {
+        SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
+        flags |= SDL_WINDOW_HIDDEN;
+        glConfig.isFullscreen = qtrue;
+    } else {
+        if (noborder)
+            flags |= SDL_WINDOW_BORDERLESS;
+        if (getenv("IOQL_DEMOWINDOW") && *getenv("IOQL_DEMOWINDOW"))
+            flags |= SDL_WINDOW_HIDDEN;
+
+        glConfig.isFullscreen = qfalse;
+    }
+
+    colorBits = r_colorbits->value;
+    if ((!colorBits) || (colorBits >= 32))
+        colorBits = 24;
+
+    if (!r_depthbits->value)
+        depthBits = 24;
+    else
+        depthBits = r_depthbits->value;
+
+    stencilBits = r_stencilbits->value;
+    samples = r_ext_multisample->value;
+
+    numContexts = 0;
+
+    if (!fixedFunction) {
+        int profileMask;
+        qboolean preferOpenGLES;
+
+        SDL_GL_ResetAttributes();
+        SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &profileMask);
+
+        preferOpenGLES = (r_preferOpenGLES->integer == 1 ||
+                          (r_preferOpenGLES->integer == -1 && profileMask == SDL_GL_CONTEXT_PROFILE_ES));
+
+        if (preferOpenGLES) {
+#ifdef __EMSCRIPTEN__
+            contexts[numContexts].profileMask = SDL_GL_CONTEXT_PROFILE_ES;
+            contexts[numContexts].majorVersion = 3;
+            contexts[numContexts].minorVersion = 0;
+            numContexts++;
+#endif
+
+            contexts[numContexts].profileMask = SDL_GL_CONTEXT_PROFILE_ES;
+            contexts[numContexts].majorVersion = 2;
+            contexts[numContexts].minorVersion = 0;
+            numContexts++;
+        }
+
+        contexts[numContexts].profileMask = SDL_GL_CONTEXT_PROFILE_CORE;
+        contexts[numContexts].majorVersion = 3;
+        contexts[numContexts].minorVersion = 2;
+        numContexts++;
+
+        contexts[numContexts].profileMask = 0;
+        contexts[numContexts].majorVersion = 2;
+        contexts[numContexts].minorVersion = 0;
+        numContexts++;
+
+        if (!preferOpenGLES) {
+#ifdef __EMSCRIPTEN__
+            contexts[numContexts].profileMask = SDL_GL_CONTEXT_PROFILE_ES;
+            contexts[numContexts].majorVersion = 3;
+            contexts[numContexts].minorVersion = 0;
+            numContexts++;
+#endif
+
+            contexts[numContexts].profileMask = SDL_GL_CONTEXT_PROFILE_ES;
+            contexts[numContexts].majorVersion = 2;
+            contexts[numContexts].minorVersion = 0;
+            numContexts++;
+        }
+    } else {
+        contexts[numContexts].profileMask = 0;
+        contexts[numContexts].majorVersion = 1;
+        contexts[numContexts].minorVersion = 1;
+        numContexts++;
+    }
+
+    for (i = 0; i < 16; i++) {
+        int testColorBits, testDepthBits, testStencilBits;
+        int realColorBits[3];
+
+        if ((i % 4) == 0 && i) {
+            switch (i / 4) {
+                case 2:
+                    if (colorBits == 24)
+                        colorBits = 16;
+                    break;
+                case 1:
+                    if (depthBits > 24)
+                        depthBits = 24;
+                    else if (depthBits == 24)
+                        depthBits = 16;
+                    else if (depthBits == 16)
+                        depthBits = 8;
+                case 3:
+                    if (stencilBits == 24)
+                        stencilBits = 16;
+                    else if (stencilBits == 16)
+                        stencilBits = 8;
+            }
+        }
+
+        testColorBits = colorBits;
+        testDepthBits = depthBits;
+        testStencilBits = stencilBits;
+
+        if ((i % 4) == 3) {
+            if (testColorBits == 24)
+                testColorBits = 16;
+        }
+
+        if ((i % 4) == 2) {
+            if (testDepthBits > 24)
+                testDepthBits = 24;
+            else if (testDepthBits == 24)
+                testDepthBits = 16;
+            else if (testDepthBits == 16)
+                testDepthBits = 8;
+        }
+
+        if ((i % 4) == 1) {
+            if (testStencilBits == 24)
+                testStencilBits = 16;
+            else if (testStencilBits == 16)
+                testStencilBits = 8;
+            else
+                testStencilBits = 0;
+        }
+
+        if (testColorBits == 24)
+            perChannelColorBits = 8;
+        else
+            perChannelColorBits = 4;
+
+#ifdef __sgi
+        if (perChannelColorBits == 4)
+            perChannelColorBits = 0;
+
+        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 1);
+#endif
+
+        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, perChannelColorBits);
+        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, perChannelColorBits);
+        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, perChannelColorBits);
+        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, testDepthBits);
+        SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, testStencilBits);
+
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, samples ? 1 : 0);
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, samples);
+
+        if (r_stereoEnabled->integer) {
+            glConfig.stereoEnabled = qtrue;
+            SDL_GL_SetAttribute(SDL_GL_STEREO, 1);
+        } else {
+            glConfig.stereoEnabled = qfalse;
+            SDL_GL_SetAttribute(SDL_GL_STEREO, 0);
+        }
+
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+        {
+            SDL_PropertiesID props = SDL_CreateProperties();
+
+            SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, CLIENT_WINDOW_TITLE);
+            SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, x);
+            SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, y);
+            SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, glConfig.vidWidth);
+            SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, glConfig.vidHeight);
+            SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER, flags);
+            SDL_window = SDL_CreateWindowWithProperties(props);
+            SDL_DestroyProperties(props);
+        }
+
+        if (SDL_window == NULL) {
+            ri.Printf(PRINT_DEVELOPER, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+            continue;
+        }
+
+#ifdef _WIN32
+        if (!r_allowSoftwareGL->integer && GLimp_SoftwarePixelFormat()) {
+            SDL_DestroyWindow(SDL_window);
+            SDL_window = NULL;
+            continue;
+        }
+#endif
+
+        if (fullscreen == 1) {
+            if (!GLimp_ApplyFullscreen(1)) {
+                SDL_DestroyWindow(SDL_window);
+                SDL_window = NULL;
+                continue;
+            }
+            SDL_ShowWindow(SDL_window);
+        } else if (!fullscreen) {
+            GLimp_PlaceWindow(qfalse);
+        }
+
+        SDL_SetWindowIcon(SDL_window, icon);
+
+#ifdef USE_VULKAN_API
+        if (glimp_vulkan) {
+            glConfig.colorBits = testColorBits;
+            glConfig.depthBits = testDepthBits;
+            glConfig.stencilBits = testStencilBits;
+            break;
+        }
+#endif
+
+        for (type = 0; type < numContexts; type++) {
+            char contextName[32];
+
+            switch (contexts[type].profileMask) {
+                default:
+                case 0:
+                    Com_sprintf(contextName, sizeof(contextName), "OpenGL %d.%d",
+                                contexts[type].majorVersion, contexts[type].minorVersion);
+                    break;
+                case SDL_GL_CONTEXT_PROFILE_CORE:
+                    Com_sprintf(contextName, sizeof(contextName), "OpenGL %d.%d Core",
+                                contexts[type].majorVersion, contexts[type].minorVersion);
+                    break;
+                case SDL_GL_CONTEXT_PROFILE_ES:
+                    Com_sprintf(contextName, sizeof(contextName), "OpenGL ES %d.%d",
+                                contexts[type].majorVersion, contexts[type].minorVersion);
+                    break;
+            }
+
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, contexts[type].profileMask);
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, contexts[type].majorVersion);
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, contexts[type].minorVersion);
+
+            SDL_glContext = SDL_GL_CreateContext(SDL_window);
+            if (!SDL_glContext) {
+                ri.Printf(PRINT_ALL, "SDL_GL_CreateContext() for %s context failed: %s\n", contextName, SDL_GetError());
+                continue;
+            }
+
+            if (!GLimp_GetProcAddresses(fixedFunction)) {
+                ri.Printf(PRINT_ALL, "GLimp_GetProcAddresses() for %s context failed\n", contextName);
+                GLimp_ClearProcAddresses();
+                SDL_GL_DestroyContext(SDL_glContext);
+                SDL_glContext = NULL;
+                continue;
+            }
+
+            if (contexts[type].profileMask == SDL_GL_CONTEXT_PROFILE_CORE) {
+                const char* renderer;
+
+                renderer = (const char*)qglGetString(GL_RENDERER);
+
+                if (!renderer || strstr(renderer, "Software Renderer") || strstr(renderer, "Software Rasterizer")) {
+                    ri.Printf(PRINT_ALL, "GL_RENDERER is %s, rejecting %s context\n", renderer, contextName);
+
+                    GLimp_ClearProcAddresses();
+                    SDL_GL_DestroyContext(SDL_glContext);
+                    SDL_glContext = NULL;
+                    continue;
+                }
+            }
+
+            break;
+        }
+
+        if (!SDL_glContext) {
+            SDL_DestroyWindow(SDL_window);
+            SDL_window = NULL;
+            continue;
+        }
+
+        qglClearColor(0, 0, 0, 1);
+        qglClear(GL_COLOR_BUFFER_BIT);
+        SDL_GL_SwapWindow(SDL_window);
+
+        if (!SDL_GL_SetSwapInterval(r_swapInterval->integer)) {
+            ri.Printf(PRINT_DEVELOPER, "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError());
+        }
+
+        SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &realColorBits[0]);
+        SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &realColorBits[1]);
+        SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &realColorBits[2]);
+        SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &glConfig.depthBits);
+        SDL_GL_GetAttribute(SDL_GL_STENCIL_SIZE, &glConfig.stencilBits);
+
+        glConfig.colorBits = realColorBits[0] + realColorBits[1] + realColorBits[2];
+
+        ri.Printf(PRINT_ALL, "Using %d color bits, %d depth, %d stencil display.\n",
+                  glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits);
+        break;
+    }
+
+    SDL_DestroySurface(icon);
+
+    if (!SDL_window) {
+        ri.Printf(PRINT_ALL, "Couldn't get a visual\n");
+        return RSERR_INVALID_MODE;
+    }
+
+    GLimp_DetectAvailableModes();
+
+#ifdef USE_VULKAN_API
+    if (glimp_vulkan)
+        return RSERR_OK;
+#endif
+
+    glstring = (char*)qglGetString(GL_RENDERER);
+    ri.Printf(PRINT_ALL, "GL_RENDERER: %s\n", glstring);
+
+    return RSERR_OK;
+}
+
+#if defined(__APPLE__) && defined(USE_VULKAN_API)
+static qboolean vkBundledLibrary;
+
+static void VKimp_LoadBundledLibrary(void) {
+    char path[MAX_OSPATH];
+    char* base;
+
+    if (vkBundledLibrary)
+        return;
+
+    base = SDL_GetBasePath();
+    if (!base)
+        return;
+
+    Com_sprintf(path, sizeof(path), "%s../Frameworks/libMoltenVK.dylib", base);
+    SDL_free(base);
+
+    if (SDL_Vulkan_LoadLibrary(path)) {
+        vkBundledLibrary = qtrue;
+        ri.Printf(PRINT_ALL, "...using %s\n", path);
+    }
+}
+#endif
+
+static qboolean GLimp_StartDriverAndSetMode(int mode, int fullscreen, qboolean noborder, qboolean gl3Core) {
+    rserr_t err;
+
+    if (!SDL_WasInit(SDL_INIT_VIDEO)) {
+        const char* driverName;
+
+        if (!SDL_Init(SDL_INIT_VIDEO)) {
+            ri.Printf(PRINT_ALL, "SDL_Init( SDL_INIT_VIDEO ) FAILED (%s)\n", SDL_GetError());
+            return qfalse;
+        }
+
+        driverName = SDL_GetCurrentVideoDriver();
+        ri.Printf(PRINT_ALL, "SDL using driver \"%s\"\n", driverName);
+        ri.Cvar_Set("r_sdlDriver", driverName);
+    }
+
+    if (fullscreen && ri.Cvar_VariableIntegerValue("in_nograb")) {
+        ri.Printf(PRINT_ALL, "Fullscreen not allowed with in_nograb 1\n");
+        ri.Cvar_Set("r_fullscreen", "0");
+        r_fullscreen->modified = qfalse;
+        fullscreen = qfalse;
+    }
+
+#if defined(__APPLE__) && defined(USE_VULKAN_API)
+    if (glimp_vulkan)
+        VKimp_LoadBundledLibrary();
+#endif
+
+    err = GLimp_SetMode(mode, fullscreen, noborder, gl3Core);
+
+    switch (err) {
+        case RSERR_INVALID_FULLSCREEN:
+            ri.Printf(PRINT_ALL, "...WARNING: fullscreen unavailable in this mode\n");
+            return qfalse;
+        case RSERR_INVALID_MODE:
+            ri.Printf(PRINT_ALL, "...WARNING: could not set the given mode (%d)\n", mode);
+            return qfalse;
+        default:
+            break;
+    }
+
+    return qtrue;
+}
+
+#ifndef GLIMP_EXTERNAL_QGL
+static void GLimp_InitExtensions(qboolean fixedFunction) {
+    if (!r_allowExtensions->integer) {
+        ri.Printf(PRINT_ALL, "* IGNORING OPENGL EXTENSIONS *\n");
+        return;
+    }
+
+    ri.Printf(PRINT_ALL, "Initializing OpenGL extensions\n");
+
+    glConfig.textureCompression = TC_NONE;
+
+    if ((QGLES_VERSION_ATLEAST(2, 0) || SDL_GL_ExtensionSupported("GL_ARB_texture_compression")) &&
+        SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc")) {
+        if (r_ext_compressed_textures->value) {
+            glConfig.textureCompression = TC_S3TC_ARB;
+            ri.Printf(PRINT_ALL, "...using GL_EXT_texture_compression_s3tc\n");
+        } else {
+            ri.Printf(PRINT_ALL, "...ignoring GL_EXT_texture_compression_s3tc\n");
+        }
+    } else {
+        ri.Printf(PRINT_ALL, "...GL_EXT_texture_compression_s3tc not found\n");
+    }
+
+    if (glConfig.textureCompression == TC_NONE) {
+        if (SDL_GL_ExtensionSupported("GL_S3_s3tc")) {
+            if (r_ext_compressed_textures->value) {
+                glConfig.textureCompression = TC_S3TC;
+                ri.Printf(PRINT_ALL, "...using GL_S3_s3tc\n");
+            } else {
+                ri.Printf(PRINT_ALL, "...ignoring GL_S3_s3tc\n");
+            }
+        } else {
+            ri.Printf(PRINT_ALL, "...GL_S3_s3tc not found\n");
+        }
+    }
+
+    if (fixedFunction) {
+        glConfig.textureEnvAddAvailable = qfalse;
+        if (SDL_GL_ExtensionSupported("GL_EXT_texture_env_add")) {
+            if (r_ext_texture_env_add->integer) {
+                glConfig.textureEnvAddAvailable = qtrue;
+                ri.Printf(PRINT_ALL, "...using GL_EXT_texture_env_add\n");
+            } else {
+                glConfig.textureEnvAddAvailable = qfalse;
+                ri.Printf(PRINT_ALL, "...ignoring GL_EXT_texture_env_add\n");
+            }
+        } else {
+            ri.Printf(PRINT_ALL, "...GL_EXT_texture_env_add not found\n");
+        }
+
+        qglMultiTexCoord2fARB = NULL;
+        qglActiveTextureARB = NULL;
+        qglClientActiveTextureARB = NULL;
+        if (SDL_GL_ExtensionSupported("GL_ARB_multitexture")) {
+            if (r_ext_multitexture->value) {
+                qglMultiTexCoord2fARB = (void(APIENTRY*)(GLenum, GLfloat, GLfloat))SDL_GL_GetProcAddress("glMultiTexCoord2fARB");
+                qglActiveTextureARB = (void(APIENTRY*)(GLenum))SDL_GL_GetProcAddress("glActiveTextureARB");
+                qglClientActiveTextureARB = (void(APIENTRY*)(GLenum))SDL_GL_GetProcAddress("glClientActiveTextureARB");
+
+                if (qglActiveTextureARB) {
+                    GLint glint = 0;
+                    qglGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &glint);
+                    glConfig.numTextureUnits = (int)glint;
+                    if (glConfig.numTextureUnits > 1) {
+                        ri.Printf(PRINT_ALL, "...using GL_ARB_multitexture\n");
+                    } else {
+                        qglMultiTexCoord2fARB = NULL;
+                        qglActiveTextureARB = NULL;
+                        qglClientActiveTextureARB = NULL;
+                        ri.Printf(PRINT_ALL, "...not using GL_ARB_multitexture, < 2 texture units\n");
+                    }
+                }
+            } else {
+                ri.Printf(PRINT_ALL, "...ignoring GL_ARB_multitexture\n");
+            }
+        } else {
+            ri.Printf(PRINT_ALL, "...GL_ARB_multitexture not found\n");
+        }
+
+        if (SDL_GL_ExtensionSupported("GL_EXT_compiled_vertex_array")) {
+            if (r_ext_compiled_vertex_array->value) {
+                ri.Printf(PRINT_ALL, "...using GL_EXT_compiled_vertex_array\n");
+                qglLockArraysEXT = (void(APIENTRY*)(GLint, GLint))SDL_GL_GetProcAddress("glLockArraysEXT");
+                qglUnlockArraysEXT = (void(APIENTRY*)(void))SDL_GL_GetProcAddress("glUnlockArraysEXT");
+                if (!qglLockArraysEXT || !qglUnlockArraysEXT) {
+                    ri.Error(ERR_FATAL, "bad getprocaddress");
+                }
+            } else {
+                ri.Printf(PRINT_ALL, "...ignoring GL_EXT_compiled_vertex_array\n");
+            }
+        } else {
+            ri.Printf(PRINT_ALL, "...GL_EXT_compiled_vertex_array not found\n");
+        }
+    }
+
+    textureFilterAnisotropic = qfalse;
+    if (SDL_GL_ExtensionSupported("GL_EXT_texture_filter_anisotropic")) {
+        if (r_ext_texture_filter_anisotropic->integer) {
+            qglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, (GLint*)&maxAnisotropy);
+            if (maxAnisotropy <= 0) {
+                ri.Printf(PRINT_ALL, "...GL_EXT_texture_filter_anisotropic not properly supported!\n");
+                maxAnisotropy = 0;
+            } else {
+                ri.Printf(PRINT_ALL, "...using GL_EXT_texture_filter_anisotropic (max: %i)\n", maxAnisotropy);
+                textureFilterAnisotropic = qtrue;
+            }
+        } else {
+            ri.Printf(PRINT_ALL, "...ignoring GL_EXT_texture_filter_anisotropic\n");
+        }
+    } else {
+        ri.Printf(PRINT_ALL, "...GL_EXT_texture_filter_anisotropic not found\n");
+    }
+
+    haveClampToEdge = qfalse;
+    if (QGL_VERSION_ATLEAST(1, 2) || QGLES_VERSION_ATLEAST(1, 0) || SDL_GL_ExtensionSupported("GL_SGIS_texture_edge_clamp")) {
+        ri.Printf(PRINT_ALL, "...using GL_SGIS_texture_edge_clamp\n");
+        haveClampToEdge = qtrue;
+    } else {
+        ri.Printf(PRINT_ALL, "...GL_SGIS_texture_edge_clamp not found\n");
+    }
+}
+
+#endif
+
+#define R_MODE_FALLBACK 1
+
+static void GLimp_InitCvars(void) {
+    r_allowSoftwareGL = ri.Cvar_Get("r_allowSoftwareGL", "0", CVAR_LATCH);
+    r_sdlDriver = ri.Cvar_Get("r_sdlDriver", "", CVAR_ROM);
+    r_centerWindow = ri.Cvar_Get("r_centerWindow", "0", CVAR_ARCHIVE | CVAR_LATCH);
+    r_preferOpenGLES = ri.Cvar_Get("r_preferOpenGLES", "-1", CVAR_ARCHIVE | CVAR_LATCH);
+
+}
+
+qboolean GLimp_ApplyVideoMode(int* width, int* height) {
+    int mode, w, h, aspectRatio;
+    qboolean wasFullscreen;
+    float aspect;
+
+    if (!SDL_window) {
+        return qfalse;
+    }
+
+    wasFullscreen = glConfig.isFullscreen;
+
+    if (r_fullscreen->integer == 2) {
+        mode = -2;
+    } else {
+        mode = r_fullscreen->integer ? r_mode->integer : r_windowedMode->integer;
+    }
+
+    if (mode == -2) {
+        const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(SDL_window));
+
+        if (!desktop) {
+            return qfalse;
+        }
+        w = desktop->w;
+        h = desktop->h;
+        aspect = (float)w / (float)h;
+        aspectRatio = R_AspectRatioOf(w, h);
+    } else if (!R_GetModeInfo(&w, &h, &aspect, &aspectRatio, mode, r_fullscreen->integer)) {
+        return qfalse;
+    }
+
+    glConfig.vidWidth = w;
+    glConfig.vidHeight = h;
+    glConfig.windowAspect = aspect;
+
+    ri.Cvar_Set("r_aspectRatio", va("%d", aspectRatio));
+
+    if (!r_fullscreen->integer) {
+        SDL_SetWindowBordered(SDL_window, r_noborder->integer ? false : true);
+        SDL_SetWindowResizable(SDL_window, true);
+    }
+
+    if (!GLimp_ApplyFullscreen(r_fullscreen->integer)) {
+        return qfalse;
+    }
+
+    if (r_fullscreen->integer) {
+        SDL_SetWindowBordered(SDL_window, false);
+        SDL_SetWindowResizable(SDL_window, false);
+    } else {
+        SDL_SetWindowSize(SDL_window, w, h);
+        GLimp_PlaceWindow((wasFullscreen || r_centerWindow->integer) ? qtrue : qfalse);
+        SDL_SyncWindow(SDL_window);
+    }
+
+    if (!SDL_GetWindowSizeInPixels(SDL_window, &w, &h) || w < 32 || h < 32) {
+        return qfalse;
+    }
+
+    glConfig.isFullscreen = r_fullscreen->integer ? qtrue : qfalse;
+    *width = w;
+    *height = h;
+
+    return qtrue;
+}
+
+void GLimp_Init(qboolean fixedFunction) {
+    int mode;
+
+    ri.Printf(PRINT_DEVELOPER, "Glimp_Init( )\n");
+
+    GLimp_InitCvars();
+
+    ri.Sys_GLimpInit();
+
+    if (r_fullscreen->integer == 2)
+        mode = -2;
+    else
+        mode = r_fullscreen->integer ? r_mode->integer : r_windowedMode->integer;
+
+    if (GLimp_StartDriverAndSetMode(mode, r_fullscreen->integer, r_noborder->integer, fixedFunction))
+        goto success;
+
+    ri.Sys_GLimpSafeInit();
+
+    if (GLimp_StartDriverAndSetMode(mode, r_fullscreen->integer, qfalse, fixedFunction))
+        goto success;
+
+    if (mode != R_MODE_FALLBACK) {
+        ri.Printf(PRINT_ALL, "Setting r_mode %d failed, falling back on r_mode %d\n",
+                  mode, R_MODE_FALLBACK);
+
+        if (GLimp_StartDriverAndSetMode(R_MODE_FALLBACK, qfalse, qfalse, fixedFunction))
+            goto success;
+    }
+
+    ri.Error(ERR_FATAL, "GLimp_Init() - could not load OpenGL subsystem");
+
+success:
+    glConfig.driverType = GLDRV_ICD;
+    glConfig.hardwareType = GLHW_GENERIC;
+
+    glConfig.deviceSupportsGamma = qfalse;
+
+    Q_strncpyz(glConfig.vendor_string, (char*)qglGetString(GL_VENDOR), sizeof(glConfig.vendor_string));
+    Q_strncpyz(glConfig.renderer_string, (char*)qglGetString(GL_RENDERER), sizeof(glConfig.renderer_string));
+    if (*glConfig.renderer_string && glConfig.renderer_string[strlen(glConfig.renderer_string) - 1] == '\n')
+        glConfig.renderer_string[strlen(glConfig.renderer_string) - 1] = 0;
+    Q_strncpyz(glConfig.version_string, (char*)qglGetString(GL_VERSION), sizeof(glConfig.version_string));
+
+    ri.Cvar_Set("r_gl_vendor", glConfig.vendor_string);
+    ri.Cvar_Set("r_gl_renderer", glConfig.renderer_string);
+
+    if (qglGetStringi) {
+        int i, numExtensions, extensionLength, listLength;
+        const char* extension;
+
+        qglGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+        listLength = 0;
+
+        for (i = 0; i < numExtensions; i++) {
+            extension = (char*)qglGetStringi(GL_EXTENSIONS, i);
+            extensionLength = strlen(extension);
+
+            if ((listLength + extensionLength + 1) >= sizeof(glConfig.extensions_string))
+                break;
+
+            if (i > 0) {
+                Q_strcat(glConfig.extensions_string, sizeof(glConfig.extensions_string), " ");
+                listLength++;
+            }
+
+            Q_strcat(glConfig.extensions_string, sizeof(glConfig.extensions_string), extension);
+            listLength += extensionLength;
+        }
+    } else {
+        Q_strncpyz(glConfig.extensions_string, (char*)qglGetString(GL_EXTENSIONS), sizeof(glConfig.extensions_string));
+    }
+
+#ifndef GLIMP_EXTERNAL_QGL
+    GLimp_InitExtensions(fixedFunction);
+#endif
+
+    ri.Cvar_Get("r_availableModes", "", CVAR_ROM);
+
+    ri.IN_Init(SDL_window);
+}
+
+void* GLimp_GetProcAddress(const char* name) {
+    return (void*)SDL_GL_GetProcAddress(name);
+}
+
+enum { SMP_NOBODY, SMP_FRONTEND, SMP_RENDERER };
+
+static SDL_Thread* smpThread = NULL;
+static SDL_ThreadID smpThreadId;
+static SDL_Mutex* smpMutex = NULL;
+static SDL_Condition* smpCond = NULL;
+static void (*smpFunction)(void);
+static void* volatile smpData;
+static qboolean smpBusy;
+static qboolean smpQuit;
+static qboolean smpRelease;
+static int smpOwner;
+
+static void GLimp_DestroyRenderSync(void) {
+    if (smpCond) {
+        SDL_DestroyCondition(smpCond);
+        smpCond = NULL;
+    }
+    if (smpMutex) {
+        SDL_DestroyMutex(smpMutex);
+        smpMutex = NULL;
+    }
+}
+
+static int SDLCALL GLimp_RenderThreadMain(void* arg) {
+    (void)arg;
+    smpFunction();
+    return 0;
+}
+
+qboolean GLimp_SpawnRenderThread(void (*function)(void)) {
+#ifdef __APPLE__
+    (void)function;
+    return qfalse;
+#else
+    if (smpThread) {
+        return qtrue;
+    }
+
+    smpMutex = SDL_CreateMutex();
+    smpCond = SDL_CreateCondition();
+    if (!smpMutex || !smpCond) {
+        GLimp_DestroyRenderSync();
+        return qfalse;
+    }
+
+    smpFunction = function;
+    smpData = NULL;
+    smpBusy = qfalse;
+    smpQuit = qfalse;
+    smpRelease = qfalse;
+    smpOwner = SMP_FRONTEND;
+
+    smpThread = SDL_CreateThread(GLimp_RenderThreadMain, "render", NULL);
+    if (!smpThread) {
+        ri.Printf(PRINT_DEVELOPER, "SDL_CreateThread failed: %s\n", SDL_GetError());
+        GLimp_DestroyRenderSync();
+        return qfalse;
+    }
+    smpThreadId = SDL_GetThreadID(smpThread);
+
+    return qtrue;
+#endif
+}
+
+void GLimp_ShutdownRenderThread(void) {
+    if (!smpThread) {
+        return;
+    }
+
+    SDL_LockMutex(smpMutex);
+    while (smpData || smpBusy) {
+        SDL_WaitCondition(smpCond, smpMutex);
+    }
+    smpQuit = qtrue;
+    SDL_BroadcastCondition(smpCond);
+    SDL_UnlockMutex(smpMutex);
+
+    SDL_WaitThread(smpThread, NULL);
+    smpThread = NULL;
+
+    if (smpOwner != SMP_FRONTEND) {
+        if (SDL_glContext) {
+            SDL_GL_MakeCurrent(SDL_window, SDL_glContext);
+        }
+        smpOwner = SMP_FRONTEND;
+    }
+
+    GLimp_DestroyRenderSync();
+}
+
+qboolean GLimp_IsRenderThread(void) {
+    return (smpThread && SDL_GetCurrentThreadID() == smpThreadId) ? qtrue : qfalse;
+}
+
+void* GLimp_RendererSleep(void) {
+    void* data;
+
+    SDL_LockMutex(smpMutex);
+
+    smpBusy = qfalse;
+    SDL_BroadcastCondition(smpCond);
+
+    for (;;) {
+        if (smpRelease) {
+            if (smpOwner == SMP_RENDERER) {
+                if (SDL_glContext) {
+                    SDL_GL_MakeCurrent(SDL_window, NULL);
+                }
+                smpOwner = SMP_NOBODY;
+            }
+            smpRelease = qfalse;
+            SDL_BroadcastCondition(smpCond);
+        }
+        if (smpData || smpQuit) {
+            break;
+        }
+        SDL_WaitCondition(smpCond, smpMutex);
+    }
+
+    if (smpQuit) {
+        if (smpOwner == SMP_RENDERER) {
+            if (SDL_glContext) {
+                SDL_GL_MakeCurrent(SDL_window, NULL);
+            }
+            smpOwner = SMP_NOBODY;
+        }
+        SDL_BroadcastCondition(smpCond);
+        SDL_UnlockMutex(smpMutex);
+        return NULL;
+    }
+
+    data = smpData;
+    smpData = NULL;
+    smpBusy = qtrue;
+
+    if (smpOwner != SMP_RENDERER) {
+        if (SDL_glContext) {
+            SDL_GL_MakeCurrent(SDL_window, SDL_glContext);
+        }
+        smpOwner = SMP_RENDERER;
+    }
+
+    SDL_UnlockMutex(smpMutex);
+
+    return data;
+}
+
+qboolean GLimp_FrontEndSleep(void) {
+    qboolean waited;
+
+    SDL_LockMutex(smpMutex);
+    waited = (smpData || smpBusy) ? qtrue : qfalse;
+    while (smpData || smpBusy) {
+        SDL_WaitCondition(smpCond, smpMutex);
+    }
+    SDL_UnlockMutex(smpMutex);
+
+    return waited;
+}
+
+void GLimp_FrontEndAcquire(void) {
+    if (smpOwner == SMP_FRONTEND) {
+        return;
+    }
+
+    SDL_LockMutex(smpMutex);
+    while (smpData || smpBusy) {
+        SDL_WaitCondition(smpCond, smpMutex);
+    }
+    if (SDL_glContext) {
+        if (smpOwner == SMP_RENDERER) {
+            smpRelease = qtrue;
+            SDL_BroadcastCondition(smpCond);
+            while (smpOwner == SMP_RENDERER) {
+                SDL_WaitCondition(smpCond, smpMutex);
+            }
+        }
+        SDL_GL_MakeCurrent(SDL_window, SDL_glContext);
+    }
+    smpOwner = SMP_FRONTEND;
+    SDL_UnlockMutex(smpMutex);
+}
+
+void GLimp_WakeRenderer(void* data) {
+    SDL_LockMutex(smpMutex);
+    if (smpOwner == SMP_FRONTEND) {
+        if (SDL_glContext) {
+            SDL_GL_MakeCurrent(SDL_window, NULL);
+        }
+        smpOwner = SMP_NOBODY;
+    }
+    smpData = data;
+    SDL_BroadcastCondition(smpCond);
+    SDL_UnlockMutex(smpMutex);
+}
+
+void GLimp_UpdateFullscreen(void) {
+    if (r_fullscreen->modified) {
+        int fullscreen;
+        qboolean needToToggle;
+        qboolean sdlToggled = qfalse;
+
+        fullscreen = !!(SDL_GetWindowFlags(SDL_window) & SDL_WINDOW_FULLSCREEN);
+
+        if (r_fullscreen->integer && ri.Cvar_VariableIntegerValue("in_nograb")) {
+            ri.Printf(PRINT_ALL, "Fullscreen not allowed with in_nograb 1\n");
+            ri.Cvar_Set("r_fullscreen", "0");
+            r_fullscreen->modified = qfalse;
+        }
+
+        needToToggle = !!r_fullscreen->integer != fullscreen;
+
+        if (needToToggle) {
+            sdlToggled = GLimp_ApplyFullscreen(r_fullscreen->integer);
+
+            if (!sdlToggled)
+                ri.Cmd_ExecuteText(EXEC_APPEND, "vid_restart\n");
+
+            ri.IN_Restart();
+        }
+
+        r_fullscreen->modified = qfalse;
+    }
+}
+
+void GLimp_EndFrame(void) {
+    if (Q_stricmp(r_drawBuffer->string, "GL_FRONT") != 0) {
+        SDL_GL_SwapWindow(SDL_window);
+    }
+
+    if (r_swapInterval->modified) {
+        r_swapInterval->modified = qfalse;
+
+        if (!SDL_GL_SetSwapInterval(r_swapInterval->integer)) {
+            ri.Printf(PRINT_DEVELOPER, "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError());
+        }
+    }
+
+    if (!smpThread) {
+        GLimp_UpdateFullscreen();
+    }
+}
+
+#ifdef USE_VULKAN_API
+void VKimp_Init(glconfig_t* config) {
+    int mode;
+
+    (void)config;
+    ri.Printf(PRINT_DEVELOPER, "VKimp_Init( )\n");
+
+    GLimp_InitCvars();
+
+    ri.Sys_GLimpInit();
+
+    glimp_vulkan = qtrue;
+
+    if (r_fullscreen->integer == 2)
+        mode = -2;
+    else
+        mode = r_fullscreen->integer ? r_mode->integer : r_windowedMode->integer;
+
+    if (!GLimp_StartDriverAndSetMode(mode, r_fullscreen->integer, r_noborder->integer, qfalse) &&
+        !GLimp_StartDriverAndSetMode(R_MODE_FALLBACK, qfalse, qfalse, qfalse))
+        ri.Error(ERR_FATAL, "VKimp_Init() - could not load Vulkan subsystem");
+
+    qvkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
+    if (!qvkGetInstanceProcAddr)
+        ri.Error(ERR_FATAL, "VKimp_Init() - vkGetInstanceProcAddr is NULL: %s", SDL_GetError());
+
+    glConfig.driverType = GLDRV_ICD;
+    glConfig.hardwareType = GLHW_GENERIC;
+    glConfig.deviceSupportsGamma = qfalse;
+
+    ri.Cvar_Get("r_availableModes", "", CVAR_ROM);
+
+    ri.IN_Init(SDL_window);
+}
+
+void* VK_GetInstanceProcAddr(VkInstance instance, const char* name) {
+    return (void*)qvkGetInstanceProcAddr(instance, name);
+}
+
+qboolean VK_CreateSurface(VkInstance instance, VkSurfaceKHR* surface) {
+    return SDL_Vulkan_CreateSurface(SDL_window, instance, NULL, surface) ? qtrue : qfalse;
+}
+
+void VKimp_Shutdown(qboolean unloadDLL) {
+    (void)unloadDLL;
+
+#ifdef __APPLE__
+    if (vkBundledLibrary) {
+        SDL_Vulkan_UnloadLibrary();
+        vkBundledLibrary = qfalse;
+    }
+#endif
+
+    glimp_vulkan = qfalse;
+    qvkGetInstanceProcAddr = NULL;
+    GLimp_Shutdown();
+}
+
+#ifdef _WIN32
+static void VKimp_SkipOldObsHook(void) {
+    typedef DWORD(WINAPI * sizeFn_t)(LPCWSTR, LPDWORD);
+    typedef BOOL(WINAPI * infoFn_t)(LPCWSTR, DWORD, DWORD, LPVOID);
+    typedef BOOL(WINAPI * queryFn_t)(LPCVOID, LPCWSTR, LPVOID*, PUINT);
+    wchar_t path[MAX_PATH];
+    VS_FIXEDFILEINFO* fixed;
+    sizeFn_t getSize;
+    infoFn_t getInfo;
+    queryFn_t query;
+    HMODULE lib;
+    UINT fixedLen;
+    DWORD size, unused, ms = 0, ls = 0;
+    void* data;
+
+    size = GetEnvironmentVariableW(L"ProgramData", path, MAX_PATH - 48);
+    if (size == 0 || size >= MAX_PATH - 48) {
+        return;
+    }
+#ifdef _WIN64
+    lstrcatW(path, L"\\obs-studio-hook\\graphics-hook64.dll");
+#else
+    lstrcatW(path, L"\\obs-studio-hook\\graphics-hook32.dll");
+#endif
+    if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
+        return;
+    }
+
+    lib = LoadLibraryW(L"version.dll");
+    if (!lib) {
+        return;
+    }
+    getSize = (sizeFn_t)(void*)GetProcAddress(lib, "GetFileVersionInfoSizeW");
+    getInfo = (infoFn_t)(void*)GetProcAddress(lib, "GetFileVersionInfoW");
+    query = (queryFn_t)(void*)GetProcAddress(lib, "VerQueryValueW");
+    if (getSize && getInfo && query && (size = getSize(path, &unused)) != 0) {
+        data = malloc(size);
+        if (data && getInfo(path, 0, size, data) && query(data, L"\\", (LPVOID*)&fixed, &fixedLen) &&
+            fixedLen >= sizeof(*fixed)) {
+            ms = fixed->dwFileVersionMS;
+            ls = fixed->dwFileVersionLS;
+        }
+        free(data);
+    }
+    FreeLibrary(lib);
+
+    if (ms == 0 || ms > 0x00010001 || (ms == 0x00010001 && ls >= 0x00040000)) {
+        return;
+    }
+    SetEnvironmentVariableW(L"DISABLE_VULKAN_OBS_CAPTURE", L"1");
+    ri.Printf(PRINT_WARNING,
+              "OBS Studio's Vulkan capture %lu.%lu.%lu crashes Vulkan, so it is off for ioquakelive. "
+              "Update OBS to 25.0.4 or later to capture the game.\n",
+              (unsigned long)(ms >> 16), (unsigned long)(ms & 0xFFFF), (unsigned long)(ls >> 16));
+}
+#endif
+
+qboolean VKimp_Probe(char* reason, int reasonSize) {
+#ifdef __APPLE__
+    (void)reasonSize;
+    reason[0] = '\0';
+    return qtrue;
+#else
+    PFN_vkGetInstanceProcAddr gipa;
+    PFN_vkCreateInstance createInstance;
+    PFN_vkDestroyInstance destroyInstance = NULL;
+    PFN_vkEnumeratePhysicalDevices enumerateDevices = NULL;
+    PFN_vkGetPhysicalDeviceProperties getProperties = NULL;
+    VkApplicationInfo app;
+    VkInstanceCreateInfo info;
+    VkInstance instance = VK_NULL_HANDLE;
+    VkPhysicalDevice devices[16];
+    VkPhysicalDeviceProperties props;
+    uint32_t count = 16, i;
+    int index;
+    qboolean videoStarted = qfalse, ok = qfalse;
+
+    reason[0] = '\0';
+#ifdef _WIN32
+    VKimp_SkipOldObsHook();
+#endif
+    if (!SDL_WasInit(SDL_INIT_VIDEO)) {
+        if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
+            return qtrue;
+        }
+        videoStarted = qtrue;
+    }
+    if (!SDL_Vulkan_LoadLibrary(NULL)) {
+        Com_sprintf(reason, reasonSize, "no Vulkan driver (%s)", SDL_GetError());
+        goto done;
+    }
+
+    gipa = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
+    createInstance = gipa ? (PFN_vkCreateInstance)gipa(VK_NULL_HANDLE, "vkCreateInstance") : NULL;
+    Com_Memset(&app, 0, sizeof(app));
+    app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app.apiVersion = VK_API_VERSION_1_0;
+    Com_Memset(&info, 0, sizeof(info));
+    info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    info.pApplicationInfo = &app;
+    if (!createInstance || createInstance(&info, NULL, &instance) != VK_SUCCESS) {
+        Com_sprintf(reason, reasonSize, "the Vulkan driver does not start");
+        goto unload;
+    }
+
+    destroyInstance = (PFN_vkDestroyInstance)gipa(instance, "vkDestroyInstance");
+    enumerateDevices = (PFN_vkEnumeratePhysicalDevices)gipa(instance, "vkEnumeratePhysicalDevices");
+    getProperties = (PFN_vkGetPhysicalDeviceProperties)gipa(instance, "vkGetPhysicalDeviceProperties");
+    if (!enumerateDevices || !getProperties || enumerateDevices(instance, &count, devices) < 0 || !count) {
+        Com_sprintf(reason, reasonSize, "no graphics card with Vulkan");
+        goto destroy;
+    }
+
+    index = ri.Cvar_Get("r_device", "-1", CVAR_ARCHIVE | CVAR_LATCH)->integer;
+    for (i = 0; i < count; i++) {
+        getProperties(devices[i], &props);
+        if (index == -1 && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+            index = (int)i;
+        } else if (index == -2 && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
+            index = (int)i;
+        }
+    }
+    if (index < 0 || index >= (int)count) {
+        index = 0;
+    }
+    getProperties(devices[index], &props);
+    ok = qtrue;
+
+destroy:
+    if (destroyInstance) {
+        destroyInstance(instance, NULL);
+    }
+unload:
+    SDL_Vulkan_UnloadLibrary();
+done:
+    if (videoStarted) {
+        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+    }
+    return ok;
+#endif
+}
+#endif

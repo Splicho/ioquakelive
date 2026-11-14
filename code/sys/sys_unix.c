@@ -1,0 +1,1247 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#include "../qcommon/q_shared.h"
+#include "../qcommon/qcommon.h"
+#include "sys_local.h"
+
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/time.h>
+#include <pwd.h>
+#include <libgen.h>
+#include <fcntl.h>
+#include <fenv.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <spawn.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
+extern char** environ;
+
+qboolean stdinIsATTY;
+
+static char homePath[MAX_OSPATH] = {0};
+
+static char steamPath[MAX_OSPATH] = {0};
+
+static char gogPath[MAX_OSPATH] = {0};
+
+static char microsoftStorePath[MAX_OSPATH] = {0};
+
+char* Sys_DefaultHomePath(void) {
+    char* p;
+
+    if (!*homePath && com_homepath != NULL) {
+#ifdef __APPLE__
+        if ((p = getenv("HOME")) != NULL) {
+            Com_sprintf(homePath, sizeof(homePath), "%s%c", p, PATH_SEP);
+
+            Q_strcat(homePath, sizeof(homePath),
+                     "Library/Application Support/");
+
+            if (com_homepath->string[0])
+                Q_strcat(homePath, sizeof(homePath), com_homepath->string);
+            else
+                Q_strcat(homePath, sizeof(homePath), HOMEPATH_NAME_MACOSX);
+        }
+#else
+        if ((p = getenv("FLATPAK_ID")) != NULL && *p != '\0') {
+            if ((p = getenv("XDG_DATA_HOME")) != NULL && *p != '\0') {
+                Com_sprintf(homePath, sizeof(homePath), "%s%c", p, PATH_SEP);
+            } else if ((p = getenv("HOME")) != NULL && *p != '\0') {
+                Com_sprintf(homePath, sizeof(homePath), "%s%c.local%cshare%c", p, PATH_SEP, PATH_SEP, PATH_SEP);
+            }
+
+            if (*homePath) {
+                char* dir;
+
+                if (com_homepath->string[0])
+                    dir = com_homepath->string;
+                else
+                    dir = HOMEPATH_NAME_UNIX;
+
+                if (dir[0] == '.' && dir[1] != '\0')
+                    dir++;
+
+                Q_strcat(homePath, sizeof(homePath), dir);
+            }
+        } else if ((p = getenv("HOME")) != NULL) {
+            Com_sprintf(homePath, sizeof(homePath), "%s%c", p, PATH_SEP);
+
+            if (com_homepath->string[0])
+                Q_strcat(homePath, sizeof(homePath), com_homepath->string);
+            else
+                Q_strcat(homePath, sizeof(homePath), HOMEPATH_NAME_UNIX);
+        }
+#endif
+    }
+
+    return homePath;
+}
+
+char* Sys_DefaultCachePath(void) {
+    static char cachePath[MAX_OSPATH];
+    const char* name;
+    char* p;
+
+    if (cachePath[0]) {
+        return cachePath;
+    }
+
+    name = (com_homepath && com_homepath->string[0]) ? com_homepath->string : HOMEPATH_NAME_UNIX;
+    if (name[0] == '.' && name[1] != '\0') {
+        name++;
+    }
+#ifdef __APPLE__
+    if ((p = getenv("HOME")) != NULL && *p != '\0') {
+        Com_sprintf(cachePath, sizeof(cachePath), "%s%cLibrary%cCaches%c%s", p, PATH_SEP, PATH_SEP, PATH_SEP, name);
+    }
+#else
+    if ((p = getenv("XDG_CACHE_HOME")) != NULL && *p != '\0') {
+        Com_sprintf(cachePath, sizeof(cachePath), "%s%c%s", p, PATH_SEP, name);
+    } else if ((p = getenv("HOME")) != NULL && *p != '\0') {
+        Com_sprintf(cachePath, sizeof(cachePath), "%s%c.cache%c%s", p, PATH_SEP, PATH_SEP, name);
+    }
+#endif
+
+    return cachePath[0] ? cachePath : NULL;
+}
+
+qboolean Sys_RemoveDir(const char* path) {
+    return rmdir(path) == 0 ? qtrue : qfalse;
+}
+
+qboolean Sys_SteamRunning(void) {
+#ifdef __APPLE__
+    return qtrue;
+#else
+    char path[MAX_OSPATH];
+    const char* home = getenv("HOME");
+    FILE* f;
+    int pid = 0;
+
+    if (!home || !home[0]) {
+        return qtrue;
+    }
+    Com_sprintf(path, sizeof(path), "%s/.steam/steam.pid", home);
+    f = fopen(path, "r");
+    if (!f) {
+        return qfalse;
+    }
+    if (fscanf(f, "%d", &pid) != 1) {
+        pid = 0;
+    }
+    fclose(f);
+    return pid > 0 && kill((pid_t)pid, 0) == 0 ? qtrue : qfalse;
+#endif
+}
+
+qboolean Sys_SteamReady(void) {
+    return Sys_SteamRunning();
+}
+
+qboolean Sys_StartSteam(void) {
+#ifdef __APPLE__
+    return qfalse;
+#else
+    pid_t child = fork();
+    int status;
+
+    if (child < 0) {
+        return qfalse;
+    }
+    if (child == 0) {
+        if (fork() == 0) {
+            setsid();
+            execlp("steam", "steam", (char*)NULL);
+        }
+        _exit(0);
+    }
+    waitpid(child, &status, 0);
+    return qtrue;
+#endif
+}
+
+char* Sys_SteamPath(void) {
+    static const char* const places[] = {
+#ifdef __APPLE__
+        "/Library/Application Support/Steam/steamapps/common/" STEAMPATH_NAME,
+#else
+        "/.steam/steam/steamapps/common/" STEAMPATH_NAME,
+        "/.local/share/Steam/steamapps/common/" STEAMPATH_NAME,
+        "/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/" STEAMPATH_NAME,
+#endif
+    };
+    const char* home = getenv("HOME");
+    struct stat st;
+    int i;
+
+    for (i = 0; !steamPath[0] && home && home[0] && i < ARRAY_LEN(places); i++) {
+        Com_sprintf(steamPath, sizeof(steamPath), "%s%s", home, places[i]);
+        if (stat(steamPath, &st) || !S_ISDIR(st.st_mode)) {
+            steamPath[0] = '\0';
+        }
+    }
+
+    return steamPath;
+}
+
+char* Sys_GogPath(void) {
+    return gogPath;
+}
+
+char* Sys_MicrosoftStorePath(void) {
+    return microsoftStorePath;
+}
+
+unsigned long sys_timeBase = 0;
+int curtime;
+int Sys_Milliseconds(void) {
+    struct timeval tp;
+
+    gettimeofday(&tp, NULL);
+
+    if (!sys_timeBase) {
+        sys_timeBase = tp.tv_sec;
+        return tp.tv_usec / 1000;
+    }
+
+    curtime = (tp.tv_sec - sys_timeBase) * 1000 + tp.tv_usec / 1000;
+
+    return curtime;
+}
+
+qboolean Sys_SleepMicroseconds(int64_t usec) {
+    struct timespec ts;
+
+    if (usec <= 0) {
+        return qfalse;
+    }
+    ts.tv_sec = (time_t)(usec / 1000000);
+    ts.tv_nsec = (long)(usec % 1000000) * 1000L;
+    return nanosleep(&ts, NULL) == 0 ? qtrue : qfalse;
+}
+
+int64_t Sys_Microseconds(void) {
+    static struct timespec base;
+    static qboolean initialized = qfalse;
+    struct timespec now;
+
+    if (!initialized) {
+        clock_gettime(CLOCK_MONOTONIC, &base);
+        initialized = qtrue;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (int64_t)(now.tv_sec - base.tv_sec) * 1000000LL + (now.tv_nsec - base.tv_nsec) / 1000LL;
+}
+
+#include <pthread.h>
+#include <sched.h>
+
+typedef struct {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    int count;
+} sysSemaphore_t;
+
+typedef struct {
+    void (*function)(void*);
+    void* argument;
+} sysThreadStart_t;
+
+static void* Sys_ThreadEntry(void* parameter) {
+    sysThreadStart_t* start = (sysThreadStart_t*)parameter;
+
+    start->function(start->argument);
+    return NULL;
+}
+
+qboolean Sys_WebFetch(const char* url, const char* ospath, int maxBytes) {
+    return qfalse;
+}
+
+typedef struct {
+    pid_t process;
+    int input;
+    int status;
+    qboolean exited;
+} sysPipe_t;
+
+void* Sys_PipeOpen(const char* const* argv, const char* logPath) {
+    int fds[2];
+    int err[2];
+    int log;
+    char failed = 0;
+    pid_t pid;
+    sysPipe_t* p;
+
+    if (pipe(fds)) {
+        return NULL;
+    }
+    log = open(logPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (log < 0 || pipe(err)) {
+        if (log >= 0) {
+            close(log);
+        }
+        close(fds[0]);
+        close(fds[1]);
+        return NULL;
+    }
+    p = (sysPipe_t*)malloc(sizeof(*p));
+    pid = p ? fork() : -1;
+    if (pid == 0) {
+        dup2(fds[0], 0);
+        dup2(log, 1);
+        dup2(log, 2);
+        close(fds[0]);
+        close(fds[1]);
+        close(log);
+        close(err[0]);
+        fcntl(err[1], F_SETFD, FD_CLOEXEC);
+        execv(argv[0], (char* const*)argv);
+        failed = 1;
+        if (write(err[1], &failed, 1) < 0) {
+            _exit(127);
+        }
+        _exit(127);
+    }
+    close(fds[0]);
+    close(log);
+    close(err[1]);
+    if (pid > 0 && read(err[0], &failed, 1) < 0) {
+        failed = 1;
+    }
+    close(err[0]);
+    if (pid < 0 || failed) {
+        if (pid > 0) {
+            waitpid(pid, NULL, 0);
+        }
+        close(fds[1]);
+        unlink(logPath);
+        free(p);
+        return NULL;
+    }
+    fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+    signal(SIGPIPE, SIG_IGN);
+    p->process = pid;
+    p->input = fds[1];
+    p->status = 0;
+    p->exited = qfalse;
+    return p;
+}
+
+qboolean Sys_PipeWrite(void* pipe, const void* data, int size) {
+    sysPipe_t* p = (sysPipe_t*)pipe;
+    const char* c = (const char*)data;
+
+    while (size > 0) {
+        ssize_t written = write(p->input, c, (size_t)size);
+
+        if (written <= 0) {
+            return qfalse;
+        }
+        c += written;
+        size -= (int)written;
+    }
+    return qtrue;
+}
+
+qboolean Sys_PipeAlive(void* pipe) {
+    sysPipe_t* p = (sysPipe_t*)pipe;
+
+    if (!p->exited && waitpid(p->process, &p->status, WNOHANG) != 0) {
+        p->exited = qtrue;
+    }
+    return p->exited ? qfalse : qtrue;
+}
+
+void Sys_PipeKill(void* pipe) {
+    sysPipe_t* p = (sysPipe_t*)pipe;
+
+    if (!p->exited) {
+        kill(p->process, SIGKILL);
+    }
+}
+
+static char sys_sharedPath[MAX_OSPATH];
+static int sys_sharedSize;
+
+void* Sys_SharedOpen(const char* name, int size, qboolean create) {
+    const char* dir = getenv("TMPDIR");
+    void* view;
+    int fd;
+
+    Com_sprintf(sys_sharedPath, sizeof(sys_sharedPath), "%s/ioql_%s", dir && *dir ? dir : "/tmp", name);
+    if (create) {
+        unlink(sys_sharedPath);
+        fd = open(sys_sharedPath, O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+    } else {
+        fd = open(sys_sharedPath, O_RDWR | O_NOFOLLOW);
+        sys_sharedPath[0] = '\0';
+    }
+    if (fd < 0) {
+        return NULL;
+    }
+    if (create && ftruncate(fd, size)) {
+        close(fd);
+        unlink(sys_sharedPath);
+        return NULL;
+    }
+    view = mmap(NULL, (size_t)size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+    if (view == MAP_FAILED) {
+        if (create) {
+            unlink(sys_sharedPath);
+        }
+        return NULL;
+    }
+    sys_sharedSize = size;
+    return view;
+}
+
+void Sys_SharedClose(void* view) {
+    munmap(view, (size_t)sys_sharedSize);
+    if (sys_sharedPath[0]) {
+        unlink(sys_sharedPath);
+    }
+}
+
+void* Sys_SignalOpen(const char* name, qboolean create) {
+    return NULL;
+}
+
+void Sys_SignalRaise(void* signal) {
+}
+
+void Sys_SignalWait(void* signal, int msec) {
+    usleep(msec > 1 ? 500 : 250);
+}
+
+void Sys_SignalClose(void* signal) {
+}
+
+int Sys_PipeClose(void* pipe) {
+    sysPipe_t* p = (sysPipe_t*)pipe;
+    int status = p->status;
+
+    close(p->input);
+    if (!p->exited) {
+        waitpid(p->process, &status, 0);
+    }
+    free(p);
+    return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+}
+
+void* Sys_ThreadCreate(void (*function)(void*), void* argument) {
+    static sysThreadStart_t starts[16];
+    static int next;
+    pthread_t thread;
+    sysThreadStart_t* start;
+
+    if (next >= (int)ARRAY_LEN(starts)) {
+        return NULL;
+    }
+    start = &starts[next++];
+    start->function = function;
+    start->argument = argument;
+
+    if (pthread_create(&thread, NULL, Sys_ThreadEntry, start) != 0) {
+        return NULL;
+    }
+    pthread_detach(thread);
+    return (void*)1;
+}
+
+void* Sys_MutexCreate(void) {
+    pthread_mutex_t* mutex = (pthread_mutex_t*)calloc(1, sizeof(pthread_mutex_t));
+
+    if (mutex) {
+        pthread_mutex_init(mutex, NULL);
+    }
+    return mutex;
+}
+
+void Sys_MutexLock(void* mutex) {
+    pthread_mutex_lock((pthread_mutex_t*)mutex);
+}
+
+void Sys_MutexUnlock(void* mutex) {
+    pthread_mutex_unlock((pthread_mutex_t*)mutex);
+}
+
+void* Sys_SemaphoreCreate(void) {
+    sysSemaphore_t* semaphore = (sysSemaphore_t*)calloc(1, sizeof(sysSemaphore_t));
+
+    if (semaphore) {
+        pthread_mutex_init(&semaphore->mutex, NULL);
+        pthread_cond_init(&semaphore->cond, NULL);
+    }
+    return semaphore;
+}
+
+void Sys_SemaphorePost(void* handle) {
+    sysSemaphore_t* semaphore = (sysSemaphore_t*)handle;
+
+    pthread_mutex_lock(&semaphore->mutex);
+    semaphore->count++;
+    pthread_cond_signal(&semaphore->cond);
+    pthread_mutex_unlock(&semaphore->mutex);
+}
+
+void Sys_SemaphoreWait(void* handle) {
+    sysSemaphore_t* semaphore = (sysSemaphore_t*)handle;
+
+    pthread_mutex_lock(&semaphore->mutex);
+    while (semaphore->count <= 0) {
+        pthread_cond_wait(&semaphore->cond, &semaphore->mutex);
+    }
+    semaphore->count--;
+    pthread_mutex_unlock(&semaphore->mutex);
+}
+
+void Sys_ThreadYield(void) {
+    sched_yield();
+}
+
+int Sys_ProcessorCount(void) {
+    long count = sysconf(_SC_NPROCESSORS_ONLN);
+
+    return count > 0 ? (int)count : 1;
+}
+
+qboolean Sys_RandomBytes(byte* string, int len) {
+    FILE* fp;
+
+    fp = fopen("/dev/urandom", "r");
+    if (!fp)
+        return qfalse;
+
+    setvbuf(fp, NULL, _IONBF, 0);
+
+    if (fread(string, sizeof(byte), len, fp) != len) {
+        fclose(fp);
+        return qfalse;
+    }
+
+    fclose(fp);
+    return qtrue;
+}
+
+char* Sys_GetCurrentUser(void) {
+    struct passwd* p;
+
+    if ((p = getpwuid(getuid())) == NULL) {
+        return "player";
+    }
+    return p->pw_name;
+}
+
+#define MEM_THRESHOLD 96 * 1024 * 1024
+
+void Sys_Beep(void) {
+}
+
+qboolean Sys_LowPhysicalMemory(void) {
+    return qfalse;
+}
+
+const char* Sys_Basename(char* path) {
+    return basename(path);
+}
+
+const char* Sys_Dirname(char* path) {
+    return dirname(path);
+}
+
+FILE* Sys_FOpen(const char* ospath, const char* mode) {
+    struct stat buf;
+
+    if (!stat(ospath, &buf) && S_ISDIR(buf.st_mode))
+        return NULL;
+
+    return fopen(ospath, mode);
+}
+
+qboolean Sys_Mkdir(const char* path) {
+    int result = mkdir(path, 0750);
+
+    if (result != 0)
+        return errno == EEXIST;
+
+    return qtrue;
+}
+
+FILE* Sys_Mkfifo(const char* ospath) {
+    FILE* fifo;
+    int result;
+    int fn;
+    struct stat buf;
+
+    if (!stat(ospath, &buf) && S_ISFIFO(buf.st_mode))
+        FS_Remove(ospath);
+
+    result = mkfifo(ospath, 0600);
+    if (result != 0)
+        return NULL;
+
+    fifo = fopen(ospath, "w+");
+    if (fifo) {
+        fn = fileno(fifo);
+        fcntl(fn, F_SETFL, O_NONBLOCK);
+    }
+
+    return fifo;
+}
+
+char* Sys_Cwd(void) {
+    static char cwd[MAX_OSPATH];
+
+    char* result = getcwd(cwd, sizeof(cwd) - 1);
+    if (result != cwd)
+        return NULL;
+
+    cwd[MAX_OSPATH - 1] = 0;
+
+    return cwd;
+}
+
+#define MAX_FOUND_FILES 0x1000
+
+void Sys_ListFilteredFiles(const char* basedir, char* subdirs, char* filter, char** list, int* numfiles) {
+    char search[MAX_OSPATH], newsubdirs[MAX_OSPATH];
+    char filename[MAX_OSPATH];
+    DIR* fdir;
+    struct dirent* d;
+    struct stat st;
+
+    if (*numfiles >= MAX_FOUND_FILES - 1) {
+        return;
+    }
+
+    if (basedir[0] == '\0') {
+        return;
+    }
+
+    if (strlen(subdirs)) {
+        Com_sprintf(search, sizeof(search), "%s/%s", basedir, subdirs);
+    } else {
+        Com_sprintf(search, sizeof(search), "%s", basedir);
+    }
+
+    if ((fdir = opendir(search)) == NULL) {
+        return;
+    }
+
+    while ((d = readdir(fdir)) != NULL) {
+        Com_sprintf(filename, sizeof(filename), "%s/%s", search, d->d_name);
+        if (stat(filename, &st) == -1)
+            continue;
+
+        if (st.st_mode & S_IFDIR) {
+            if (Q_stricmp(d->d_name, ".") && Q_stricmp(d->d_name, "..")) {
+                if (strlen(subdirs)) {
+                    Com_sprintf(newsubdirs, sizeof(newsubdirs), "%s/%s", subdirs, d->d_name);
+                } else {
+                    Com_sprintf(newsubdirs, sizeof(newsubdirs), "%s", d->d_name);
+                }
+                Sys_ListFilteredFiles(basedir, newsubdirs, filter, list, numfiles);
+            }
+        }
+        if (*numfiles >= MAX_FOUND_FILES - 1) {
+            break;
+        }
+        Com_sprintf(filename, sizeof(filename), "%s/%s", subdirs, d->d_name);
+        if (!Com_FilterPath(filter, filename, qfalse))
+            continue;
+        list[*numfiles] = CopyString(filename);
+        (*numfiles)++;
+    }
+
+    closedir(fdir);
+}
+
+char** Sys_ListFiles(const char* directory, const char* extension, char* filter, int* numfiles, qboolean wantsubs) {
+    struct dirent* d;
+    DIR* fdir;
+    qboolean dironly = wantsubs;
+    char search[MAX_OSPATH];
+    int nfiles;
+    char** listCopy;
+    char* list[MAX_FOUND_FILES];
+    int i;
+    struct stat st;
+
+    int extLen;
+
+    if (filter) {
+        nfiles = 0;
+        Sys_ListFilteredFiles(directory, "", filter, list, &nfiles);
+
+        list[nfiles] = NULL;
+        *numfiles = nfiles;
+
+        if (!nfiles)
+            return NULL;
+
+        listCopy = Z_Malloc((nfiles + 1) * sizeof(*listCopy));
+        for (i = 0; i < nfiles; i++) {
+            listCopy[i] = list[i];
+        }
+        listCopy[i] = NULL;
+
+        return listCopy;
+    }
+
+    if (directory[0] == '\0') {
+        *numfiles = 0;
+        return NULL;
+    }
+
+    if (!extension)
+        extension = "";
+
+    if (extension[0] == '/' && extension[1] == 0) {
+        extension = "";
+        dironly = qtrue;
+    }
+
+    extLen = strlen(extension);
+
+    nfiles = 0;
+
+    if ((fdir = opendir(directory)) == NULL) {
+        *numfiles = 0;
+        return NULL;
+    }
+
+    while ((d = readdir(fdir)) != NULL) {
+        Com_sprintf(search, sizeof(search), "%s/%s", directory, d->d_name);
+        if (stat(search, &st) == -1)
+            continue;
+        if ((dironly && !(st.st_mode & S_IFDIR)) ||
+            (!dironly && (st.st_mode & S_IFDIR)))
+            continue;
+
+        if (*extension) {
+            if (strlen(d->d_name) < extLen ||
+                Q_stricmp(
+                    d->d_name + strlen(d->d_name) - extLen,
+                    extension)) {
+                continue;
+            }
+        }
+
+        if (nfiles == MAX_FOUND_FILES - 1)
+            break;
+        list[nfiles] = CopyString(d->d_name);
+        nfiles++;
+    }
+
+    list[nfiles] = NULL;
+
+    closedir(fdir);
+
+    *numfiles = nfiles;
+
+    if (!nfiles) {
+        return NULL;
+    }
+
+    listCopy = Z_Malloc((nfiles + 1) * sizeof(*listCopy));
+    for (i = 0; i < nfiles; i++) {
+        listCopy[i] = list[i];
+    }
+    listCopy[i] = NULL;
+
+    return listCopy;
+}
+
+void Sys_FreeFileList(char** list) {
+    int i;
+
+    if (!list) {
+        return;
+    }
+
+    for (i = 0; list[i]; i++) {
+        Z_Free(list[i]);
+    }
+
+    Z_Free(list);
+}
+
+void Sys_Sleep(int msec) {
+    if (msec == 0)
+        return;
+
+    if (stdinIsATTY) {
+        fd_set fdset;
+
+        FD_ZERO(&fdset);
+        FD_SET(STDIN_FILENO, &fdset);
+        if (msec < 0) {
+            select(STDIN_FILENO + 1, &fdset, NULL, NULL, NULL);
+        } else {
+            struct timeval timeout;
+
+            timeout.tv_sec = msec / 1000;
+            timeout.tv_usec = (msec % 1000) * 1000;
+            select(STDIN_FILENO + 1, &fdset, NULL, NULL, &timeout);
+        }
+    } else {
+        struct timespec req;
+
+        if (msec < 0)
+            msec = 10;
+
+        req.tv_sec = msec / 1000;
+        req.tv_nsec = (msec % 1000) * 1000000;
+        nanosleep(&req, NULL);
+    }
+}
+
+void Sys_ErrorDialog(const char* error) {
+    char buffer[1024];
+    unsigned int size;
+    int f = -1;
+    const char* homepath = Cvar_VariableString("fs_homepath");
+    const char* gamedir = Cvar_VariableString("fs_game");
+    const char* fileName = "crashlog.txt";
+    char* dirpath = FS_BuildOSPath(homepath, gamedir, "");
+    char* ospath = FS_BuildOSPath(homepath, gamedir, fileName);
+
+    Sys_Print(va("%s\n", error));
+
+    Sys_Dialog(DT_ERROR, va("%s. See \"%s\" for details.", error, ospath), "Error");
+
+    if (!Sys_Mkdir(homepath)) {
+        Com_Printf("ERROR: couldn't create path '%s' for crash log.\n", homepath);
+        return;
+    }
+
+    if (!Sys_Mkdir(dirpath)) {
+        Com_Printf("ERROR: couldn't create path '%s' for crash log.\n", dirpath);
+        return;
+    }
+
+    f = open(ospath, O_CREAT | O_TRUNC | O_WRONLY, 0640);
+    if (f == -1) {
+        Com_Printf("ERROR: couldn't open %s\n", fileName);
+        return;
+    }
+
+    while ((size = CON_LogRead(buffer, sizeof(buffer))) > 0) {
+        if (write(f, buffer, size) != size) {
+            Com_Printf("ERROR: couldn't fully write to %s\n", fileName);
+            break;
+        }
+    }
+
+    close(f);
+}
+
+#ifndef __APPLE__
+static char execBuffer[1024];
+static char* execBufferPointer;
+static char* execArgv[16];
+static int execArgc;
+
+static void Sys_ClearExecBuffer(void) {
+    execBufferPointer = execBuffer;
+    Com_Memset(execArgv, 0, sizeof(execArgv));
+    execArgc = 0;
+}
+
+static void Sys_AppendToExecBuffer(const char* text) {
+    size_t size = sizeof(execBuffer) - (execBufferPointer - execBuffer);
+    int length = strlen(text) + 1;
+
+    if (length > size || execArgc >= ARRAY_LEN(execArgv))
+        return;
+
+    Q_strncpyz(execBufferPointer, text, size);
+    execArgv[execArgc++] = execBufferPointer;
+
+    execBufferPointer += length;
+}
+
+static int Sys_Exec(void) {
+    pid_t pid = fork();
+
+    if (pid < 0)
+        return -1;
+
+    if (pid) {
+        int exitCode;
+
+        wait(&exitCode);
+
+        return WEXITSTATUS(exitCode);
+    } else {
+        execvp(execArgv[0], execArgv);
+
+        exit(-1);
+
+        return -1;
+    }
+}
+
+static void Sys_ZenityCommand(dialogType_t type, const char* message, const char* title) {
+    Sys_ClearExecBuffer();
+    Sys_AppendToExecBuffer("zenity");
+
+    switch (type) {
+        default:
+        case DT_INFO:
+            Sys_AppendToExecBuffer("--info");
+            break;
+        case DT_WARNING:
+            Sys_AppendToExecBuffer("--warning");
+            break;
+        case DT_ERROR:
+            Sys_AppendToExecBuffer("--error");
+            break;
+        case DT_YES_NO:
+            Sys_AppendToExecBuffer("--question");
+            Sys_AppendToExecBuffer("--ok-label=Yes");
+            Sys_AppendToExecBuffer("--cancel-label=No");
+            break;
+
+        case DT_OK_CANCEL:
+            Sys_AppendToExecBuffer("--question");
+            Sys_AppendToExecBuffer("--ok-label=OK");
+            Sys_AppendToExecBuffer("--cancel-label=Cancel");
+            break;
+    }
+
+    Sys_AppendToExecBuffer(va("--text=%s", message));
+    Sys_AppendToExecBuffer(va("--title=%s", title));
+}
+
+static void Sys_KdialogCommand(dialogType_t type, const char* message, const char* title) {
+    Sys_ClearExecBuffer();
+    Sys_AppendToExecBuffer("kdialog");
+
+    switch (type) {
+        default:
+        case DT_INFO:
+            Sys_AppendToExecBuffer("--msgbox");
+            break;
+        case DT_WARNING:
+            Sys_AppendToExecBuffer("--sorry");
+            break;
+        case DT_ERROR:
+            Sys_AppendToExecBuffer("--error");
+            break;
+        case DT_YES_NO:
+            Sys_AppendToExecBuffer("--warningyesno");
+            break;
+        case DT_OK_CANCEL:
+            Sys_AppendToExecBuffer("--warningcontinuecancel");
+            break;
+    }
+
+    Sys_AppendToExecBuffer(message);
+    Sys_AppendToExecBuffer(va("--title=%s", title));
+}
+
+static void Sys_XmessageCommand(dialogType_t type, const char* message, const char* title) {
+    Sys_ClearExecBuffer();
+    Sys_AppendToExecBuffer("xmessage");
+    Sys_AppendToExecBuffer("-buttons");
+
+    switch (type) {
+        default:
+            Sys_AppendToExecBuffer("OK:0");
+            break;
+        case DT_YES_NO:
+            Sys_AppendToExecBuffer("Yes:0,No:1");
+            break;
+        case DT_OK_CANCEL:
+            Sys_AppendToExecBuffer("OK:0,Cancel:1");
+            break;
+    }
+
+    Sys_AppendToExecBuffer("-center");
+    Sys_AppendToExecBuffer(message);
+}
+
+dialogResult_t Sys_Dialog(dialogType_t type, const char* message, const char* title) {
+    typedef enum {
+        NONE = 0,
+        ZENITY,
+        KDIALOG,
+        XMESSAGE,
+        NUM_DIALOG_PROGRAMS
+    } dialogCommandType_t;
+    typedef void (*dialogCommandBuilder_t)(dialogType_t, const char*, const char*);
+
+    const char* session = getenv("DESKTOP_SESSION");
+    qboolean tried[NUM_DIALOG_PROGRAMS] = {qfalse};
+    dialogCommandBuilder_t commands[NUM_DIALOG_PROGRAMS] = {NULL};
+    dialogCommandType_t preferredCommandType = NONE;
+    int i;
+
+    commands[ZENITY] = &Sys_ZenityCommand;
+    commands[KDIALOG] = &Sys_KdialogCommand;
+    commands[XMESSAGE] = &Sys_XmessageCommand;
+
+    if (!Q_stricmp(session, "gnome"))
+        preferredCommandType = ZENITY;
+    else if (!Q_stricmp(session, "kde"))
+        preferredCommandType = KDIALOG;
+
+    for (i = NONE + 1; i < NUM_DIALOG_PROGRAMS; i++) {
+        if (preferredCommandType != NONE && preferredCommandType != i)
+            continue;
+
+        if (!tried[i]) {
+            int exitCode;
+
+            commands[i](type, message, title);
+            exitCode = Sys_Exec();
+
+            if (exitCode >= 0) {
+                switch (type) {
+                    case DT_YES_NO:
+                        return exitCode ? DR_NO : DR_YES;
+                    case DT_OK_CANCEL:
+                        return exitCode ? DR_CANCEL : DR_OK;
+                    default:
+                        return DR_OK;
+                }
+            }
+
+            tried[i] = qtrue;
+
+            if (preferredCommandType != NONE) {
+                preferredCommandType = NONE;
+                i = NONE + 1;
+            }
+        }
+    }
+
+    Com_DPrintf(S_COLOR_YELLOW "WARNING: failed to show a dialog\n");
+    return DR_OK;
+}
+#endif
+
+void Sys_GLimpSafeInit(void) {
+}
+
+void Sys_GLimpInit(void) {
+}
+
+void Sys_SetFloatEnv(void) {
+    fesetround(FE_TONEAREST);
+}
+
+void Sys_PlatformInit(void) {
+    const char* term = getenv("TERM");
+
+    signal(SIGHUP, Sys_SigHandler);
+    signal(SIGQUIT, Sys_SigHandler);
+    signal(SIGTRAP, Sys_SigHandler);
+    signal(SIGABRT, Sys_SigHandler);
+    signal(SIGBUS, Sys_SigHandler);
+
+    Sys_SetFloatEnv();
+
+    stdinIsATTY = isatty(STDIN_FILENO) &&
+                  !(term && (!strcmp(term, "raw") || !strcmp(term, "dumb")));
+}
+
+void Sys_PlatformExit(void) {
+}
+
+void Sys_SetEnv(const char* name, const char* value) {
+    if (value && *value)
+        setenv(name, value, 1);
+    else
+        unsetenv(name);
+}
+
+int Sys_PID(void) {
+    return getpid();
+}
+
+qboolean Sys_PIDIsRunning(int pid) {
+    return kill(pid, 0) == 0;
+}
+
+qboolean Sys_ProcessExited(int pid) {
+    return (qboolean)(kill(pid, 0) != 0 && errno == ESRCH);
+}
+
+void* Sys_VideoOpen(const char* path, int width, int height, int fps, int rate) {
+    return NULL;
+}
+
+qboolean Sys_VideoFrame(void* video, const byte* bgr, int stride, int rows) {
+    return qfalse;
+}
+
+qboolean Sys_VideoAudio(void* video, const short* pcm, int count) {
+    return qfalse;
+}
+
+int Sys_VideoClose(void* video) {
+    return 0;
+}
+
+qboolean Sys_DllExtension(const char* name) {
+    const char* p;
+    char c = 0;
+
+    if (COM_CompareExtension(name, DLL_EXT)) {
+        return qtrue;
+    }
+
+#ifdef __APPLE__
+    if (strncmp(name, "/System/Library/Frameworks/", 27) == 0) {
+        return qtrue;
+    }
+#endif
+
+    p = strstr(name, DLL_EXT ".");
+
+    if (p) {
+        p += strlen(DLL_EXT);
+
+        while (*p) {
+            c = *p;
+
+            if (!isdigit(c) && c != '.') {
+                return qfalse;
+            }
+
+            p++;
+        }
+
+        if (c != '.') {
+            return qtrue;
+        }
+    }
+
+    return qfalse;
+}
+
+#define LAUNCHER_WAIT_MS 2000
+
+static qboolean Sys_StartLauncher(int argc, char** argv, int wait) {
+    static char exe[4096], launcher[4200];
+    const char* mode = "opengl";
+    struct stat st;
+    char** args;
+    char* cut;
+    pid_t pid;
+    int i, n = 0, status, waited;
+#ifdef __APPLE__
+    uint32_t size = sizeof(exe);
+
+    if (_NSGetExecutablePath(exe, &size) != 0 || !(cut = strstr(exe, ".app/Contents/MacOS/"))) {
+        return qfalse;
+    }
+    *cut = '\0';
+    if (!(cut = strrchr(exe, '/'))) {
+        return qfalse;
+    }
+    *cut = '\0';
+    snprintf(launcher, sizeof(launcher), "%s/ioquakelive-launcher.app/Contents/MacOS/ioquakelive-launcher", exe);
+#else
+    ssize_t length = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+
+    if (length <= 0) {
+        return qfalse;
+    }
+    exe[length] = '\0';
+    if (!(cut = strrchr(exe, '/'))) {
+        return qfalse;
+    }
+    if (strstr(cut, "-vulkan")) {
+        mode = "vulkan";
+    }
+    *cut = '\0';
+    snprintf(launcher, sizeof(launcher), "%s/ioquakelive-launcher", exe);
+#endif
+    if (stat(launcher, &st) != 0 || !S_ISREG(st.st_mode)) {
+        return qfalse;
+    }
+    if (!(st.st_mode & S_IXUSR)) {
+        chmod(launcher, (st.st_mode & 0777) | 0755);
+    }
+    args = calloc((size_t)argc + 4, sizeof(char*));
+    if (!args) {
+        return qfalse;
+    }
+    args[n++] = launcher;
+    args[n++] = (char*)"--renderer";
+    args[n++] = (char*)mode;
+    for (i = 1; i < argc; i++) {
+        if (strncmp(argv[i], "-psn", 4)) {
+            args[n++] = argv[i];
+        }
+    }
+    args[n] = NULL;
+    i = posix_spawn(&pid, launcher, NULL, NULL, args, environ);
+    free(args);
+    if (i != 0) {
+        return qfalse;
+    }
+    for (waited = 0; waited < wait; waited += 50) {
+        if (waitpid(pid, &status, WNOHANG) == pid) {
+            return (qboolean)(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+        }
+        usleep(50000);
+    }
+    return qtrue;
+}
+
+qboolean Sys_LauncherHandoff(int argc, char** argv) {
+    if (getenv("IOQUAKELIVE_LAUNCHER")) {
+        return qfalse;
+    }
+    return Sys_StartLauncher(argc, argv, LAUNCHER_WAIT_MS);
+}
+
+static qboolean sys_launcherOpened;
+
+qboolean Sys_OpenLauncher(void) {
+    sys_launcherOpened = Sys_StartLauncher(0, NULL, 0);
+    return sys_launcherOpened;
+}
+
+void Sys_ReturnToLauncher(void) {
+    const char* value = getenv("IOQUAKELIVE_LAUNCHER");
+
+    if (!sys_launcherOpened && value && !strcmp(value, "return")) {
+        Sys_OpenLauncher();
+    }
+}

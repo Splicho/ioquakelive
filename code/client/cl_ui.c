@@ -1,0 +1,1104 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#include "client.h"
+#include "../qcommon/q_steam.h"
+
+#include "../botlib/botlib.h"
+
+extern botlib_export_t* botlib_export;
+
+vm_t* uivm;
+
+static void GetClientState(uiClientState_t* state) {
+    state->connectPacketCount = clc.connectPacketCount;
+    state->connState = clc.state;
+    Q_strncpyz(state->servername, clc.servername, sizeof(state->servername));
+    Q_strncpyz(state->updateInfoString, cls.updateInfoString, sizeof(state->updateInfoString));
+    Q_strncpyz(state->messageString, clc.serverMessage, sizeof(state->messageString));
+    state->clientNum = cl.snap.ps.clientNum;
+}
+
+static void LAN_ResetPings(int source) {
+    int count, i;
+    serverInfo_t* servers = NULL;
+    count = 0;
+
+    switch (source) {
+        case AS_LOCAL:
+            servers = &cls.localServers[0];
+            count = MAX_OTHER_SERVERS;
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            if (Steam_ServerListCount() > 0) {
+                return;
+            }
+            servers = &cls.globalServers[0];
+            count = MAX_GLOBAL_SERVERS;
+            break;
+        case AS_FAVORITES:
+            servers = &cls.favoriteServers[0];
+            count = MAX_OTHER_SERVERS;
+            break;
+    }
+    if (servers) {
+        for (i = 0; i < count; i++) {
+            servers[i].ping = -1;
+        }
+    }
+}
+
+static int LAN_AddServer(int source, const char* name, const char* address) {
+    int max, *count, i;
+    netadr_t adr;
+    serverInfo_t* servers = NULL;
+    max = MAX_OTHER_SERVERS;
+    count = NULL;
+
+    switch (source) {
+        case AS_LOCAL:
+            count = &cls.numlocalservers;
+            servers = &cls.localServers[0];
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            max = MAX_GLOBAL_SERVERS;
+            count = &cls.numglobalservers;
+            servers = &cls.globalServers[0];
+            break;
+        case AS_FAVORITES:
+            count = &cls.numfavoriteservers;
+            servers = &cls.favoriteServers[0];
+            break;
+    }
+    if (servers && *count < max) {
+        NET_StringToAdr(address, &adr, NA_UNSPEC);
+        for (i = 0; i < *count; i++) {
+            if (NET_CompareAdr(servers[i].adr, adr)) {
+                break;
+            }
+        }
+        if (i >= *count) {
+            servers[*count].adr = adr;
+            Q_strncpyz(servers[*count].hostName, name, sizeof(servers[*count].hostName));
+            servers[*count].visible = qtrue;
+            (*count)++;
+            return 1;
+        }
+        return 0;
+    }
+    return -1;
+}
+
+static void LAN_RemoveServer(int source, const char* addr) {
+    int *count, i;
+    serverInfo_t* servers = NULL;
+    count = NULL;
+    switch (source) {
+        case AS_LOCAL:
+            count = &cls.numlocalservers;
+            servers = &cls.localServers[0];
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            count = &cls.numglobalservers;
+            servers = &cls.globalServers[0];
+            break;
+        case AS_FAVORITES:
+            count = &cls.numfavoriteservers;
+            servers = &cls.favoriteServers[0];
+            break;
+    }
+    if (servers) {
+        netadr_t comp;
+        NET_StringToAdr(addr, &comp, NA_UNSPEC);
+        for (i = 0; i < *count; i++) {
+            if (NET_CompareAdr(comp, servers[i].adr)) {
+                int j = i;
+                while (j < *count - 1) {
+                    Com_Memcpy(&servers[j], &servers[j + 1], sizeof(servers[j]));
+                    j++;
+                }
+                (*count)--;
+                break;
+            }
+        }
+    }
+}
+
+static int LAN_GetServerCount(int source) {
+    switch (source) {
+        case AS_LOCAL:
+            return cls.numlocalservers;
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            return cls.numglobalservers;
+            break;
+        case AS_FAVORITES:
+            return cls.numfavoriteservers;
+            break;
+    }
+    return 0;
+}
+
+static void LAN_GetServerAddressString(int source, int n, char* buf, int buflen) {
+    switch (source) {
+        case AS_LOCAL:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                Q_strncpyz(buf, NET_AdrToStringwPort(cls.localServers[n].adr), buflen);
+                return;
+            }
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            if (n >= 0 && n < MAX_GLOBAL_SERVERS) {
+                Q_strncpyz(buf, NET_AdrToStringwPort(cls.globalServers[n].adr), buflen);
+                return;
+            }
+            break;
+        case AS_FAVORITES:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                Q_strncpyz(buf, NET_AdrToStringwPort(cls.favoriteServers[n].adr), buflen);
+                return;
+            }
+            break;
+    }
+    buf[0] = '\0';
+}
+
+static void LAN_AddInfo(char* info, int size, const char* key, const char* value) {
+    char clean[MAX_STRING_CHARS];
+    int i;
+
+    if (!value[0]) {
+        return;
+    }
+    for (i = 0; value[i] && i < (int)sizeof(clean) - 1; i++) {
+        clean[i] = value[i] == '\\' ? ' ' : value[i];
+    }
+    clean[i] = '\0';
+    Q_strcat(info, size, va("\\%s\\%s", key, clean));
+}
+
+static void LAN_GetServerInfo(int source, int n, char* buf, int buflen) {
+    char info[MAX_STRING_CHARS];
+    serverInfo_t* server = NULL;
+    info[0] = '\0';
+    switch (source) {
+        case AS_LOCAL:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                server = &cls.localServers[n];
+            }
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            if (n >= 0 && n < MAX_GLOBAL_SERVERS) {
+                server = &cls.globalServers[n];
+            }
+            break;
+        case AS_FAVORITES:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                server = &cls.favoriteServers[n];
+            }
+            break;
+    }
+    if (server && buf) {
+        buf[0] = '\0';
+        LAN_AddInfo(info, sizeof(info), "hostname", server->hostName);
+        LAN_AddInfo(info, sizeof(info), "mapname", server->mapName);
+        LAN_AddInfo(info, sizeof(info), "clients", va("%i", server->clients));
+        LAN_AddInfo(info, sizeof(info), "sv_maxclients", va("%i", server->maxClients));
+        LAN_AddInfo(info, sizeof(info), "ping", va("%i", server->ping));
+        LAN_AddInfo(info, sizeof(info), "minPing", va("%i", server->minPing));
+        LAN_AddInfo(info, sizeof(info), "maxPing", va("%i", server->maxPing));
+        LAN_AddInfo(info, sizeof(info), "game", server->game);
+        LAN_AddInfo(info, sizeof(info), "gametype", va("%i", server->gameType));
+        LAN_AddInfo(info, sizeof(info), "nettype", va("%i", server->netType));
+        LAN_AddInfo(info, sizeof(info), "addr", NET_AdrToStringwPort(server->adr));
+        LAN_AddInfo(info, sizeof(info), "g_needpass", va("%i", server->g_needpass));
+        LAN_AddInfo(info, sizeof(info), "g_humanplayers", va("%i", server->g_humanplayers));
+        LAN_AddInfo(info, sizeof(info), "sv_vac", va("%i", server->vac));
+        LAN_AddInfo(info, sizeof(info), "gamedesc", server->description);
+        LAN_AddInfo(info, sizeof(info), "tags", server->tags);
+        if (CL_ServerVerified(&server->adr)) {
+            LAN_AddInfo(info, sizeof(info), "verified", "1");
+        }
+        Q_strncpyz(buf, info, buflen);
+    } else {
+        if (buf) {
+            buf[0] = '\0';
+        }
+    }
+}
+
+static int LAN_GetServerPing(int source, int n) {
+    serverInfo_t* server = NULL;
+    switch (source) {
+        case AS_LOCAL:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                server = &cls.localServers[n];
+            }
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            if (n >= 0 && n < MAX_GLOBAL_SERVERS) {
+                server = &cls.globalServers[n];
+            }
+            break;
+        case AS_FAVORITES:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                server = &cls.favoriteServers[n];
+            }
+            break;
+    }
+    if (server) {
+        return server->ping;
+    }
+    return -1;
+}
+
+static serverInfo_t* LAN_GetServerPtr(int source, int n) {
+    switch (source) {
+        case AS_LOCAL:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                return &cls.localServers[n];
+            }
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            if (n >= 0 && n < MAX_GLOBAL_SERVERS) {
+                return &cls.globalServers[n];
+            }
+            break;
+        case AS_FAVORITES:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                return &cls.favoriteServers[n];
+            }
+            break;
+    }
+    return NULL;
+}
+
+static int LAN_CompareServers(int source, int sortKey, int sortDir, int s1, int s2) {
+    int res;
+    serverInfo_t *server1, *server2;
+    int clients1, clients2;
+
+    server1 = LAN_GetServerPtr(source, s1);
+    server2 = LAN_GetServerPtr(source, s2);
+    if (!server1 || !server2) {
+        return 0;
+    }
+
+    res = 0;
+    switch (sortKey) {
+        case SORT_HOST:
+            res = Q_stricmp(server1->hostName, server2->hostName);
+            break;
+
+        case SORT_MAP:
+            res = Q_stricmp(server1->mapName, server2->mapName);
+            break;
+        case SORT_CLIENTS:
+            if (server1->clients == server2->clients) {
+                clients1 = server1->maxClients;
+                clients2 = server2->maxClients;
+            } else {
+                clients1 = server1->clients;
+                clients2 = server2->clients;
+            }
+
+            if (clients1 < clients2) {
+                res = -1;
+            } else if (clients1 > clients2) {
+                res = 1;
+            } else {
+                res = 0;
+            }
+            break;
+        case SORT_GAME:
+            if (server1->gameType < server2->gameType) {
+                res = -1;
+            } else if (server1->gameType > server2->gameType) {
+                res = 1;
+            } else {
+                res = 0;
+            }
+            break;
+        case SORT_PING:
+            if (server1->ping < server2->ping) {
+                res = -1;
+            } else if (server1->ping > server2->ping) {
+                res = 1;
+            } else {
+                res = 0;
+            }
+            break;
+    }
+
+    if (sortDir) {
+        if (res < 0)
+            return 1;
+        if (res > 0)
+            return -1;
+        return 0;
+    }
+    return res;
+}
+
+static int LAN_GetPingQueueCount(void) {
+    return (CL_GetPingQueueCount());
+}
+
+static void LAN_ClearPing(int n) {
+    CL_ClearPing(n);
+}
+
+static void LAN_GetPing(int n, char* buf, int buflen, int* pingtime) {
+    CL_GetPing(n, buf, buflen, pingtime);
+}
+
+static void LAN_GetPingInfo(int n, char* buf, int buflen) {
+    CL_GetPingInfo(n, buf, buflen);
+}
+
+static void LAN_MarkServerVisible(int source, int n, qboolean visible) {
+    if (n == -1) {
+        int count = MAX_OTHER_SERVERS;
+        serverInfo_t* server = NULL;
+        switch (source) {
+            case AS_LOCAL:
+                server = &cls.localServers[0];
+                break;
+            case AS_MPLAYER:
+            case AS_GLOBAL:
+                server = &cls.globalServers[0];
+                count = MAX_GLOBAL_SERVERS;
+                break;
+            case AS_FAVORITES:
+                server = &cls.favoriteServers[0];
+                break;
+        }
+        if (server) {
+            for (n = 0; n < count; n++) {
+                server[n].visible = visible;
+            }
+        }
+
+    } else {
+        switch (source) {
+            case AS_LOCAL:
+                if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                    cls.localServers[n].visible = visible;
+                }
+                break;
+            case AS_MPLAYER:
+            case AS_GLOBAL:
+                if (n >= 0 && n < MAX_GLOBAL_SERVERS) {
+                    cls.globalServers[n].visible = visible;
+                }
+                break;
+            case AS_FAVORITES:
+                if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                    cls.favoriteServers[n].visible = visible;
+                }
+                break;
+        }
+    }
+}
+
+static int LAN_ServerIsVisible(int source, int n) {
+    switch (source) {
+        case AS_LOCAL:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                return cls.localServers[n].visible;
+            }
+            break;
+        case AS_MPLAYER:
+        case AS_GLOBAL:
+            if (n >= 0 && n < MAX_GLOBAL_SERVERS) {
+                return cls.globalServers[n].visible;
+            }
+            break;
+        case AS_FAVORITES:
+            if (n >= 0 && n < MAX_OTHER_SERVERS) {
+                return cls.favoriteServers[n].visible;
+            }
+            break;
+    }
+    return qfalse;
+}
+
+qboolean LAN_UpdateVisiblePings(int source) {
+    return CL_UpdateVisiblePings_f(source);
+}
+
+int LAN_GetServerStatus(char* serverAddress, char* serverStatus, int maxLen) {
+    return CL_ServerStatus(serverAddress, serverStatus, maxLen);
+}
+
+static void CL_GetGlconfig(glconfig_t* config) {
+    *config = cls.glconfig;
+}
+
+static void CL_GetClipboardData(char* buf, int buflen) {
+    char* cbd;
+
+    cbd = Sys_GetClipboardData();
+
+    if (!cbd) {
+        *buf = 0;
+        return;
+    }
+
+    Q_strncpyz(buf, cbd, buflen);
+
+    Z_Free(cbd);
+}
+
+static void Key_KeynumToStringBuf(int keynum, char* buf, int buflen) {
+    Q_strncpyz(buf, Key_KeynumToString(keynum), buflen);
+}
+
+static void Key_GetBindingBuf(int keynum, char* buf, int buflen) {
+    char* value;
+
+    value = Key_GetBinding(keynum);
+    if (value) {
+        Q_strncpyz(buf, value, buflen);
+    } else {
+        *buf = 0;
+    }
+}
+
+static int GetConfigString(int index, char* buf, int size) {
+    int offset;
+
+    if (index < 0 || index >= MAX_CONFIGSTRINGS)
+        return qfalse;
+
+    offset = cl.gameState.stringOffsets[index];
+    if (!offset) {
+        if (size) {
+            buf[0] = 0;
+        }
+        return qfalse;
+    }
+
+    Q_strncpyz(buf, cl.gameState.stringData + offset, size);
+
+    return qtrue;
+}
+
+static int FloatAsInt(float f) {
+    floatint_t fi;
+    fi.f = f;
+    return fi.i;
+}
+
+intptr_t CL_UISystemCalls(intptr_t* args) {
+    switch (args[0]) {
+        case UI_ERROR:
+            Com_Error(ERR_DROP, "%s", (const char*)VMA(1));
+            return 0;
+
+        case UI_PRINT:
+            Com_Printf("%s", (const char*)VMA(1));
+            return 0;
+
+        case UI_MILLISECONDS:
+            return Sys_Milliseconds();
+
+        case UI_CVAR_REGISTER:
+            Cvar_Register(VMA(1), VMA(2), VMA(3), args[4]);
+            return 0;
+
+        case UI_CVAR_UPDATE:
+            Cvar_Update(VMA(1));
+            return 0;
+
+        case UI_CVAR_SET:
+            Cvar_SetSafe(VMA(1), VMA(2));
+            return 0;
+
+        case UI_CVAR_VARIABLEVALUE:
+            return FloatAsInt(Cvar_VariableValue(VMA(1)));
+
+        case UI_CVAR_VARIABLESTRINGBUFFER:
+            Cvar_VariableStringBuffer(VMA(1), VMA(2), args[3]);
+            return 0;
+
+        case UI_CVAR_SETVALUE:
+            Cvar_SetValueSafe(VMA(1), VMF(2));
+            return 0;
+
+        case UI_CVAR_RESET:
+            Cvar_Reset(VMA(1));
+            return 0;
+
+        case UI_CVAR_CREATE:
+            Cvar_Register(NULL, VMA(1), VMA(2), args[3]);
+            return 0;
+
+        case UI_CVAR_INFOSTRINGBUFFER:
+            Cvar_InfoStringBuffer(args[1], VMA(2), args[3]);
+            return 0;
+
+        case UI_ARGC:
+            return Cmd_Argc();
+
+        case UI_ARGV:
+            Cmd_ArgvBuffer(args[1], VMA(2), args[3]);
+            return 0;
+
+        case UI_CMD_EXECUTETEXT:
+            if (args[1] == EXEC_NOW && (!strncmp(VMA(2), "snd_restart", 11) || !strncmp(VMA(2), "vid_restart", 11) || !strncmp(VMA(2), "quit", 5))) {
+                Com_Printf(S_COLOR_YELLOW "turning EXEC_NOW '%.11s' into EXEC_INSERT\n", (const char*)VMA(2));
+                args[1] = EXEC_INSERT;
+            }
+            Cbuf_ExecuteText(args[1], VMA(2));
+            return 0;
+
+        case UI_FS_FOPENFILE:
+            return FS_FOpenFileByMode(VMA(1), VMA(2), args[3]);
+
+        case UI_FS_READ:
+            FS_Read(VMA(1), args[2], args[3]);
+            return 0;
+
+        case UI_FS_WRITE:
+            FS_Write(VMA(1), args[2], args[3]);
+            return 0;
+
+        case UI_FS_FCLOSEFILE:
+            FS_FCloseFile(args[1]);
+            return 0;
+
+        case UI_FS_GETFILELIST:
+            return FS_GetFileList(VMA(1), VMA(2), VMA(3), args[4]);
+
+        case UI_FS_SEEK:
+            return FS_Seek(args[1], args[2], args[3]);
+
+        case UI_R_REGISTERMODEL:
+            return re.RegisterModel(VMA(1));
+
+        case UI_R_REGISTERSKIN:
+            return re.RegisterSkin(VMA(1));
+
+        case UI_R_REGISTERSHADERNOMIP:
+            return re.RegisterShaderNoMip(VMA(1));
+
+        case UI_R_CLEARSCENE:
+            re.ClearScene();
+            return 0;
+
+        case UI_R_ADDREFENTITYTOSCENE:
+            re.AddRefEntityToScene(VMA(1));
+            return 0;
+
+        case UI_R_ADDPOLYTOSCENE:
+            re.AddPolyToScene(args[1], args[2], VMA(3), 1);
+            return 0;
+
+        case UI_R_ADDLIGHTTOSCENE:
+            re.AddLightToScene(VMA(1), VMF(2), VMF(3), VMF(4), VMF(5));
+            return 0;
+
+        case UI_R_RENDERSCENE:
+            re.RenderScene(VMA(1));
+            return 0;
+
+        case UI_R_SETCOLOR:
+            re.SetColor(VMA(1));
+            return 0;
+
+        case UI_R_DRAWSTRETCHPIC:
+            re.DrawStretchPic(VMF(1), VMF(2), VMF(3), VMF(4), VMF(5), VMF(6), VMF(7), VMF(8), args[9]);
+            return 0;
+
+        case UI_R_MODELBOUNDS:
+            re.ModelBounds(args[1], VMA(2), VMA(3));
+            return 0;
+
+        case UI_R_SHADERIMAGESIZE:
+            return re.ShaderImageSize(args[1], VMA(2), VMA(3));
+
+        case UI_VOICE_VOLUME:
+            return CL_VoicePlayerVolume(args[1], args[2]);
+
+        case UI_VOICE_MUTED:
+            return CL_VoicePlayerMuted(args[1]);
+
+        case UI_UPDATESCREEN:
+            SCR_UpdateScreen();
+            return 0;
+
+        case UI_CM_LERPTAG:
+            re.LerpTag(VMA(1), args[2], args[3], args[4], VMF(5), VMA(6));
+            return 0;
+
+        case UI_S_REGISTERSOUND:
+            return S_RegisterSound(VMA(1), args[2]);
+
+        case UI_S_STARTLOCALSOUND:
+            S_StartLocalSound(args[1], args[2]);
+            return 0;
+
+        case UI_KEY_KEYNUMTOSTRINGBUF:
+            Key_KeynumToStringBuf(args[1], VMA(2), args[3]);
+            return 0;
+
+        case UI_KEY_GETBINDINGBUF:
+            Key_GetBindingBuf(args[1], VMA(2), args[3]);
+            return 0;
+
+        case UI_KEY_SETBINDING:
+            Key_SetBinding(args[1], VMA(2));
+            return 0;
+
+        case UI_KEY_ISDOWN:
+            return Key_IsDown(args[1]);
+
+        case UI_KEY_GETOVERSTRIKEMODE:
+            return Key_GetOverstrikeMode();
+
+        case UI_KEY_SETOVERSTRIKEMODE:
+            Key_SetOverstrikeMode(args[1]);
+            return 0;
+
+        case UI_KEY_CLEARSTATES:
+            Key_ClearStates();
+            return 0;
+
+        case UI_KEY_GETCATCHER:
+            return Key_GetCatcher();
+
+        case UI_KEY_SETCATCHER:
+            Key_SetCatcher(args[1]);
+            return 0;
+
+        case UI_GETCLIPBOARDDATA:
+            CL_GetClipboardData(VMA(1), args[2]);
+            return 0;
+
+        case UI_GETCLIENTSTATE:
+            GetClientState(VMA(1));
+            return 0;
+
+        case UI_GETGLCONFIG:
+            CL_GetGlconfig(VMA(1));
+            return 0;
+
+        case UI_GETCONFIGSTRING:
+            return GetConfigString(args[1], VMA(2), args[3]);
+
+        case UI_LAN_ADDSERVER:
+            return LAN_AddServer(args[1], VMA(2), VMA(3));
+
+        case UI_LAN_REMOVESERVER:
+            LAN_RemoveServer(args[1], VMA(2));
+            return 0;
+
+        case UI_LAN_GETPINGQUEUECOUNT:
+            return LAN_GetPingQueueCount();
+
+        case UI_LAN_CLEARPING:
+            LAN_ClearPing(args[1]);
+            return 0;
+
+        case UI_LAN_GETPING:
+            LAN_GetPing(args[1], VMA(2), args[3], VMA(4));
+            return 0;
+
+        case UI_LAN_GETPINGINFO:
+            LAN_GetPingInfo(args[1], VMA(2), args[3]);
+            return 0;
+
+        case UI_LAN_GETSERVERCOUNT:
+            return LAN_GetServerCount(args[1]);
+
+        case UI_LAN_GETSERVERADDRESSSTRING:
+            LAN_GetServerAddressString(args[1], args[2], VMA(3), args[4]);
+            return 0;
+
+        case UI_LAN_GETSERVERINFO:
+            LAN_GetServerInfo(args[1], args[2], VMA(3), args[4]);
+            return 0;
+
+        case UI_LAN_STEAM_REFRESH:
+            if (args[1] == 2) {
+                return Steam_StopServerList();
+            }
+            return args[1] ? Steam_ServerListRefreshing() : Steam_RefreshServerList();
+
+        case UI_LAN_STEAM_DETAILS:
+        case UI_LAN_STEAM_FAVORITE: {
+            netadr_t adr;
+            unsigned int ip;
+
+            if (!NET_StringToAdr(VMA(1), &adr, NA_IP) || adr.type != NA_IP) {
+                return 0;
+            }
+            ip = ((unsigned int)adr.ip[0] << 24) | (adr.ip[1] << 16) | (adr.ip[2] << 8) | adr.ip[3];
+            if (args[0] == UI_LAN_STEAM_FAVORITE) {
+                return Steam_SetFavorite(ip, BigShort(adr.port), (qboolean)args[2]);
+            }
+            return Steam_RequestServerDetails(ip, BigShort(adr.port));
+        }
+
+        case UI_LAN_STEAM_DETAILS_GET:
+            return Steam_ServerDetails(VMA(1), args[2], VMA(3), args[4]);
+
+        case UI_LAN_STEAM_DETAILS_INFO:
+            return Steam_ServerDetailsInfo(VMA(1), args[2]);
+
+        case UI_DEMO_INFO:
+            return CL_DemoInfo(VMA(1), VMA(2), args[3]);
+
+        case UI_R_REGISTERSHADERFROMRAW: {
+            int width = args[3];
+            int height = args[4];
+
+            if (!re.RegisterShaderFromRaw || !VMA(1) || !VMA(2) || strlen(VMA(1)) >= MAX_QPATH || width <= 0 ||
+                width > 1024 || height <= 0 || height > 1024) {
+                return 0;
+            }
+            return re.RegisterShaderFromRaw(VMA(1), VMA(2), width, height);
+        }
+
+        case UI_MATCH_FILE:
+            return CL_ReadMatchFile(VMA(1), VMA(2), (int)args[3]);
+
+        case UI_UPDATE_NOTES:
+            return CL_UpdateNotes(VMA(1), (int)args[2]);
+
+        case UI_CLUB_NEWS:
+            return CL_ClubNews(VMA(1), (int)args[2]);
+
+        case UI_FS_FILETIME:
+            return FS_FileTime(VMA(1));
+
+        case UI_FS_PAKONLY:
+            FS_PakOnly((qboolean)args[1]);
+            return 0;
+
+        case UI_SET_CLIPBOARD:
+            Sys_SetClipboardData(VMA(1));
+            return 0;
+
+        case UI_LAN_SERVER_NAME: {
+            char* buf = VMA(3);
+
+            buf[0] = '\0';
+            if (args[1] == AS_GLOBAL && args[2] >= 0 && args[2] < cls.numglobalservers) {
+                Q_strncpyz(buf, cls.globalServers[args[2]].hostName, args[4]);
+            }
+            return 0;
+        }
+
+        case UI_LAN_GETSERVERPING:
+            return LAN_GetServerPing(args[1], args[2]);
+
+        case UI_LAN_MARKSERVERVISIBLE:
+            LAN_MarkServerVisible(args[1], args[2], args[3]);
+            return 0;
+
+        case UI_LAN_SERVERISVISIBLE:
+            return LAN_ServerIsVisible(args[1], args[2]);
+
+        case UI_LAN_UPDATEVISIBLEPINGS:
+            return LAN_UpdateVisiblePings(args[1]);
+
+        case UI_LAN_RESETPINGS:
+            LAN_ResetPings(args[1]);
+            return 0;
+
+        case UI_LAN_SERVERSTATUS:
+            return LAN_GetServerStatus(VMA(1), VMA(2), args[3]);
+
+        case UI_LAN_COMPARESERVERS:
+            return LAN_CompareServers(args[1], args[2], args[3], args[4], args[5]);
+
+        case UI_MEMORY_REMAINING:
+            return Hunk_MemoryRemaining();
+
+        case UI_SET_PBCLSTATUS:
+            return 0;
+
+        case UI_R_REGISTERFONT:
+            re.RegisterFont(VMA(1), args[2], VMA(3));
+            return 0;
+        case UI_R_FONT_DRAWSTRING:
+            re.Font_DrawString(args[1], args[2], VMA(3), args[4], VMF(5), args[6], VMA(7), args[8]);
+            return 0;
+        case UI_R_FONT_TEXTEXTENTS:
+            re.TextBounds(VMA(1), args[2], args[3], VMF(4), args[5], VMA(6));
+            return 0;
+        case UI_R_GETGLYPHINFO:
+            re.GetGlyphInfo(args[1], args[2], VMA(3));
+            return 0;
+        case UI_IME_SETCOMPOSITIONFONT:
+            re.SetCompositionFont(args[1], VMF(2));
+            return 0;
+
+        case UI_FACTORY_COUNT:
+            return SV_NumFactories();
+        case UI_FACTORY_VALUE:
+            return SV_FactoryValue(args[1], VMA(2), VMA(3), args[4]);
+        case UI_FACTORY_CVAR:
+            return SV_FactoryCvar(args[1], args[2], VMA(3), args[4], VMA(5), args[6]);
+        case UI_ARENA_COUNT:
+            return SV_NumArenas();
+        case UI_ARENA_VALUE:
+            return SV_ArenaValue(args[1], VMA(2), VMA(3), args[4]);
+        case UI_CVAR_LATCHEDSTRINGBUFFER:
+            Cvar_LatchedVariableStringBuffer(VMA(1), VMA(2), args[3]);
+            return 0;
+        case UI_R_FONT_REGISTER:
+            return re.Font_Register(VMA(1));
+        case UI_SYS_OPENURL:
+            CL_OpenURL(VMA(1));
+            return 0;
+
+        case UI_STEAM_FRIEND_COUNT:
+            return Steam_FriendCount();
+
+        case UI_STEAM_FRIEND_GET: {
+            steamFriend_t fr;
+            uiFriend_t* out = VMA(2);
+
+            if (!Steam_FriendGet(args[1], &fr)) {
+                return qfalse;
+            }
+            Com_Memset(out, 0, sizeof(*out));
+            Q_strncpyz(out->name, fr.name, sizeof(out->name));
+            out->state = fr.state;
+            out->playing = fr.playing;
+            out->sameGame = fr.sameGame;
+            out->server = (qboolean)(fr.sameGame && fr.ip != 0);
+            out->lobby = fr.lobby;
+            Q_strncpyz(out->nickname, fr.nickname, sizeof(out->nickname));
+            Q_strncpyz(out->status, fr.status, sizeof(out->status));
+            Com_sprintf(out->steamId, sizeof(out->steamId), "%llu", (unsigned long long)fr.steamId);
+            if (out->server) {
+                Com_sprintf(out->address, sizeof(out->address), "%u.%u.%u.%u:%u", (fr.ip >> 24) & 0xff,
+                            (fr.ip >> 16) & 0xff, (fr.ip >> 8) & 0xff, fr.ip & 0xff, fr.port);
+            }
+            return qtrue;
+        }
+
+        case UI_STEAM_USER_STATS: {
+            const char* id = VMA(1);
+            uiUserStats_t* out = VMA(2);
+
+            Com_Memset(out, 0, sizeof(*out));
+            out->state = Steam_UserStats(id[0] ? strtoull(id, NULL, 10) : 0, (qboolean)args[3], out->name,
+                                         sizeof(out->name), out->stats, UI_STEAM_NUM_STATS);
+            return out->state;
+        }
+
+        case UI_WEBPAK_EXCERPT: {
+            const char* marker = VMA(2);
+            char* out = VMA(3);
+            int size = args[4];
+            int markerLen = (int)strlen(marker);
+            void* file;
+            long len;
+            long i;
+            int n = 0;
+
+            if (size <= 0 || markerLen <= 0 || Q_stricmpn(VMA(1), "webui/", 6)) {
+                return 0;
+            }
+            out[0] = '\0';
+            len = FS_ReadFile(VMA(1), &file);
+            if (len <= 0 || !file) {
+                return 0;
+            }
+            for (i = 0; i + markerLen <= len; i++) {
+                if (!memcmp((const char*)file + i, marker, markerLen)) {
+                    n = (int)(len - i < size - 1 ? len - i : size - 1);
+                    Com_Memcpy(out, (const char*)file + i, n);
+                    out[n] = '\0';
+                    break;
+                }
+            }
+            FS_FreeFile(file);
+            return n;
+        }
+
+        case UI_WORKSHOP_DOWNLOAD_INFO: {
+            const char* id = VMA(1);
+            uint64_t* out = VMA(2);
+
+            return Steam_WorkshopProgress(id[0] ? strtoull(id, NULL, 10) : 0, &out[0], &out[1]);
+        }
+
+        case UI_STEAM_AVATAR: {
+            const char* id = VMA(1);
+
+            return CL_SteamAvatarShader(id[0] ? strtoull(id, NULL, 10) : Steam_ClientSteamID());
+        }
+
+        case UI_STEAM_SHOW_PROFILE: {
+            const char* id = VMA(1);
+
+            if (id[0]) {
+                Steam_ShowProfile(strtoull(id, NULL, 10));
+            }
+            return 0;
+        }
+
+        case UI_STEAM_FRIEND_ACTION: {
+            steamFriend_t fr;
+
+            if (Steam_FriendGet(args[1], &fr)) {
+                CL_FriendDo(&fr, args[2]);
+            }
+            return 0;
+        }
+
+        case UI_MEMSET:
+            Com_Memset(VMA(1), args[2], args[3]);
+            return 0;
+
+        case UI_MEMCPY:
+            Com_Memcpy(VMA(1), VMA(2), args[3]);
+            return 0;
+
+        case UI_STRNCPY:
+            strncpy(VMA(1), VMA(2), args[3]);
+            return args[1];
+
+        case UI_SIN:
+            return FloatAsInt(sin(VMF(1)));
+
+        case UI_COS:
+            return FloatAsInt(cos(VMF(1)));
+
+        case UI_ATAN2:
+            return FloatAsInt(atan2(VMF(1), VMF(2)));
+
+        case UI_SQRT:
+            return FloatAsInt(sqrt(VMF(1)));
+
+        case UI_FLOOR:
+            return FloatAsInt(floor(VMF(1)));
+
+        case UI_CEIL:
+            return FloatAsInt(ceil(VMF(1)));
+
+        case UI_PC_ADD_GLOBAL_DEFINE:
+            return botlib_export->PC_AddGlobalDefine(VMA(1));
+        case UI_PC_LOAD_SOURCE:
+            return botlib_export->PC_LoadSourceHandle(VMA(1));
+        case UI_PC_FREE_SOURCE:
+            return botlib_export->PC_FreeSourceHandle(args[1]);
+        case UI_PC_READ_TOKEN:
+            return botlib_export->PC_ReadTokenHandle(args[1], VMA(2));
+        case UI_PC_SOURCE_FILE_AND_LINE:
+            return botlib_export->PC_SourceFileAndLine(args[1], VMA(2), VMA(3));
+
+        case UI_S_STOPBACKGROUNDTRACK:
+            S_StopBackgroundTrack();
+            return 0;
+        case UI_S_STARTBACKGROUNDTRACK:
+            S_StartBackgroundTrack(VMA(1), VMA(2));
+            return 0;
+
+        case UI_REAL_TIME:
+            return Com_RealTime(VMA(1));
+
+        case UI_CIN_PLAYCINEMATIC:
+            Com_DPrintf("UI_CIN_PlayCinematic\n");
+            return CIN_PlayCinematic(VMA(1), args[2], args[3], args[4], args[5], args[6]);
+
+        case UI_CIN_STOPCINEMATIC:
+            return CIN_StopCinematic(args[1]);
+
+        case UI_CIN_RUNCINEMATIC:
+            return CIN_RunCinematic(args[1]);
+
+        case UI_CIN_DRAWCINEMATIC:
+            CIN_DrawCinematic(args[1]);
+            return 0;
+
+        case UI_CIN_SETEXTENTS:
+            CIN_SetExtents(args[1], args[2], args[3], args[4], args[5]);
+            return 0;
+
+        case UI_R_REMAP_SHADER:
+            re.RemapShader(VMA(1), VMA(2), VMA(3));
+            return 0;
+
+        default:
+            Com_Error(ERR_DROP, "Bad UI system trap: %ld", (long int)args[0]);
+    }
+
+    return 0;
+}
+
+void CL_ShutdownUI(void) {
+    Key_SetCatcher(Key_GetCatcher() & ~KEYCATCH_UI);
+    cls.uiStarted = qfalse;
+    if (!uivm) {
+        return;
+    }
+    VM_Call(uivm, UI_SHUTDOWN);
+    VM_Free(uivm);
+    uivm = NULL;
+}
+
+#define UI_OLD_API_VERSION 6
+
+void CL_InitUI(void) {
+    int v;
+
+    uivm = VM_Create("ui", CL_UISystemCalls);
+    if (!uivm) {
+        Com_Error(ERR_FATAL, "VM_Create on UI failed");
+    }
+
+    v = VM_Call(uivm, UI_GETAPIVERSION);
+    if (v == UI_OLD_API_VERSION) {
+        Com_Printf(S_COLOR_YELLOW "WARNING: loading old User Interface version %d\n", v);
+        VM_Call(uivm, UI_INIT, (clc.state >= CA_AUTHORIZING && clc.state < CA_ACTIVE));
+    } else if (v != UI_API_VERSION) {
+        VM_Free(uivm);
+        uivm = NULL;
+
+        Com_Error(ERR_DROP, "User Interface is version %d, expected %d", v, UI_API_VERSION);
+        cls.uiStarted = qfalse;
+    } else {
+        VM_Call(uivm, UI_INIT, (clc.state >= CA_AUTHORIZING && clc.state < CA_ACTIVE));
+    }
+}
+
+qboolean UI_GameCommand(void) {
+    if (!uivm) {
+        return qfalse;
+    }
+
+    return VM_Call(uivm, UI_CONSOLE_COMMAND, cls.realtime);
+}

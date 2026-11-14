@@ -1,0 +1,243 @@
+/*
+===========================================================================
+Copyright (C) 1999-2005 Id Software, Inc.
+
+This file is part of Quake III Arena source code.
+
+Quake III Arena source code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of the License,
+or (at your option) any later version.
+
+Quake III Arena source code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Quake III Arena source code; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+===========================================================================
+*/
+#include "vm_local.h"
+
+vm_t* currentVM = NULL;
+vm_t* lastVM = NULL;
+int vm_debugLevel;
+
+static int forced_unload;
+
+#define VM_MAX_PENDING_UNLOADS 8
+static void* vmPendingUnloads[VM_MAX_PENDING_UNLOADS];
+static int vmNumPendingUnloads;
+
+void VM_FreePendingUnloads(void) {
+    while (vmNumPendingUnloads > 0) {
+        Sys_UnloadDll(vmPendingUnloads[--vmNumPendingUnloads]);
+    }
+}
+
+#define MAX_VM 3
+vm_t vmTable[MAX_VM];
+
+void VM_Debug(int level) {
+    vm_debugLevel = level;
+}
+
+void VM_Init(void) {
+    Com_Memset(vmTable, 0, sizeof(vmTable));
+}
+
+intptr_t QDECL VM_DllSyscall(intptr_t arg, ...) {
+#if !id386 || defined __clang__
+    intptr_t args[MAX_VMSYSCALL_ARGS];
+    int i;
+    va_list ap;
+
+    args[0] = arg;
+
+    va_start(ap, arg);
+    for (i = 1; i < ARRAY_LEN(args); i++)
+        args[i] = va_arg(ap, intptr_t);
+    va_end(ap);
+
+    return currentVM->systemCall(args);
+#else
+    return currentVM->systemCall(&arg);
+#endif
+}
+
+vm_t* VM_Restart(vm_t* vm, qboolean unpure) {
+    char name[MAX_QPATH];
+    intptr_t (*systemCall)(intptr_t* parms);
+
+    systemCall = vm->systemCall;
+    Q_strncpyz(name, vm->name, sizeof(name));
+
+    VM_Free(vm);
+
+    vm = VM_Create(name, systemCall);
+    return vm;
+}
+
+vm_t* VM_Create(const char* module, intptr_t (*systemCalls)(intptr_t*)) {
+    int i;
+    int vmSlot = -1;
+    vm_t* vm;
+
+    if (!module || !module[0] || !systemCalls) {
+        Com_Error(ERR_FATAL, "VM_Create: bad parms");
+    }
+
+    for (i = 0; i < MAX_VM; i++) {
+        if (!Q_stricmp(vmTable[i].name, module)) {
+            return &vmTable[i];
+        }
+    }
+
+    for (i = 0; i < MAX_VM; i++) {
+        if (vmTable[i].name[0] == '\0') {
+            vmSlot = i;
+            break;
+        }
+    }
+
+    if (vmSlot == -1) {
+        Com_Error(ERR_FATAL, "VM_Create: no free vm_t slots");
+    }
+
+    vm = &vmTable[vmSlot];
+    Q_strncpyz(vm->name, module, sizeof(vm->name));
+
+    Com_Printf("VM_Create: loading module '%s'\n", module);
+
+    static char vm_osPaths[MAX_VM][MAX_OSPATH];
+    char* dllPath = vm_osPaths[vmSlot];
+
+    if (!FS_ExtractGamecode(module, dllPath) || dllPath[0] == '\0') {
+        Com_Error(ERR_FATAL, "VM_Create: failed to extract game module '%s'", module);
+    }
+
+    vm->dllHandle = Sys_LoadGameDll(dllPath, &vm->entryPoint, VM_DllSyscall);
+    if (!vm->dllHandle || !vm->entryPoint) {
+        Com_Error(ERR_FATAL,
+            "VM_Create: failed to load '%s'.\n"
+            "Your antivirus may have quarantined this file, or a cloud-synced folder such as "
+            "OneDrive or Dropbox may have left it incomplete. Restore the file, add the "
+            "ioquakelive folder as an antivirus exclusion, and install the game outside any "
+            "synced folder.",
+            dllPath);
+    }
+
+    vm->systemCall = systemCalls;
+    if (!vm->systemCall) {
+        Com_Error(ERR_FATAL, "VM_Create: failed to set system call for '%s'", module);
+    }
+
+    Com_Printf("VM_Create: successfully loaded '%s'\n", module);
+    return vm;
+}
+
+void VM_Free(vm_t* vm) {
+    if (!vm) {
+        return;
+    }
+
+    if (vm->callLevel) {
+        if (!forced_unload) {
+            Com_Error(ERR_FATAL, "VM_Free(%s) on running vm", vm->name);
+            return;
+        } else {
+            Com_Printf("forcefully unloading %s vm\n", vm->name);
+        }
+    }
+
+    if (vm->destroy)
+        vm->destroy(vm);
+
+    if (vm->dllHandle) {
+        if (vm->callLevel && vmNumPendingUnloads < VM_MAX_PENDING_UNLOADS) {
+            vmPendingUnloads[vmNumPendingUnloads++] = vm->dllHandle;
+        } else {
+            Sys_UnloadDll(vm->dllHandle);
+        }
+    }
+
+    Com_Memset(vm, 0, sizeof(*vm));
+
+    currentVM = NULL;
+    lastVM = NULL;
+}
+
+void VM_Clear(void) {
+    int i;
+    for (i = 0; i < MAX_VM; i++) {
+        VM_Free(&vmTable[i]);
+    }
+}
+
+void VM_Forced_Unload_Start(void) {
+    forced_unload = 1;
+}
+
+void VM_Forced_Unload_Done(void) {
+    forced_unload = 0;
+}
+
+void* VM_ArgPtr(intptr_t intValue) {
+    if (!intValue) {
+        return NULL;
+    }
+    if (currentVM == NULL)
+        return NULL;
+
+    return (void*)intValue;
+}
+
+void* VM_ExplicitArgPtr(vm_t* vm, intptr_t intValue) {
+    if (!intValue) {
+        return NULL;
+    }
+    if (currentVM == NULL)
+        return NULL;
+
+    return (void*)intValue;
+}
+
+intptr_t QDECL VM_Call(vm_t* vm, int callnum, ...) {
+    vm_t* oldVM;
+    intptr_t r;
+    int i;
+
+    if (!vm || !vm->name[0])
+        Com_Error(ERR_FATAL, "VM_Call with NULL vm");
+
+    oldVM = currentVM;
+    currentVM = vm;
+    lastVM = vm;
+
+    if (vm_debugLevel) {
+        Com_Printf("VM_Call( %d )\n", callnum);
+    }
+
+    ++vm->callLevel;
+    {
+        intptr_t args[MAX_VMMAIN_ARGS - 1];
+        va_list ap;
+        va_start(ap, callnum);
+        for (i = 0; i < ARRAY_LEN(args); i++) {
+            args[i] = va_arg(ap, intptr_t);
+        }
+        va_end(ap);
+
+        r = vm->entryPoint(callnum, args[0], args[1], args[2], args[3],
+                           args[4], args[5], args[6], args[7],
+                           args[8], args[9], args[10], args[11]);
+    }
+    --vm->callLevel;
+
+    if (oldVM != NULL)
+        currentVM = oldVM;
+    return r;
+}
+
