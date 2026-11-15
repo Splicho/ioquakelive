@@ -15,7 +15,7 @@
 #endif
 
 #define CL_UPDATE_URL "https://gist.githubusercontent.com/foressssst/65861cb796e4d984cfd73b384e8c2098/raw/ioquakelive-version.txt"
-#define CL_UPDATE_API "https://api.github.com/repos/foressssst/ioquakelive/releases?per_page=1"
+#define CL_UPDATE_API "https://api.github.com/repos/foressssst/ioquakelive/releases/latest"
 #define CL_UPDATE_RELEASE_TAG "https://github.com/foressssst/ioquakelive/releases/tag/"
 #define CL_UPDATE_DOWNLOAD "https://github.com/foressssst/ioquakelive/releases/download/"
 #define CL_UPDATE_TIMEOUT_MS 5000
@@ -737,7 +737,6 @@ int CL_ClubNews(char* buf, int size) {
 static qboolean CL_UpdateFromGitHub(void) {
     char tag[32];
     const char* p;
-    qboolean pre;
     int n;
 
     if (!CL_UpdateFetch(CL_UPDATE_API, clUpdateText, sizeof(clUpdateText))) {
@@ -757,15 +756,10 @@ static qboolean CL_UpdateFromGitHub(void) {
         return qfalse;
     }
     tag[n] = '\0';
-    p = CL_UpdateJsonValue(clUpdateText, "\"prerelease\"");
-    if (!p) {
-        return qfalse;
-    }
-    pre = !Q_strncmp(p, "true", 4) ? qtrue : qfalse;
     CL_UpdateFindAsset(clUpdateText);
     CL_UpdateFindNotes(clUpdateText);
-    Com_sprintf(clUpdateText, sizeof(clUpdateText), "%s %s%s%s", tag[0] == 'v' ? tag + 1 : tag,
-                CL_UPDATE_RELEASE_TAG, tag, pre ? " pre" : "");
+    Com_sprintf(clUpdateText, sizeof(clUpdateText), "%s %s%s", tag[0] == 'v' ? tag + 1 : tag,
+                CL_UPDATE_RELEASE_TAG, tag);
     return qtrue;
 }
 
@@ -1019,14 +1013,32 @@ static void CL_UpdateThread(void* unused) {
     }
 }
 
-static int CL_UpdateCompare(const char* a, const char* b) {
-    int x[3] = {0, 0, 0};
-    int y[3] = {0, 0, 0};
+static void CL_UpdateParts(const char* s, int parts[4]) {
     int i;
 
-    sscanf(a, "%d.%d.%d", &x[0], &x[1], &x[2]);
-    sscanf(b, "%d.%d.%d", &y[0], &y[1], &y[2]);
-    for (i = 0; i < 3; i++) {
+    parts[0] = parts[1] = parts[2] = 0;
+    parts[3] = INT_MAX;
+    for (i = 0; i < 3 && *s >= '0' && *s <= '9'; i++) {
+        parts[i] = atoi(s);
+        while (*s >= '0' && *s <= '9') {
+            s++;
+        }
+        if (*s == '.' && i < 2) {
+            s++;
+        }
+    }
+    if (i && !Q_strncmp(s, "-preview-", 9)) {
+        parts[3] = atoi(s + 9);
+    }
+}
+
+static int CL_UpdateCompare(const char* a, const char* b) {
+    int x[4], y[4];
+    int i;
+
+    CL_UpdateParts(a, x);
+    CL_UpdateParts(b, y);
+    for (i = 0; i < 4; i++) {
         if (x[i] != y[i]) {
             return x[i] < y[i] ? -1 : 1;
         }
@@ -1365,7 +1377,6 @@ static void CL_UpdateDownloadFrame(void) {
 void CL_UpdateFrame(void) {
     char version[32];
     char url[512];
-    char kind[8];
     const char* p;
     long state;
 
@@ -1380,8 +1391,7 @@ void CL_UpdateFrame(void) {
         Com_DPrintf("update check: no answer\n");
         return;
     }
-    kind[0] = '\0';
-    if (sscanf(clUpdateText, "%31s %511s %7s", version, url, kind) < 2) {
+    if (sscanf(clUpdateText, "%31s %511s", version, url) < 2) {
         return;
     }
     for (p = version; *p; p++) {
@@ -1400,7 +1410,7 @@ void CL_UpdateFrame(void) {
     }
     Q_strncpyz(clUpdateURL, url, sizeof(clUpdateURL));
     Cvar_Set("cl_updateVersion", version);
-    Cvar_Set("cl_updateStatus", !Q_stricmp(kind, "pre") ? "prerelease" : "available");
+    Cvar_Set("cl_updateStatus", "available");
     Cvar_Set("cl_updateAuto", clUpdateAsset[0] && clUpdateDir[0] ? "1" : "0");
     Com_Printf("A new version of ioquakelive is available: %s\n%s\n", version, url);
 }

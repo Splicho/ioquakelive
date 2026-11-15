@@ -576,9 +576,8 @@ void UI_Home_Banner(void) {
     } else {
         index = 1;
         SM_Centered(smVW * 0.5f, SM_Baseline(FONT_SANS, 18, y + 3.75f, 24.0f), 18, smText,
-                    va(Q_stricmp(status, "prerelease") ? "ioquakelive %s is available. Click here to %s."
-                                                       : "ioquakelive %s (experimental) is available. Click here to %s.",
-                       version, trap_Cvar_VariableValue("cl_updateAuto") ? "update" : "download it"),
+                    va("ioquakelive %s is available. Click here to %s.", version,
+                       trap_Cvar_VariableValue("cl_updateAuto") ? "update" : "download it"),
                     qfalse);
     }
     SM_Hit(0, y, smVW, h, HM_HIT_BANNER, index, NULL);
@@ -1766,7 +1765,7 @@ static qboolean UI_Home_NotesWanted(void) {
         return qfalse;
     }
     trap_Cvar_VariableStringBuffer("cl_updateStatus", status, sizeof(status));
-    if (Q_stricmp(status, "available") && Q_stricmp(status, "prerelease")) {
+    if (Q_stricmp(status, "available")) {
         return qfalse;
     }
     trap_Cvar_VariableStringBuffer("cl_updateVersion", version, sizeof(version));
@@ -1803,7 +1802,6 @@ static void UI_Home_NotesPaint(void) {
     float x = smVW * HM_ERROR_SIDE;
     float w = smVW * (1.0f - 2.0f * HM_ERROR_SIDE);
     float bodyH, h, band, bodyTop, by, updW, laterW, updX, laterX;
-    char status[16];
     int i;
 
     if (!UI_Home_NotesWanted()) {
@@ -1825,12 +1823,9 @@ static void UI_Home_NotesPaint(void) {
     SM_Fill(-1, band, smVW + 2, h, hmErrorDialog, NULL);
     SM_Hit(0, top, smVW, smBottom - top, HM_HIT_NOTES, 0, NULL);
 
-    trap_Cvar_VariableStringBuffer("cl_updateStatus", status, sizeof(status));
     SM_SetSpacing(SM_SPACING_H1);
     SM_TextRaw(x + 6.4f, SM_Baseline(FONT_DEFAULT, 32, band + 24.0f, 38.4f), FONT_DEFAULT, 32, smText,
-               va(Q_stricmp(status, "prerelease") ? "A new version is out: %s" : "A new version is out: %s (experimental)",
-                  hn.version),
-               -1, qfalse);
+               va("A new version is out: %s", hn.version), -1, qfalse);
     SM_SetSpacing(0);
 
     for (i = 0; i < hn.numRows; i++) {

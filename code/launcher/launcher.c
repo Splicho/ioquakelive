@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2525,22 +2526,32 @@ static float Draw_Notes(float x, float y, float width, float alpha) {
     return y;
 }
 
-static int Version_Compare(const char* a, const char* b) {
-    while (*a || *b) {
-        long x = strtol(a, (char**)&a, 10);
-        long y = strtol(b, (char**)&b, 10);
+static bool Version_Parts(const char* s, long parts[4]) {
+    int i;
 
-        if (x != y) {
-            return x < y ? -1 : 1;
+    parts[0] = parts[1] = parts[2] = 0;
+    parts[3] = LONG_MAX;
+    for (i = 0; i < 3 && *s >= '0' && *s <= '9'; i++) {
+        parts[i] = strtol(s, (char**)&s, 10);
+        if (*s == '.' && i < 2) {
+            s++;
         }
-        if (*a == '.') {
-            a++;
-        }
-        if (*b == '.') {
-            b++;
-        }
-        if ((*a && (*a < '0' || *a > '9')) || (*b && (*b < '0' || *b > '9'))) {
-            break;
+    }
+    if (i && !strncmp(s, "-preview-", 9) && s[9] >= '0' && s[9] <= '9') {
+        parts[3] = strtol(s + 9, (char**)&s, 10);
+    }
+    return i && !*s;
+}
+
+static int Version_Compare(const char* a, const char* b) {
+    long x[4], y[4];
+    int i;
+
+    Version_Parts(a, x);
+    Version_Parts(b, y);
+    for (i = 0; i < 4; i++) {
+        if (x[i] != y[i]) {
+            return x[i] < y[i] ? -1 : 1;
         }
     }
     return 0;
@@ -3164,6 +3175,7 @@ static bool Http_File(const char* address, const char* path, char* hashHex) {
 
 static bool Release_Tag(const char* json, char* tag, int size) {
     const char* p = Json_Value(json, "\"tag_name\"");
+    long parts[4];
     int n;
 
     tag[0] = '\0';
@@ -3171,13 +3183,13 @@ static bool Release_Tag(const char* json, char* tag, int size) {
         return false;
     }
     for (n = 0; n < size - 1 && p[n] && p[n] != '"'; n++) {
-        if ((p[n] < '0' || p[n] > '9') && p[n] != '.' && p[n] != 'v') {
+        if ((p[n] < '0' || p[n] > '9') && (p[n] < 'a' || p[n] > 'z') && p[n] != '.' && p[n] != '-') {
             return false;
         }
         tag[n] = p[n];
     }
     tag[n] = '\0';
-    return n && p[n] == '"';
+    return n && p[n] == '"' && Version_Parts(tag[0] == 'v' ? tag + 1 : tag, parts);
 }
 
 static bool Package_Find(const char* json, pack_t* pack) {
