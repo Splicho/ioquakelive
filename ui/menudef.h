@@ -1,25 +1,25 @@
 
-#define ITEM_TYPE_TEXT					0		// simple text
-#define ITEM_TYPE_BUTTON				1       // button, basically text with a border 
-#define ITEM_TYPE_RADIOBUTTON			2       // toggle button, may be grouped 
-#define ITEM_TYPE_CHECKBOX				3       // check box
-#define ITEM_TYPE_EDITFIELD				4       // editable text, associated with a cvar
-#define ITEM_TYPE_COMBO					5       // drop down list
-#define ITEM_TYPE_LISTBOX				6       // scrollable list  
-#define ITEM_TYPE_MODEL					7       // model
-#define ITEM_TYPE_OWNERDRAW				8       // owner draw, name specs what it is
-#define ITEM_TYPE_NUMERICFIELD			9       // editable text, associated with a cvar
-#define ITEM_TYPE_SLIDER				10      // mouse speed, volume, etc.
-#define ITEM_TYPE_YESNO					11      // yes no cvar setting
-#define ITEM_TYPE_MULTI					12      // multiple list setting, enumerated
-#define ITEM_TYPE_BIND					13	    // multiple list setting, enumerated
-#define ITEM_TYPE_SLIDER_COLOR			14      // team colors, etc.
-#define ITEM_TYPE_PRESET				15      //
-#define ITEM_TYPE_PRESETLIST			16      //
+#define ITEM_TYPE_TEXT					0
+#define ITEM_TYPE_BUTTON				1
+#define ITEM_TYPE_RADIOBUTTON			2
+#define ITEM_TYPE_CHECKBOX				3
+#define ITEM_TYPE_EDITFIELD				4
+#define ITEM_TYPE_COMBO					5
+#define ITEM_TYPE_LISTBOX				6
+#define ITEM_TYPE_MODEL					7
+#define ITEM_TYPE_OWNERDRAW				8
+#define ITEM_TYPE_NUMERICFIELD			9
+#define ITEM_TYPE_SLIDER				10
+#define ITEM_TYPE_YESNO					11
+#define ITEM_TYPE_MULTI					12
+#define ITEM_TYPE_BIND					13
+#define ITEM_TYPE_SLIDER_COLOR			14
+#define ITEM_TYPE_PRESET				15
+#define ITEM_TYPE_PRESETLIST			16
 
-#define ITEM_ALIGN_LEFT					0       // left alignment
-#define ITEM_ALIGN_CENTER				1       // center alignment
-#define ITEM_ALIGN_RIGHT				2       // right alignment
+#define ITEM_ALIGN_LEFT					0
+#define ITEM_ALIGN_CENTER				1
+#define ITEM_ALIGN_RIGHT				2
 
 #define	WIDESCREEN_STRETCH				0
 #define	WIDESCREEN_LEFT					1
@@ -30,60 +30,57 @@
 #define	FONT_SANS						1
 #define	FONT_MONO						2
 
-#define ITEM_TEXTSTYLE_NORMAL			0       // normal text
-#define ITEM_TEXTSTYLE_BLINK			1       // fast blinking
-#define ITEM_TEXTSTYLE_PULSE			2       // slow pulsing
-#define ITEM_TEXTSTYLE_SHADOWED			3       // drop shadow ( need a color for this )
-#define ITEM_TEXTSTYLE_OUTLINED			4       // drop shadow ( need a color for this )
-#define ITEM_TEXTSTYLE_OUTLINESHADOWED	5		// drop shadow ( need a color for this )
-#define ITEM_TEXTSTYLE_SHADOWEDMORE		6		// drop shadow ( need a color for this )
+#define ITEM_TEXTSTYLE_NORMAL			0
+#define ITEM_TEXTSTYLE_BLINK			1
+#define ITEM_TEXTSTYLE_PULSE			2
+#define ITEM_TEXTSTYLE_SHADOWED			3
+#define ITEM_TEXTSTYLE_OUTLINED			4
+#define ITEM_TEXTSTYLE_OUTLINESHADOWED	5
+#define ITEM_TEXTSTYLE_SHADOWEDMORE		6
 
-#define WINDOW_BORDER_NONE				0       // no border
-#define WINDOW_BORDER_FULL				1       // full border based on border color ( single pixel )
-#define WINDOW_BORDER_HORZ				2       // horizontal borders only
-#define WINDOW_BORDER_VERT				3       // vertical borders only 
-#define WINDOW_BORDER_KCGRADIENT		4       // horizontal border using the gradient bars
+#define WINDOW_BORDER_NONE				0
+#define WINDOW_BORDER_FULL				1
+#define WINDOW_BORDER_HORZ				2
+#define WINDOW_BORDER_VERT				3
+#define WINDOW_BORDER_KCGRADIENT		4
 
-#define WINDOW_STYLE_EMPTY				0       // no background
-#define WINDOW_STYLE_FILLED				1       // filled with background color
-#define WINDOW_STYLE_GRADIENT			2       // gradient bar based on background color 
-#define WINDOW_STYLE_SHADER				3       // gradient bar based on background color 
-#define WINDOW_STYLE_TEAMCOLOR			4       // team color
-#define WINDOW_STYLE_CINEMATIC			5       // cinematic
+#define WINDOW_STYLE_EMPTY				0
+#define WINDOW_STYLE_FILLED				1
+#define WINDOW_STYLE_GRADIENT			2
+#define WINDOW_STYLE_SHADER				3
+#define WINDOW_STYLE_TEAMCOLOR			4
+#define WINDOW_STYLE_CINEMATIC			5
 
-#define MENU_TRUE						1       // uh.. true
-#define MENU_FALSE						0       // and false
+#define MENU_TRUE						1
+#define MENU_FALSE						0
 
 #define HUD_VERTICAL						0x00
 #define HUD_HORIZONTAL						0x01
 
-// list box element types
 #define LISTBOX_TEXT						0x00
 #define LISTBOX_IMAGE						0x01
 
-// list feeders
-#define FEEDER_HEADS						0x00			// model heads
-#define FEEDER_MAPS							0x01			// text maps based on game type
-#define FEEDER_SERVERS						0x02			// servers
-#define FEEDER_CLANS						0x03			// clan names
-#define FEEDER_ALLMAPS						0x04			// all maps available, in graphic format
-#define FEEDER_REDTEAM_LIST					0x05			// red team members
-#define FEEDER_BLUETEAM_LIST				0x06			// blue team members
-#define FEEDER_PLAYER_LIST					0x07			// players
-#define FEEDER_TEAM_LIST					0x08			// team members for team voting
-#define FEEDER_MODS							0x09			// 
-#define FEEDER_DEMOS 						0x0a			//
-#define FEEDER_SCOREBOARD					0x0b			// 
-#define FEEDER_Q3HEADS		 				0x0c			// model heads
-#define FEEDER_SERVERSTATUS					0x0d			// server status
-#define FEEDER_FINDPLAYER					0x0e			// find player
-#define FEEDER_CINEMATICS					0x0f			// cinematics
-#define FEEDER_ENDSCOREBOARD				0x10			// premium scoreboard w/ country flags & quit players
-#define FEEDER_REDTEAM_STATS                0x11            // premium statistics board for red team
-#define FEEDER_BLUETEAM_STATS               0x12            // premium statistics board for blue team
-#define FEEDER_CVMAPS						0x13			// maps for the gametype you wish to cv to
+#define FEEDER_HEADS						0x00
+#define FEEDER_MAPS							0x01
+#define FEEDER_SERVERS						0x02
+#define FEEDER_CLANS						0x03
+#define FEEDER_ALLMAPS						0x04
+#define FEEDER_REDTEAM_LIST					0x05
+#define FEEDER_BLUETEAM_LIST				0x06
+#define FEEDER_PLAYER_LIST					0x07
+#define FEEDER_TEAM_LIST					0x08
+#define FEEDER_MODS							0x09
+#define FEEDER_DEMOS 						0x0a
+#define FEEDER_SCOREBOARD					0x0b
+#define FEEDER_Q3HEADS		 				0x0c
+#define FEEDER_SERVERSTATUS					0x0d
+#define FEEDER_FINDPLAYER					0x0e
+#define FEEDER_CINEMATICS					0x0f
+#define FEEDER_ENDSCOREBOARD				0x10
+#define FEEDER_REDTEAM_STATS                0x11
+#define FEEDER_BLUETEAM_STATS               0x12
+#define FEEDER_CVMAPS						0x13
 
-// display flags
 #define CG_SHOW_BLUE_TEAM_HAS_REDFLAG		0x00000001
 #define CG_SHOW_RED_TEAM_HAS_BLUEFLAG		0x00000002
 #define CG_SHOW_DUEL						0x00000004
@@ -117,7 +114,6 @@
 #define CG_SHOW_IF_PLYR_IS_ON_BLUE			0x40000000
 #define CG_SHOW_PLAYERS_REMAINING			0x80000000
 
-//ownerdrawflag2
 #define	CG_SHOW_IF_PLYR1					0x00000001
 #define	CG_SHOW_IF_PLYR2					0x00000002
 #define	CG_SHOW_IF_G_FIRED					0x00000004
@@ -161,20 +157,16 @@
 #define UI_SHOW_IF_WARMUP					0x00010000
 #define UI_SHOW_IF_NOT_WARMUP				0x00020000
 
-// owner draw types
-// ideally these should be done outside of this file but
-// this makes it much easier for the macro expansion to 
-// convert them for the designers ( from the .menu files ) 
 #define	CG_SERVER_SETTINGS					1						
 #define	CG_STARTING_WEAPONS					2						
 #define	CG_GAME_LIMIT						3						
 #define	CG_GAME_TYPE						4						
 #define	CG_GAME_TYPE_ICON					5						
-#define	CG_GAME_TYPE_MAP					6		// Gametype Fullname - Server Locaton - Map				
-#define	CG_GAME_STATUS						7		// Scores message				
-#define	CG_MATCH_DETAILS					8		// Game state - Gametype Shortname - Server Location - Map				
+#define	CG_GAME_TYPE_MAP					6
+#define	CG_GAME_STATUS						7
+#define	CG_MATCH_DETAILS					8
 #define	CG_MATCH_END_CONDITION				9						
-#define	CG_MATCH_STATUS						10		// Game State - Scores message				
+#define	CG_MATCH_STATUS						10
 #define	CG_CAPFRAGLIMIT						11						
 #define	CG_LEVELTIMER						12						
 #define	CG_ROUND							13						
@@ -503,7 +495,7 @@
 #define	CG_BLUE_TEAM_TIMEHELD_INVIS			336	
 #define	CG_FLAG_STATUS						337
 #define CG_HEALTH_COLORIZED					338
-#define	CG_MATCH_STATE						339		// Game State
+#define	CG_MATCH_STATE						339
 
 #define UI_OWNERDRAW_BASE				512
 #define UI_HANDICAP						513
@@ -516,11 +508,11 @@
 #define UI_NETFILTER					520
 #define UI_TIER							521
 #define UI_OPPONENTMODEL				522
-#define UI_TIERMAP1						523		// Unused, may recover.
-#define UI_TIERMAP2						524		// Unused, may recover.
-#define UI_TIERMAP3						525		// Unused, may recover.
-#define UI_TIER_MAPNAME					526		// Unused, may recover.
-#define UI_TIER_GAMETYPE				527		// Unused, may recover.
+#define UI_TIERMAP1						523
+#define UI_TIERMAP2						524
+#define UI_TIERMAP3						525
+#define UI_TIER_MAPNAME					526
+#define UI_TIER_GAMETYPE				527
 #define UI_ALLMAPS_SELECTION			528
 #define UI_OPPONENT_NAME				529
 #define UI_VOTE_KICK					530
@@ -536,7 +528,7 @@
 #define UI_SERVERMOTD					540
 #define UI_GLINFO						541
 #define UI_KEYBINDSTATUS				542
-#define UI_CLANCINEMATIC				543		// Unused, may recover.
+#define UI_CLANCINEMATIC				543
 #define UI_MAP_TIMETOBEAT				544
 #define UI_JOINGAMETYPE					545
 #define UI_PREVIEWCINEMATIC				546
@@ -553,37 +545,37 @@
 #define UI_SERVER_SETTINGS				557
 #define UI_STARTING_WEAPONS				558
 
-#define VOICECHAT_GETFLAG			"getflag"				// command someone to get the flag
-#define VOICECHAT_OFFENSE			"offense"				// command someone to go on offense
-#define VOICECHAT_DEFEND			"defend"				// command someone to go on defense
-#define VOICECHAT_DEFENDFLAG		"defendflag"			// command someone to defend the flag
-#define VOICECHAT_PATROL			"patrol"				// command someone to go on patrol (roam)
-#define VOICECHAT_CAMP				"camp"					// command someone to camp (we don't have sounds for this one)
-#define VOICECHAT_FOLLOWME			"followme"				// command someone to follow you
-#define VOICECHAT_RETURNFLAG		"returnflag"			// command someone to return our flag
-#define VOICECHAT_FOLLOWFLAGCARRIER	"followflagcarrier"		// command someone to follow the flag carrier
-#define VOICECHAT_YES				"yes"					// yes, affirmative, etc.
-#define VOICECHAT_NO				"no"					// no, negative, etc.
-#define VOICECHAT_ONGETFLAG			"ongetflag"				// I'm getting the flag
-#define VOICECHAT_ONOFFENSE			"onoffense"				// I'm on offense
-#define VOICECHAT_ONDEFENSE			"ondefense"				// I'm on defense
-#define VOICECHAT_ONPATROL			"onpatrol"				// I'm on patrol (roaming)
-#define VOICECHAT_ONCAMPING			"oncamp"				// I'm camping somewhere
-#define VOICECHAT_ONFOLLOW			"onfollow"				// I'm following
-#define VOICECHAT_ONFOLLOWCARRIER	"onfollowcarrier"		// I'm following the flag carrier
-#define VOICECHAT_ONRETURNFLAG		"onreturnflag"			// I'm returning our flag
-#define VOICECHAT_INPOSITION		"inposition"			// I'm in position
-#define VOICECHAT_IHAVEFLAG			"ihaveflag"				// I have the flag
-#define VOICECHAT_BASEATTACK		"baseattack"			// the base is under attack
-#define VOICECHAT_ENEMYHASFLAG		"enemyhasflag"			// the enemy has our flag (CTF)
-#define VOICECHAT_STARTLEADER		"startleader"			// I'm the leader
-#define VOICECHAT_STOPLEADER		"stopleader"			// I resign leadership
-#define VOICECHAT_TRASH				"trash"					// lots of trash talk
-#define VOICECHAT_WHOISLEADER		"whoisleader"			// who is the team leader
-#define VOICECHAT_WANTONDEFENSE		"wantondefense"			// I want to be on defense
-#define VOICECHAT_WANTONOFFENSE		"wantonoffense"			// I want to be on offense
-#define VOICECHAT_KILLINSULT		"kill_insult"			// I just killed you
-#define VOICECHAT_TAUNT				"taunt"					// I want to taunt you
-#define VOICECHAT_DEATHINSULT		"death_insult"			// you just killed me
-#define VOICECHAT_KILLGAUNTLET		"kill_gauntlet"			// I just killed you with the gauntlet
-#define VOICECHAT_PRAISE			"praise"				// you did something good
+#define VOICECHAT_GETFLAG			"getflag"
+#define VOICECHAT_OFFENSE			"offense"
+#define VOICECHAT_DEFEND			"defend"
+#define VOICECHAT_DEFENDFLAG		"defendflag"
+#define VOICECHAT_PATROL			"patrol"
+#define VOICECHAT_CAMP				"camp"
+#define VOICECHAT_FOLLOWME			"followme"
+#define VOICECHAT_RETURNFLAG		"returnflag"
+#define VOICECHAT_FOLLOWFLAGCARRIER	"followflagcarrier"
+#define VOICECHAT_YES				"yes"
+#define VOICECHAT_NO				"no"
+#define VOICECHAT_ONGETFLAG			"ongetflag"
+#define VOICECHAT_ONOFFENSE			"onoffense"
+#define VOICECHAT_ONDEFENSE			"ondefense"
+#define VOICECHAT_ONPATROL			"onpatrol"
+#define VOICECHAT_ONCAMPING			"oncamp"
+#define VOICECHAT_ONFOLLOW			"onfollow"
+#define VOICECHAT_ONFOLLOWCARRIER	"onfollowcarrier"
+#define VOICECHAT_ONRETURNFLAG		"onreturnflag"
+#define VOICECHAT_INPOSITION		"inposition"
+#define VOICECHAT_IHAVEFLAG			"ihaveflag"
+#define VOICECHAT_BASEATTACK		"baseattack"
+#define VOICECHAT_ENEMYHASFLAG		"enemyhasflag"
+#define VOICECHAT_STARTLEADER		"startleader"
+#define VOICECHAT_STOPLEADER		"stopleader"
+#define VOICECHAT_TRASH				"trash"
+#define VOICECHAT_WHOISLEADER		"whoisleader"
+#define VOICECHAT_WANTONDEFENSE		"wantondefense"
+#define VOICECHAT_WANTONOFFENSE		"wantonoffense"
+#define VOICECHAT_KILLINSULT		"kill_insult"
+#define VOICECHAT_TAUNT				"taunt"
+#define VOICECHAT_DEATHINSULT		"death_insult"
+#define VOICECHAT_KILLGAUNTLET		"kill_gauntlet"
+#define VOICECHAT_PRAISE			"praise"

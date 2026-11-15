@@ -398,7 +398,7 @@ jobs:
   windows:
     name: Windows ${{ matrix.platform }}
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release:')) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'prerelease:'))
-    runs-on: windows-2022
+    runs-on: windows-2025-vs2026
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -421,15 +421,6 @@ jobs:
           echo "::add-mask::$KEY"
           printf '#define IOQL_BUILD_KEY "%s"\n' "$KEY" > code/qcommon/official_key.h
         fi
-
-    - name: Install VS 2026 Build Tools (v145)
-      shell: pwsh
-      run: |
-        Write-Host "Installing VS 2026 Build Tools..."
-        choco install visualstudio2026buildtools `
-          --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --includeRecommended --quiet" `
-          -y --ignore-package-exit-codes=3010
-        Write-Host "VS 2026 Build Tools installation completed"
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
