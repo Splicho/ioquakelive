@@ -7752,6 +7752,7 @@ static void vk_latency_report( void )
 	static int lastReport;
 	VkGetLatencyMarkerInfoNV info;
 	double pc = 0, gpu = 0, queue = 0;
+	const char *mode;
 	uint32_t i;
 	int n = 0, now;
 
@@ -7767,6 +7768,12 @@ static void vk_latency_report( void )
 
 	if ( !vk.lowLatency2 || !qvkGetLatencyTimingsNV || vk.swapchain == VK_NULL_HANDLE ) {
 		ri.Cvar_Set( "r_latencyReport", vk.antiLag ? "Anti-Lag 2: On (the driver gives no timings)" : "No driver latency data" );
+		return;
+	}
+
+	mode = r_lowLatency->integer > 1 ? "Boost" : r_lowLatency->integer ? "On" : "Off";
+	if ( glConfig.smpActive && !r_lowLatency->integer ) {
+		ri.Cvar_Set( "r_latencyReport", "Reflex: Off" );
 		return;
 	}
 
@@ -7803,11 +7810,11 @@ static void vk_latency_report( void )
 	}
 
 	if ( !n ) {
-		ri.Cvar_Set( "r_latencyReport", "Reflex: On (waiting for driver timings)" );
+		ri.Cvar_Set( "r_latencyReport", va( "Reflex: %s (waiting for driver timings)", mode ) );
 		return;
 	}
 	ri.Cvar_Set( "r_latencyReport", va( "PC Latency: %.1fms | GPU: %.1fms | Queue: %.1fms | Reflex: %s",
-		pc / n / 1000.0, gpu / n / 1000.0, queue / n / 1000.0, r_lowLatency->integer > 1 ? "Boost" : r_lowLatency->integer ? "On" : "Off" ) );
+		pc / n / 1000.0, gpu / n / 1000.0, queue / n / 1000.0, mode ) );
 }
 
 void vk_present_frame( void )
