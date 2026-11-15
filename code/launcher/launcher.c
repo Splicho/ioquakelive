@@ -7,6 +7,8 @@
 
 #include "../zlib/zlib.h"
 #include "../renderercommon/tr_stbtt.h"
+#define VK_NO_PROTOTYPES
+#include "../renderercommon/vulkan/vulkan_core.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -104,9 +106,7 @@
 #define LOGO 28.0f
 #define MORE_ICON 18.0f
 #define ITEM_R 6.0f
-#define MENU_ROW 44.0f
 #define MENU_PAD 6.0f
-#define MENU_H (MENU_ROW * 2.0f + MENU_PAD * 2.0f)
 #define NOTES_LINE 27.0f
 #define CHECK_ICON 16.0f
 #define CLOSE_ICON 12.0f
@@ -237,11 +237,10 @@ enum {
 };
 enum { FACE_TEXT, FACE_BOLD, FACE_DISPLAY, FACE_REGULAR, FACE_MEDIUM, FACE_STRONG, FACE_COUNT };
 enum { LINE_BLANK, LINE_HEAD, LINE_BULLET, LINE_TEXT };
+enum { VULKAN_PROBING, VULKAN_USABLE, VULKAN_MISSING };
 enum {
     BTN_PLAY,
     BTN_UPDATE,
-    BTN_GL,
-    BTN_VK,
     BTN_STEAM,
     BTN_SERVERS,
     BTN_NEXT,
@@ -300,6 +299,7 @@ enum {
     TXT_STEAM_OFF,
     TXT_STEAM_OPEN,
     TXT_STEAM_OPENING,
+    TXT_NO_VULKAN,
     TXT_SETUP_STEP,
     TXT_TITLE_FILES,
     TXT_TITLE_SETTINGS,
@@ -531,14 +531,15 @@ static float heat[BTN_COUNT];
 static SDL_Cursor* cursorArrow;
 static SDL_Cursor* cursorHand;
 static int hotButton = -1;
-static bool gameFound, vulkanFound, useVulkan, heroCustom, menuOpen, langOpen, firstRun;
+static bool gameFound, vulkanFound, heroCustom, langOpen, firstRun;
 static int rendererHint = -1;
+static SDL_AtomicInt vulkanState;
 static char** gameArgs;
 static int gameArgCount;
-static int menuPick, lang;
+static int lang;
 static float langHeat, introHeat, notesLow, thumbY, thumbH, dragStart, dragFrom, textTrack;
 static int dragMode;
-static float menuHeat, notesHeat, notesScroll, notesGoal, notesHeight, notesView, notesTop;
+static float notesHeat, notesScroll, notesGoal, notesHeight, notesView, notesTop;
 static float stepHeat = 1.0f, slideX, slideFade = 1.0f, listHeat;
 static int stepDir, stepFrom;
 static Uint64 stepStart, panelStart;
@@ -673,6 +674,7 @@ static const char* const texts[LANG_COUNT][TXT_COUNT] = {
             [TXT_STEAM_OFF] = "Steam is not running.",
             [TXT_STEAM_OPEN] = "Open Steam",
             [TXT_STEAM_OPENING] = "Opening Steam...",
+            [TXT_NO_VULKAN] = "Your system does not support Vulkan, so you will play with OpenGL for now. Updating your graphics drivers may fix it.",
             [TXT_SETUP_STEP] = "First-time setup · Step %d of %d",
             [TXT_TITLE_FILES] = "Game files",
             [TXT_TITLE_SETTINGS] = "Settings and HUD",
@@ -766,6 +768,7 @@ static const char* const texts[LANG_COUNT][TXT_COUNT] = {
             [TXT_STEAM_OFF] = "Steam no está abierto.",
             [TXT_STEAM_OPEN] = "Abrir Steam",
             [TXT_STEAM_OPENING] = "Abriendo Steam...",
+            [TXT_NO_VULKAN] = "Tu equipo no es compatible con Vulkan, así que por ahora jugarás con OpenGL. Actualizar los drivers de tu tarjeta de video puede solucionarlo.",
             [TXT_SETUP_STEP] = "Configuración inicial · Paso %d de %d",
             [TXT_TITLE_FILES] = "Archivos del juego",
             [TXT_TITLE_SETTINGS] = "Configuración y HUD",
@@ -3349,7 +3352,6 @@ static void Settings_Load(void) {
     } else if (gameFound) {
         SDL_strlcpy(installedVersion, "0", sizeof(installedVersion));
     }
-    useVulkan = text && strstr(text, "renderer vulkan") != NULL;
     setupSaved = !text                   ? STEP_NONE
                  : strstr(text, "setup 1") ? STEP_FILES
                  : strstr(text, "setup 2") ? STEP_SETTINGS
@@ -3369,8 +3371,7 @@ static void Settings_Load(void) {
 static void Settings_Write(const char* root) {
     char path[1200], text[192];
 
-    SDL_snprintf(text, sizeof(text), "renderer %s\nlanguage %s\nversion %s\nby " PRODUCT_VERSION "\n", useVulkan ? "vulkan" : "opengl",
-                 lang == LANG_ES ? "es" : "en", installedVersion);
+    SDL_snprintf(text, sizeof(text), "language %s\nversion %s\nby " PRODUCT_VERSION "\n", lang == LANG_ES ? "es" : "en", installedVersion);
     if (setupSaved != STEP_NONE) {
         SDL_snprintf(text + strlen(text), sizeof(text) - strlen(text), "setup %d\n", setupSaved);
     }
@@ -5406,13 +5407,102 @@ static void Window_FromTray(void) {
     SDL_RaiseWindow(window);
 }
 
+static bool Vulkan_Swapchain(PFN_vkEnumerateDeviceExtensionProperties extensions, VkPhysicalDevice device) {
+    VkExtensionProperties* list;
+    uint32_t count = 0, i;
+    bool found = false;
+
+    if (extensions(device, NULL, &count, NULL) != VK_SUCCESS || !count) {
+        return false;
+    }
+    list = SDL_malloc(count * sizeof(*list));
+    if (list && extensions(device, NULL, &count, list) >= VK_SUCCESS) {
+        for (i = 0; i < count && !found; i++) {
+            found = !SDL_strcmp(list[i].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        }
+    }
+    SDL_free(list);
+    return found;
+}
+
+static bool Vulkan_Device(PFN_vkGetInstanceProcAddr proc, VkInstance instance) {
+    PFN_vkEnumeratePhysicalDevices devices = (PFN_vkEnumeratePhysicalDevices)proc(instance, "vkEnumeratePhysicalDevices");
+    PFN_vkGetPhysicalDeviceProperties properties = (PFN_vkGetPhysicalDeviceProperties)proc(instance, "vkGetPhysicalDeviceProperties");
+    PFN_vkGetPhysicalDeviceQueueFamilyProperties families =
+        (PFN_vkGetPhysicalDeviceQueueFamilyProperties)proc(instance, "vkGetPhysicalDeviceQueueFamilyProperties");
+    PFN_vkEnumerateDeviceExtensionProperties extensions =
+        (PFN_vkEnumerateDeviceExtensionProperties)proc(instance, "vkEnumerateDeviceExtensionProperties");
+    VkPhysicalDevice list[16];
+    uint32_t count = SDL_arraysize(list), i, j;
+
+    if (!devices || !properties || !families || !extensions || devices(instance, &count, list) < VK_SUCCESS) {
+        return false;
+    }
+    for (i = 0; i < count; i++) {
+        VkPhysicalDeviceProperties props;
+        VkQueueFamilyProperties queues[32];
+        uint32_t queueCount = SDL_arraysize(queues);
+
+        properties(list[i], &props);
+        if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
+            continue;
+        }
+        families(list[i], &queueCount, queues);
+        for (j = 0; j < queueCount; j++) {
+            if ((queues[j].queueFlags & VK_QUEUE_GRAPHICS_BIT) && Vulkan_Swapchain(extensions, list[i])) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static int SDLCALL Vulkan_Thread(void* unused) {
+    static const char* const names[] = {"vulkan-1.dll", "libvulkan.so.1", "libvulkan.so"};
+    VkApplicationInfo app = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    VkInstanceCreateInfo info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    SDL_SharedObject* lib = NULL;
+    PFN_vkGetInstanceProcAddr proc = NULL;
+    PFN_vkCreateInstance create = NULL;
+    VkInstance instance;
+    bool usable = false;
+    int i;
+
+    (void)unused;
+    for (i = 0; i < (int)SDL_arraysize(names) && !lib; i++) {
+        lib = SDL_LoadObject(names[i]);
+    }
+    if (lib) {
+        proc = (PFN_vkGetInstanceProcAddr)SDL_LoadFunction(lib, "vkGetInstanceProcAddr");
+    }
+    if (proc) {
+        create = (PFN_vkCreateInstance)proc(VK_NULL_HANDLE, "vkCreateInstance");
+    }
+    app.apiVersion = VK_API_VERSION_1_0;
+    info.pApplicationInfo = &app;
+    if (create && create(&info, NULL, &instance) == VK_SUCCESS) {
+        PFN_vkDestroyInstance destroy = (PFN_vkDestroyInstance)proc(instance, "vkDestroyInstance");
+
+        usable = Vulkan_Device(proc, instance);
+        if (destroy) {
+            destroy(instance, NULL);
+        }
+    }
+    if (lib) {
+        SDL_UnloadObject(lib);
+    }
+    SDL_SetAtomicInt(&vulkanState, usable ? VULKAN_USABLE : VULKAN_MISSING);
+    return 0;
+}
+
 static bool Game_Start(void) {
     char path[1024];
     const char* args[36];
     SDL_Process* process;
+    bool vulkan = rendererHint >= 0 ? rendererHint == 1 : SDL_GetAtomicInt(&vulkanState) != VULKAN_MISSING;
     int i;
 
-    SDL_snprintf(path, sizeof(path), "%s%s", basePath, (useVulkan && vulkanFound) ? VULKAN_NAME : GAME_NAME);
+    SDL_snprintf(path, sizeof(path), "%s%s", basePath, (vulkan && vulkanFound) ? VULKAN_NAME : GAME_NAME);
     File_Exec(path);
     args[0] = path;
     for (i = 0; i < gameArgCount && i < 32; i++) {
@@ -5514,12 +5604,12 @@ static void Draw_Label(float x, float width, Uint32 rgba, const char* text) {
     textTrack = 0.0f;
 }
 
-static float Draw_Big(int index, const char* text, bool ready, bool more, float turn, float done, const char* work) {
+static float Draw_Big(int index, const char* text, bool ready, float done, const char* work) {
     float x = SIDE_X, y = PLAY_Y, h = PLAY_H, mid = PLAY_Y + PLAY_H * 0.5f, w, tw;
-    float hot = ready && !work && !(index == BTN_PLAY && menuOpen) ? heat[index] : 0.0f;
+    float hot = ready && !work ? heat[index] : 0.0f;
 
     tw = Caps_Width(FONT_PLAY, text, TRACK_BUTTON);
-    w = SDL_max(SIDE_W, tw + 64.0f + (more ? 56.0f : 0.0f));
+    w = SDL_max(SIDE_W, tw + 64.0f);
     Button_Set(index, x, y, w, h, ready && !work);
     if (work) {
         done = SDL_clamp(done, 0.0f, 1.0f);
@@ -5533,9 +5623,6 @@ static float Draw_Big(int index, const char* text, bool ready, bool more, float 
     }
     Draw_Round(x, y, w, h, BUTTON_R, ready ? Col_Mix(COL_WHITE, COL_PURE, hot) : COL_P3);
     Draw_Caps(FONT_PLAY, x + (w - tw) * 0.5f, mid, ready ? COL_INK : COL_W70, text, TRACK_BUTTON);
-    if (more) {
-        Draw_Spin(&iconMore, x + w - 20.0f - MORE_ICON, mid - MORE_ICON * 0.5f, turn, ready ? COL_INK : COL_W70);
-    }
     return w;
 }
 
@@ -5766,7 +5853,7 @@ static void Draw_SideHead(void) {
     if (!serversLoaded) {
         return;
     }
-    Button_Set(BTN_SERVERS, x + w - sw - MORE_ICON - 12.0f, mid - 16.0f, sw + MORE_ICON + 12.0f, 32.0f, !menuOpen);
+    Button_Set(BTN_SERVERS, x + w - sw - MORE_ICON - 12.0f, mid - 16.0f, sw + MORE_ICON + 12.0f, 32.0f, true);
     Draw_Text(FONT_BODY, x + w - sw - MORE_ICON - 4.0f, Text_Mid(FONT_BODY, mid), link, T(TXT_SEE_ALL), -1);
     Draw_Spin(&iconMore, x + w - MORE_ICON + 2.0f * hot, mid - MORE_ICON * 0.5f, 90.0f, link);
 }
@@ -5780,18 +5867,15 @@ static void Draw_SideServers(float y) {
     for (i = 0; i < n; i++) {
         float ry = y + (float)i * (SIDE_ROW_H + SIDE_GAP);
 
-        Button_Set(BTN_SIDE_0 + i, x, ry, w, SIDE_ROW_H, !menuOpen);
+        Button_Set(BTN_SIDE_0 + i, x, ry, w, SIDE_ROW_H, true);
         Side_Row(&servers[i], x, ry, w, heat[BTN_SIDE_0 + i]);
     }
 }
 
 static void Draw_Card(void) {
     char work[64];
-    const button_t* b;
-    float open = menuHeat * menuHeat * (3.0f - 2.0f * menuHeat);
-    float x = SIDE_X, row = BODY_TOP + 32.0f, lift, menuY = PLAY_Y - 8.0f - MENU_H;
+    float x = SIDE_X, row = BODY_TOP + 32.0f;
     bool busy = Update_Busy(), ready = Play_Ready();
-    int i;
 
     if (gameFound) {
         Draw_SideHead();
@@ -5821,6 +5905,10 @@ static void Draw_Card(void) {
             }
             row += 36.0f;
         }
+        if (gameFound && vulkanFound && SDL_GetAtomicInt(&vulkanState) == VULKAN_MISSING) {
+            Draw_Round(x, row - 4.0f, 8.0f, 8.0f, 4.0f, COL_DOT);
+            row = Draw_Para(FONT_TEXT, x + 18.0f, row - 12.0f, SIDE_W - 18.0f, 24.0f, COL_W70, T(TXT_NO_VULKAN)) + 24.0f;
+        }
     }
     if (serversLoaded && gameFound) {
         Draw_SideServers(row - 18.0f);
@@ -5828,28 +5916,7 @@ static void Draw_Card(void) {
         Draw_Text(FONT_SMALL, x, Text_Mid(FONT_SMALL, row), COL_W70, Text_Fit(FONT_SMALL, T(serversFailed ? TXT_SERVERS_FAILED : TXT_SERVERS_LOADING), SIDE_W), -1);
     }
 
-    lift = (1.0f - open) * 6.0f;
-    Draw_Big(BTN_PLAY, T(TXT_PLAY), ready, ready && vulkanFound, 180.0f * open, busy ? Job_Done() : 0.0f, busy ? work : NULL);
-
-    Button_Set(BTN_GL, SIDE_X + MENU_PAD, menuY + MENU_PAD, SIDE_W - MENU_PAD * 2.0f, MENU_ROW, menuOpen);
-    Button_Set(BTN_VK, SIDE_X + MENU_PAD, menuY + MENU_PAD + MENU_ROW, SIDE_W - MENU_PAD * 2.0f, MENU_ROW, menuOpen);
-    if (open > 0.0f) {
-        Draw_Round(SIDE_X, menuY + lift, SIDE_W, MENU_H, BUTTON_R, Col_Alpha(COL_P3, open));
-        for (i = BTN_GL; i <= BTN_VK; i++) {
-            bool vk = i == BTN_VK, focus = vk == (menuPick == 1);
-            float mid;
-
-            b = &buttons[i];
-            mid = b->y + lift + b->h * 0.5f;
-            if (focus) {
-                Draw_Round(b->x, b->y + lift, b->w, b->h, ITEM_R, Col_Alpha(COL_P4, open));
-            }
-            Draw_Text(FONT_TEXT, b->x + 14.0f, Text_Mid(FONT_TEXT, mid), Col_Alpha(focus ? COL_WHITE : COL_W70, open), vk ? "Vulkan" : "OpenGL", -1);
-            if (vk == useVulkan) {
-                Draw_Spin(&iconCheck, b->x + b->w - 14.0f - CHECK_ICON, mid - CHECK_ICON * 0.5f, 0.0f, Col_Alpha(COL_WHITE, open));
-            }
-        }
-    }
+    Draw_Big(BTN_PLAY, T(TXT_PLAY), ready, busy ? Job_Done() : 0.0f, busy ? work : NULL);
 }
 
 static void Draw_Status(void) {
@@ -6155,13 +6222,13 @@ static void Draw_Setup(void) {
     if (working) {
         Slide_End();
         SDL_snprintf(work, sizeof(work), T(TXT_WORKING), (int)(Job_Done() * 100.0f));
-        Draw_Big(BTN_NEXT, next, false, false, 0.0f, Job_Done(), work);
+        Draw_Big(BTN_NEXT, next, false, Job_Done(), work);
         Buttons_Hide(BTN_NEXT, BTN_OPT_B);
         return;
     }
     Setup_Note(note);
     Slide_End();
-    Draw_Big(BTN_NEXT, next, true, false, 0.0f, 0.0f, NULL);
+    Draw_Big(BTN_NEXT, next, true, 0.0f, NULL);
     if (alt) {
         Draw_Link(BTN_ALT, SIDE_X, PLAY_Y - 30.0f, alt);
     }
@@ -6188,14 +6255,14 @@ static void Draw_Install(void) {
         } else {
             SDL_strlcpy(line, T(TXT_INSTALLING), sizeof(line));
         }
-        Draw_Big(BTN_NEXT, T(TXT_INSTALL), false, false, 0.0f, done, line);
+        Draw_Big(BTN_NEXT, T(TXT_INSTALL), false, done, line);
         return;
     }
     Draw_Link(BTN_ALT, x, y + 16.0f, T(TXT_CHANGE_FOLDER));
     Draw_Check(BTN_OPT_A, x - 12.0f, y + 46.0f, w + 24.0f, install.shortcut, T(TXT_SHORTCUT), "");
     note = install.fail != FAIL_NONE ? T(TXT_FAIL_FOLDER + install.fail - 1) : T(install.adopt ? TXT_ADOPT : install.local ? TXT_FROM_FILE : TXT_FROM_GITHUB);
     Draw_Para(FONT_BODY, SIDE_X, BODY_TOP + 26.0f, SIDE_W, 25.0f, install.fail != FAIL_NONE ? COL_WHITE : COL_W70, note);
-    Draw_Big(BTN_NEXT, T(TXT_INSTALL), true, false, 0.0f, 0.0f, NULL);
+    Draw_Big(BTN_NEXT, T(TXT_INSTALL), true, 0.0f, NULL);
 }
 
 static void Draw_Languages(void) {
@@ -6650,7 +6717,6 @@ static bool Heat_Update(float dt, bool notes) {
     for (i = 0; i < BTN_COUNT; i++) {
         moving |= Ease(&heat[i], hotButton == i ? 1.0f : 0.0f, dt * 9.0f);
     }
-    moving |= Ease(&menuHeat, menuOpen ? 1.0f : 0.0f, dt * 7.0f);
     moving |= Ease(&langHeat, langOpen ? 1.0f : 0.0f, dt * 7.0f);
     moving |= Ease(&optsHeat, optsOpen ? 1.0f : 0.0f, dt * 7.0f);
     if (panelUp != (serversOpen && setup.step == STEP_NONE && !install.active)) {
@@ -6709,9 +6775,6 @@ static void Hot_Set(int index) {
         return;
     }
     hotButton = index;
-    if (index == BTN_GL || index == BTN_VK) {
-        menuPick = index == BTN_VK;
-    }
     if (cursorArrow && cursorHand) {
         SDL_SetCursor(index >= 0 ? cursorHand : cursorArrow);
     }
@@ -6750,7 +6813,7 @@ static SDL_HitTestResult SDLCALL Window_HitTest(SDL_Window* win, const SDL_Point
 
     (void)win;
     (void)data;
-    if (menuOpen || langOpen || optsOpen || Button_At(x, y) >= 0) {
+    if (langOpen || optsOpen || Button_At(x, y) >= 0) {
         return SDL_HITTEST_NORMAL;
     }
     if (notesHeight > notesView + 0.5f && x >= COL_X && x < SIDE_X - 24.0f && y >= BODY_TOP) {
@@ -6772,7 +6835,7 @@ static void Notes_Scroll(float amount) {
 }
 
 static bool Feed_Grab(float x, float y) {
-    if (menuOpen || langOpen || setup.step != STEP_NONE || install.active || notesHeight <= notesView + 0.5f || x < COL_X ||
+    if (langOpen || setup.step != STEP_NONE || install.active || notesHeight <= notesView + 0.5f || x < COL_X ||
         x >= SIDE_X - 24.0f || y < notesTop || y >= notesLow) {
         return false;
     }
@@ -6859,9 +6922,8 @@ static void Box_See(void) {
 }
 
 static bool Button_Press(int index) {
-    bool wasOpen = menuOpen, wasLang = langOpen, wasOpts = optsOpen;
+    bool wasLang = langOpen, wasOpts = optsOpen;
 
-    menuOpen = false;
     langOpen = false;
     optsOpen = false;
     if (index >= BTN_MENU_0 && index <= BTN_MENU_LAST) {
@@ -6911,22 +6973,7 @@ static bool Button_Press(int index) {
             serversOpen = false;
             break;
         case BTN_PLAY:
-            if (!Play_Ready()) {
-                break;
-            }
-            if (!vulkanFound) {
-                return Game_Start();
-            }
-            menuOpen = !wasOpen;
-            if (menuOpen) {
-                menuPick = useVulkan ? 1 : 0;
-            }
-            break;
-        case BTN_GL:
-        case BTN_VK:
-            if (wasOpen && Play_Ready()) {
-                useVulkan = index == BTN_VK;
-                Settings_Save();
+            if (Play_Ready()) {
                 return Game_Start();
             }
             break;
@@ -7035,21 +7082,13 @@ static bool Key_Press(SDL_Keycode key) {
     }
     switch (key) {
         case SDLK_ESCAPE:
-            if (!menuOpen) {
-                return true;
-            }
-            menuOpen = false;
-            break;
+            return true;
         case SDLK_RETURN:
         case SDLK_KP_ENTER:
-            return Button_Press(!menuOpen ? BTN_PLAY : menuPick ? BTN_VK : BTN_GL);
+            return Button_Press(BTN_PLAY);
         case SDLK_UP:
         case SDLK_DOWN:
-            if (menuOpen) {
-                menuPick = key == SDLK_DOWN;
-            } else {
-                Notes_Scroll(key == SDLK_DOWN ? 72.0f : -72.0f);
-            }
+            Notes_Scroll(key == SDLK_DOWN ? 72.0f : -72.0f);
             break;
         case SDLK_PAGEUP:
         case SDLK_PAGEDOWN:
@@ -7087,9 +7126,6 @@ static int Launcher_Fail(const char* why) {
 #else
     if (gameFound) {
         Settings_Load();
-        if (rendererHint >= 0) {
-            useVulkan = rendererHint == 1;
-        }
         if (Game_Start()) {
             SDL_Quit();
             return 0;
@@ -7167,7 +7203,6 @@ int main(int argc, char** argv) {
         forced = atoi(option);
     }
     option = SDL_getenv("LAUNCHER_TAB");
-    menuOpen = option && option[0] == '1';
     langOpen = option && option[0] == '2';
     optsOpen = option && option[0] == '4';
     serversOpen = option && (option[0] == '5' || option[0] == '6' || option[0] == '8');
@@ -7317,11 +7352,14 @@ int main(int argc, char** argv) {
     option = SDL_getenv("LAUNCHER_UPDATE");
     autoUpdate = option && option[0] == '1';
     autoRepair = option && option[0] == '2';
-#endif
-    if (rendererHint >= 0) {
-        useVulkan = rendererHint == 1;
+    option = SDL_getenv("LAUNCHER_VULKAN");
+    if (option && option[0]) {
+        SDL_SetAtomicInt(&vulkanState, option[0] == '1' ? VULKAN_USABLE : VULKAN_MISSING);
     }
-    menuPick = useVulkan ? 1 : 0;
+#endif
+    if (vulkanFound && SDL_GetAtomicInt(&vulkanState) == VULKAN_PROBING) {
+        SDL_DetachThread(SDL_CreateThread(Vulkan_Thread, "vulkan", NULL));
+    }
     setup.want[KIND_CONFIG] = setup.want[KIND_HUD] = true;
     if (gameFound) {
         char pak[1024];
@@ -7331,11 +7369,8 @@ int main(int argc, char** argv) {
         prefStartup = startupOn;
         prefBeta = betaChannel;
         if (setup.step != STEP_NONE) {
-            menuOpen = false;
             Job_Start(JOB_SCAN, 0);
         }
-    } else {
-        menuOpen = false;
     }
 #ifndef LAUNCHER_SHOT
     if (gameFound && firstRun) {
@@ -7497,7 +7532,6 @@ int main(int argc, char** argv) {
                 stepHeat = (float)SDL_atof(option);
             }
 #endif
-            menuHeat = menuOpen ? 1.0f : 0.0f;
             langHeat = langOpen ? 1.0f : 0.0f;
             optsHeat = optsOpen ? 1.0f : 0.0f;
             for (k = 0; k < shotCount; k++) {
@@ -7525,8 +7559,7 @@ int main(int argc, char** argv) {
                 SDL_DestroySurface(surface);
             }
             if (gameArgCount && setup.step == STEP_NONE) {
-                menuOpen = true;
-                SDL_Log("play: %d", (int)Button_Press(useVulkan ? BTN_VK : BTN_GL));
+                SDL_Log("play: %d", (int)Button_Press(BTN_PLAY));
             }
             running = false;
         }
