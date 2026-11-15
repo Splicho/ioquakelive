@@ -367,6 +367,7 @@ typedef struct {
 typedef struct {
     cell_t cells[FONT_SHIFTS];
     float advance;
+    bool color;
 } glyph_t;
 
 typedef struct {
@@ -1120,6 +1121,113 @@ static int Glyph_Bake(const font_t* font, Uint32 cp, glyph_t* g) {
     return page;
 }
 
+static void Pixels_Halve(unsigned char* p, int* w, int* h);
+static unsigned char* Pixels_Fit(const unsigned char* rgba, int w, int h, int outW, int outH);
+
+static bool Emoji_Default(Uint32 cp) {
+    static const Uint32 ranges[][2] = {
+        {0x231a, 0x231b}, {0x23e9, 0x23ec}, {0x23f0, 0x23f0}, {0x23f3, 0x23f3}, {0x25fd, 0x25fe}, {0x2614, 0x2615},
+        {0x2648, 0x2653}, {0x267f, 0x267f}, {0x2693, 0x2693}, {0x26a1, 0x26a1}, {0x26aa, 0x26ab}, {0x26bd, 0x26be},
+        {0x26c4, 0x26c5}, {0x26ce, 0x26ce}, {0x26d4, 0x26d4}, {0x26ea, 0x26ea}, {0x26f2, 0x26f3}, {0x26f5, 0x26f5},
+        {0x26fa, 0x26fa}, {0x26fd, 0x26fd}, {0x2705, 0x2705}, {0x270a, 0x270b}, {0x2728, 0x2728}, {0x274c, 0x274c},
+        {0x274e, 0x274e}, {0x2753, 0x2755}, {0x2757, 0x2757}, {0x2795, 0x2797}, {0x27b0, 0x27b0}, {0x27bf, 0x27bf},
+        {0x2b1b, 0x2b1c}, {0x2b50, 0x2b50}, {0x2b55, 0x2b55},
+    };
+    int i;
+
+    if (cp >= 0x1f000 && cp < 0x1fb00) {
+        return true;
+    }
+    for (i = 0; i < (int)SDL_arraysize(ranges); i++) {
+        if (cp >= ranges[i][0] && cp <= ranges[i][1]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int Glyph_Emoji(const font_t* font, Uint32 cp, glyph_t* g) {
+    char name[32];
+    size_t size = 0;
+    unsigned char* file;
+    unsigned char* rgba = NULL;
+    unsigned char* fit = NULL;
+    SDL_IOStream* io;
+    SDL_Surface* png;
+    SDL_Surface* surface;
+    int n, w, h, y, s, page = -1;
+    SDL_Rect r;
+
+    if (!Emoji_Default(cp)) {
+        return -1;
+    }
+    SDL_snprintf(name, sizeof(name), "emoji/%04x.png", (unsigned)cp);
+    file = Pak_Read(PAK_OURS, name, &size);
+    if (!file) {
+        return -1;
+    }
+    io = SDL_IOFromConstMem(file, size);
+    png = io ? SDL_LoadPNG_IO(io, true) : NULL;
+    surface = png ? SDL_ConvertSurface(png, SDL_PIXELFORMAT_RGBA32) : NULL;
+    free(file);
+    if (png) {
+        SDL_DestroySurface(png);
+    }
+    if (!surface) {
+        return -1;
+    }
+    n = SDL_clamp((int)SDL_roundf(font->em), 1, 254);
+    w = surface->w;
+    h = surface->h;
+    rgba = malloc((size_t)w * h * 4);
+    if (rgba) {
+        for (y = 0; y < h; y++) {
+            memcpy(rgba + (size_t)y * w * 4, (Uint8*)surface->pixels + (size_t)y * surface->pitch, (size_t)w * 4);
+        }
+        while (w / 2 >= n && h / 2 >= n) {
+            Pixels_Halve(rgba, &w, &h);
+        }
+        fit = Pixels_Fit(rgba, w, h, n, n);
+    }
+    SDL_DestroySurface(surface);
+    free(rgba);
+    if (!fit || (!extraPageCount && !Extra_Page())) {
+        free(fit);
+        return -1;
+    }
+    if (extraX + n + 1 > EXTRA_SIDE) {
+        extraX = 1;
+        extraY += extraRow + 1;
+        extraRow = 0;
+    }
+    if (extraY + n + 1 > EXTRA_SIDE && !Extra_Page()) {
+        free(fit);
+        return -1;
+    }
+    page = extraPageCount - 1;
+    for (s = 0; s < FONT_SHIFTS; s++) {
+        g->cells[s].ax = extraX;
+        g->cells[s].ay = extraY;
+        g->cells[s].w = n;
+        g->cells[s].h = n;
+        g->cells[s].ox = 0;
+        g->cells[s].oy = -(int)SDL_roundf((font->cap + (float)n) * 0.5f);
+    }
+    r.x = extraX;
+    r.y = extraY;
+    r.w = n;
+    r.h = n;
+    SDL_UpdateTexture(extraPages[page], &r, fit, n * 4);
+    free(fit);
+    extraX += n + 1;
+    if (n > extraRow) {
+        extraRow = n;
+    }
+    g->advance = (float)n * 1.1f;
+    g->color = true;
+    return page;
+}
+
 static const glyph_t* Glyph_Get(int fontIndex, Uint32 cp, SDL_Texture** tex) {
     static const glyph_t none;
     font_t* font = &fonts[fontIndex];
@@ -1151,7 +1259,10 @@ static const glyph_t* Glyph_Get(int fontIndex, Uint32 cp, SDL_Texture** tex) {
     e = &extras[extraCount];
     e->cp = cp;
     e->font = fontIndex;
-    e->page = Glyph_Bake(font, cp, &e->glyph);
+    e->page = Glyph_Emoji(font, cp, &e->glyph);
+    if (e->page < 0) {
+        e->page = Glyph_Bake(font, cp, &e->glyph);
+    }
     extraSlots[slot] = (Uint16)++extraCount;
     if (e->page < 0) {
         return &font->glyphs['?' - 32];
@@ -2001,7 +2112,11 @@ static void Draw_Glyph(int fontIndex, Uint32 cp, float* px, float py, Uint32 rgb
     if (cell->w > 0 && cell->h > 0) {
         SDL_FRect src, dst;
 
-        if (tex != *last) {
+        if (g->color) {
+            *last = NULL;
+            SDL_SetTextureColorMod(tex, 255, 255, 255);
+            SDL_SetTextureAlphaMod(tex, (Uint8)rgba);
+        } else if (tex != *last) {
             *last = tex;
             SDL_SetTextureColorMod(tex, (Uint8)(rgba >> 24), (Uint8)(rgba >> 16), (Uint8)(rgba >> 8));
             SDL_SetTextureAlphaMod(tex, (Uint8)rgba);
