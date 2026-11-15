@@ -35,7 +35,6 @@ set(SOURCES
   launcher.c
   launcher_jpeg.c
   launcher_logo.c
-  launcher_flags.c
   launcher_fonts.c
   ${CODE}/renderercommon/tr_stbtt.c)
 foreach(name inflate inffast inftrees adler32 crc32 zutil)

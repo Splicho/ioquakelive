@@ -110,12 +110,6 @@
 #define NOTES_LINE 27.0f
 #define CHECK_ICON 16.0f
 #define CLOSE_ICON 12.0f
-#define FLAG_W 22.0f
-#define LANG_W 196.0f
-#define LANG_ROW 44.0f
-#define LANG_H (LANG_ROW * 2.0f + MENU_PAD * 2.0f)
-#define LANG_X (UI_W - 12.0f - LANG_W)
-#define LANG_Y (CTRL_H + 6.0f)
 #define OPTS_ROWS 6
 #define OPTS_W 320.0f
 #define OPTS_ROW 40.0f
@@ -249,9 +243,6 @@ enum {
     BTN_OPT_A,
     BTN_OPT_B,
     BTN_OPTS,
-    BTN_LANG,
-    BTN_LANG_A,
-    BTN_LANG_B,
     BTN_MIN,
     BTN_CLOSE,
     BTN_MENU_0,
@@ -275,7 +266,6 @@ enum { JOB_SCAN, JOB_FILES, JOB_SETTINGS, JOB_DEMOS, JOB_INSTALL, JOB_UPDATE, JO
 enum { RUN_IDLE, RUN_BUSY, RUN_OK, RUN_FAIL };
 enum { FAIL_NONE, FAIL_FOLDER, FAIL_NET, FAIL_FILE, FAIL_BUSY };
 enum { PHASE_DOWNLOAD, PHASE_INSTALL };
-enum { LANG_EN, LANG_ES, LANG_COUNT };
 enum {
     TXT_PLAY,
     TXT_UPTODATE,
@@ -473,14 +463,10 @@ extern const unsigned char launcherFontMedium[];
 extern const unsigned char launcherFontStrong[];
 extern const unsigned char launcherLogo[];
 extern const unsigned int launcherLogoSize;
-extern const unsigned char launcherFlagEn[];
-extern const unsigned int launcherFlagEnSize;
-extern const unsigned char launcherFlagEs[];
-extern const unsigned int launcherFlagEsSize;
 
 static SDL_Window* window;
 static SDL_Renderer* renderer;
-static image_t hero, shade, logo, iconMore, iconCheck, iconSlash, iconGear, flags[LANG_COUNT];
+static image_t hero, shade, logo, iconMore, iconCheck, iconSlash, iconGear;
 static float uiScale = 1.0f;
 static const float artBox[2][4] = {{-24.0f, -40.0f, UI_W * 1.06f, UI_H * 1.06f}, {0.0f, 0.0f, UI_W, UI_H}};
 static const char* basePath = "";
@@ -531,13 +517,12 @@ static float heat[BTN_COUNT];
 static SDL_Cursor* cursorArrow;
 static SDL_Cursor* cursorHand;
 static int hotButton = -1;
-static bool gameFound, vulkanFound, heroCustom, langOpen, firstRun;
+static bool gameFound, vulkanFound, heroCustom, firstRun;
 static int rendererHint = -1;
 static SDL_AtomicInt vulkanState;
 static char** gameArgs;
 static int gameArgCount;
-static int lang;
-static float langHeat, introHeat, notesLow, thumbY, thumbH, dragStart, dragFrom, textTrack;
+static float introHeat, notesLow, thumbY, thumbH, dragStart, dragFrom, textTrack;
 static int dragMode;
 static float notesHeat, notesScroll, notesGoal, notesHeight, notesView, notesTop;
 static float stepHeat = 1.0f, slideX, slideFade = 1.0f, listHeat;
@@ -648,199 +633,101 @@ static Sint64 userWhen;
 static bool steamMissing;
 static Uint64 steamChecked, steamOpening;
 
-static const char* const langNames[LANG_COUNT] = {"English", "Español"};
-static const char* const texts[LANG_COUNT][TXT_COUNT] = {
-    [LANG_EN] =
-        {
-            [TXT_PLAY] = "Play",
-            [TXT_UPTODATE] = "Latest version",
-            [TXT_CHECKING] = "Checking for updates...",
-            [TXT_CHECK_FAILED] = "Could not check for updates",
-            [TXT_PATCH_OUT] = "Update to %s",
-            [TXT_DOWNLOADING] = "Downloading: %d%%",
-            [TXT_INSTALLING] = "Installing...",
-            [TXT_WHATS_NEW] = "What's new in version %s",
-            [TXT_INSTALL_TITLE] = "Install ioquakelive",
-            [TXT_INSTALL_WHERE] = "It will be installed in:",
-            [TXT_CHANGE_FOLDER] = "Change folder",
-            [TXT_SHORTCUT] = "Create a desktop shortcut",
-            [TXT_FROM_GITHUB] = "ioquakelive will be downloaded from GitHub.",
-            [TXT_FROM_FILE] = "ioquakelive will be installed from the ZIP file next to the launcher.",
-            [TXT_ADOPT] = "An ioquakelive installation was found. Only the launcher will be added.",
-            [TXT_FAIL_FOLDER] = "This folder cannot be used. Choose another one.",
-            [TXT_FAIL_NET] = "The download failed. Check your internet connection and try again.",
-            [TXT_FAIL_FILE] = "The files could not be installed. Make sure there is enough disk space.",
-            [TXT_FAIL_BUSY] = "Close ioquakelive and try again.",
-            [TXT_STEAM_OFF] = "Steam is not running.",
-            [TXT_STEAM_OPEN] = "Open Steam",
-            [TXT_STEAM_OPENING] = "Opening Steam...",
-            [TXT_NO_VULKAN] = "Your system does not support Vulkan, so you will play with OpenGL for now. Updating your graphics drivers may fix it.",
-            [TXT_SETUP_STEP] = "First-time setup · Step %d of %d",
-            [TXT_TITLE_FILES] = "Game files",
-            [TXT_TITLE_SETTINGS] = "Settings and HUD",
-            [TXT_TITLE_DEMOS] = "Demos",
-            [TXT_SCANNING] = "Looking for Quake Live...",
-            [TXT_FILES_FOUND] = "ioquakelive uses the files of your original Quake Live installation. They were found in:",
-            [TXT_NO_SPACE] = "It will not take up any extra disk space.",
-            [TXT_PAK_COPY] = "pak00.pk3 will be copied (917 MB).",
-            [TXT_INSTALL] = "Install",
-            [TXT_CHOOSE_OTHER] = "Select manually",
-            [TXT_FILES_MISSING] = "To use ioquakelive you need a legitimate copy of Quake Live on Steam. Install it from your "
-                                  "Steam library or select the pak00.pk3 file manually.",
-            [TXT_FIND_PAK] = "Find pak00.pk3",
-            [TXT_SEARCH_AGAIN] = "Search again",
-            [TXT_WRONG_FILE] = "The selected file is not the Quake Live pak00.pk3.",
-            [TXT_PAK_FAILED] = "pak00.pk3 could not be installed. Make sure there is enough disk space.",
-            [TXT_SETTINGS_INTRO] = "Import your settings and HUD from Quake Live.",
-            [TXT_CONFIG] = "Settings",
-            [TXT_HUD] = "HUD",
-            [TXT_FILE_ONE] = "%d file",
-            [TXT_FILE_MANY] = "%d files",
-            [TXT_UNCHANGED] = "Your original Quake Live installation will not be changed.",
-            [TXT_FILES_FAILED] = "Some files could not be copied.",
-            [TXT_IMPORT] = "Import",
-            [TXT_SKIP] = "Skip",
-            [TXT_NEXT] = "Next",
-            [TXT_FINISH] = "Finish",
-            [TXT_NO_SETTINGS] = "No settings or HUD were found in your Quake Live installation.",
-            [TXT_DEMO_ONE] = "%d demo was found in your Quake Live installation (%s).",
-            [TXT_DEMO_MANY] = "%d demos were found in your Quake Live installation (%s).",
-            [TXT_DEMOS_COPY] = "They will be copied to ioquakelive.",
-            [TXT_DEMOS_FAILED] = "Some demos could not be copied.",
-            [TXT_NO_DEMOS] = "No demos were found in your Quake Live installation.",
-            [TXT_WORKING] = "Copying: %d%%",
-            [TXT_BACK] = "Back",
-            [TXT_TITLE_PREFS] = "Preferences",
-            [TXT_PREFS_INTRO] = "You can change them anytime from the options.",
-            [TXT_STARTUP] = "Open at startup",
-            [TXT_STARTUP_DETAIL] = "Minimized, to update by itself",
-            [TXT_BETA] = "Experimental versions",
-            [TXT_BETA_DETAIL] = "New things first, still in testing",
-            [TXT_OPEN_FOLDER] = "Open game folder",
-            [TXT_RUN_SETUP] = "First-time setup",
-            [TXT_REPAIR] = "Repair installation",
-            [TXT_CHECK_NOW] = "Check for updates",
-            [TXT_SERVERS_SIDE] = "Servers",
-            [TXT_SEE_ALL] = "See all",
-            [TXT_SERVERS_TITLE] = "Quake Club servers",
-            [TXT_SERVERS_LOADING] = "Loading servers...",
-            [TXT_SERVERS_FAILED] = "The server list could not be loaded.",
-            [TXT_COL_SERVER] = "Server",
-            [TXT_COL_MODE] = "Mode and map",
-            [TXT_COL_PLAYERS] = "Players",
-            [TXT_OF] = "of",
-            [TXT_STATE_PLAYING] = "In progress",
-            [TXT_STATE_WARMUP] = "Warmup",
-            [TXT_STATE_COUNTDOWN] = "Countdown",
-            [TXT_STATE_PREGAME] = "Pre-game",
-            [TXT_STATE_WAITING] = "Waiting",
-            [TXT_RED_TEAM] = "Red Team",
-            [TXT_BLUE_TEAM] = "Blue Team",
-            [TXT_SPECTATORS] = "Spectators",
-            [TXT_NOBODY] = "Nobody is playing right now.",
-            [TXT_JOIN] = "Connect",
-            [TXT_SEE_SERVER] = "View server",
-            [TXT_CLOSE] = "Close",
-            [TXT_TRAY_OPEN] = "Open ioquakelive",
-            [TXT_TRAY_QUIT] = "Quit",
-        },
-    [LANG_ES] =
-        {
-            [TXT_PLAY] = "Jugar",
-            [TXT_UPTODATE] = "Última versión",
-            [TXT_CHECKING] = "Buscando actualizaciones...",
-            [TXT_CHECK_FAILED] = "No se pudieron buscar actualizaciones",
-            [TXT_PATCH_OUT] = "Actualizar a la %s",
-            [TXT_DOWNLOADING] = "Descargando: %d%%",
-            [TXT_INSTALLING] = "Instalando...",
-            [TXT_WHATS_NEW] = "Novedades de la versión %s",
-            [TXT_INSTALL_TITLE] = "Instalar ioquakelive",
-            [TXT_INSTALL_WHERE] = "Se instalará en:",
-            [TXT_CHANGE_FOLDER] = "Cambiar carpeta",
-            [TXT_SHORTCUT] = "Crear un acceso directo en el escritorio",
-            [TXT_FROM_GITHUB] = "ioquakelive se descargará desde GitHub.",
-            [TXT_FROM_FILE] = "ioquakelive se instalará desde el archivo ZIP ubicado junto al launcher.",
-            [TXT_ADOPT] = "Se detectó una instalación de ioquakelive. Solo se agregará el launcher.",
-            [TXT_FAIL_FOLDER] = "No se puede utilizar esta carpeta. Elige otra.",
-            [TXT_FAIL_NET] = "La descarga falló. Comprueba tu conexión a internet e inténtalo de nuevo.",
-            [TXT_FAIL_FILE] = "No se pudieron instalar los archivos. Comprueba que haya suficiente espacio en disco.",
-            [TXT_FAIL_BUSY] = "Cierra ioquakelive e inténtalo de nuevo.",
-            [TXT_STEAM_OFF] = "Steam no está abierto.",
-            [TXT_STEAM_OPEN] = "Abrir Steam",
-            [TXT_STEAM_OPENING] = "Abriendo Steam...",
-            [TXT_NO_VULKAN] = "Tu equipo no es compatible con Vulkan, así que por ahora jugarás con OpenGL. Actualizar los drivers de tu tarjeta de video puede solucionarlo.",
-            [TXT_SETUP_STEP] = "Configuración inicial · Paso %d de %d",
-            [TXT_TITLE_FILES] = "Archivos del juego",
-            [TXT_TITLE_SETTINGS] = "Configuración y HUD",
-            [TXT_TITLE_DEMOS] = "Demos",
-            [TXT_SCANNING] = "Buscando Quake Live...",
-            [TXT_FILES_FOUND] = "ioquakelive utiliza los archivos de tu instalación original de Quake Live. Se encontraron en:",
-            [TXT_NO_SPACE] = "No ocupará espacio adicional en el disco.",
-            [TXT_PAK_COPY] = "Se copiará pak00.pk3 (917 MB).",
-            [TXT_INSTALL] = "Instalar",
-            [TXT_CHOOSE_OTHER] = "Seleccionar manualmente",
-            [TXT_FILES_MISSING] = "Para utilizar ioquakelive necesitas una copia legítima de Quake Live en Steam. Instálalo desde "
-                                  "tu biblioteca de Steam o selecciona manualmente el archivo pak00.pk3.",
-            [TXT_FIND_PAK] = "Buscar pak00.pk3",
-            [TXT_SEARCH_AGAIN] = "Buscar de nuevo",
-            [TXT_WRONG_FILE] = "El archivo seleccionado no corresponde al pak00.pk3 de Quake Live.",
-            [TXT_PAK_FAILED] = "No se pudo instalar pak00.pk3. Comprueba que haya suficiente espacio en disco.",
-            [TXT_SETTINGS_INTRO] = "Importa tu configuración y HUD de Quake Live.",
-            [TXT_CONFIG] = "Configuración",
-            [TXT_HUD] = "HUD",
-            [TXT_FILE_ONE] = "%d archivo",
-            [TXT_FILE_MANY] = "%d archivos",
-            [TXT_UNCHANGED] = "Tu instalación original de Quake Live no se modificará.",
-            [TXT_FILES_FAILED] = "No se pudieron copiar algunos archivos.",
-            [TXT_IMPORT] = "Importar",
-            [TXT_SKIP] = "Omitir",
-            [TXT_NEXT] = "Siguiente",
-            [TXT_FINISH] = "Terminar",
-            [TXT_NO_SETTINGS] = "No se encontró ninguna configuración ni HUD en tu instalación de Quake Live.",
-            [TXT_DEMO_ONE] = "Se encontró %d demo en tu instalación de Quake Live (%s).",
-            [TXT_DEMO_MANY] = "Se encontraron %d demos en tu instalación de Quake Live (%s).",
-            [TXT_DEMOS_COPY] = "Se copiarán a ioquakelive.",
-            [TXT_DEMOS_FAILED] = "No se pudieron copiar algunas demos.",
-            [TXT_NO_DEMOS] = "No se encontraron demos en tu instalación de Quake Live.",
-            [TXT_WORKING] = "Copiando: %d%%",
-            [TXT_BACK] = "Atrás",
-            [TXT_TITLE_PREFS] = "Preferencias",
-            [TXT_PREFS_INTRO] = "Puedes cambiarlas cuando quieras desde las opciones.",
-            [TXT_STARTUP] = "Abrir al iniciar el equipo",
-            [TXT_STARTUP_DETAIL] = "Minimizado, para actualizarse solo",
-            [TXT_BETA] = "Versiones experimentales",
-            [TXT_BETA_DETAIL] = "Lo nuevo antes, aún en prueba",
-            [TXT_OPEN_FOLDER] = "Abrir la carpeta del juego",
-            [TXT_RUN_SETUP] = "Configuración inicial",
-            [TXT_REPAIR] = "Reparar la instalación",
-            [TXT_CHECK_NOW] = "Buscar actualizaciones",
-            [TXT_SERVERS_SIDE] = "Servidores",
-            [TXT_SEE_ALL] = "Ver todos",
-            [TXT_SERVERS_TITLE] = "Servidores de Quake Club",
-            [TXT_SERVERS_LOADING] = "Cargando servidores...",
-            [TXT_SERVERS_FAILED] = "No se pudo cargar la lista de servidores.",
-            [TXT_COL_SERVER] = "Servidor",
-            [TXT_COL_MODE] = "Modo y mapa",
-            [TXT_COL_PLAYERS] = "Jugadores",
-            [TXT_OF] = "de",
-            [TXT_STATE_PLAYING] = "En juego",
-            [TXT_STATE_WARMUP] = "Calentamiento",
-            [TXT_STATE_COUNTDOWN] = "Cuenta atrás",
-            [TXT_STATE_PREGAME] = "Previa",
-            [TXT_STATE_WAITING] = "Esperando",
-            [TXT_RED_TEAM] = "Red Team",
-            [TXT_BLUE_TEAM] = "Blue Team",
-            [TXT_SPECTATORS] = "Espectadores",
-            [TXT_NOBODY] = "No hay nadie jugando ahora.",
-            [TXT_JOIN] = "Conectar",
-            [TXT_SEE_SERVER] = "Ver el servidor",
-            [TXT_CLOSE] = "Cerrar",
-            [TXT_TRAY_OPEN] = "Abrir ioquakelive",
-            [TXT_TRAY_QUIT] = "Salir",
-        },
+static const char* const texts[TXT_COUNT] = {
+    [TXT_PLAY] = "Jugar",
+    [TXT_UPTODATE] = "Última versión",
+    [TXT_CHECKING] = "Buscando actualizaciones...",
+    [TXT_CHECK_FAILED] = "No se pudieron buscar actualizaciones",
+    [TXT_PATCH_OUT] = "Actualizar a la %s",
+    [TXT_DOWNLOADING] = "Descargando: %d%%",
+    [TXT_INSTALLING] = "Instalando...",
+    [TXT_WHATS_NEW] = "Novedades de la versión %s",
+    [TXT_INSTALL_TITLE] = "Instalar ioquakelive",
+    [TXT_INSTALL_WHERE] = "Se instalará en:",
+    [TXT_CHANGE_FOLDER] = "Cambiar carpeta",
+    [TXT_SHORTCUT] = "Crear un acceso directo en el escritorio",
+    [TXT_FROM_GITHUB] = "ioquakelive se descargará desde GitHub.",
+    [TXT_FROM_FILE] = "ioquakelive se instalará desde el archivo ZIP ubicado junto al launcher.",
+    [TXT_ADOPT] = "Se detectó una instalación de ioquakelive. Solo se agregará el launcher.",
+    [TXT_FAIL_FOLDER] = "No se puede utilizar esta carpeta. Elige otra.",
+    [TXT_FAIL_NET] = "La descarga falló. Comprueba tu conexión a internet e inténtalo de nuevo.",
+    [TXT_FAIL_FILE] = "No se pudieron instalar los archivos. Comprueba que haya suficiente espacio en disco.",
+    [TXT_FAIL_BUSY] = "Cierra ioquakelive e inténtalo de nuevo.",
+    [TXT_STEAM_OFF] = "Steam no está abierto.",
+    [TXT_STEAM_OPEN] = "Abrir Steam",
+    [TXT_STEAM_OPENING] = "Abriendo Steam...",
+    [TXT_NO_VULKAN] = "Tu equipo no es compatible con Vulkan, así que por ahora jugarás con OpenGL. Actualizar los drivers de tu tarjeta de video puede solucionarlo.",
+    [TXT_SETUP_STEP] = "Configuración inicial · Paso %d de %d",
+    [TXT_TITLE_FILES] = "Archivos del juego",
+    [TXT_TITLE_SETTINGS] = "Configuración y HUD",
+    [TXT_TITLE_DEMOS] = "Demos",
+    [TXT_SCANNING] = "Buscando Quake Live...",
+    [TXT_FILES_FOUND] = "ioquakelive utiliza los archivos de tu instalación original de Quake Live. Se encontraron en:",
+    [TXT_NO_SPACE] = "No ocupará espacio adicional en el disco.",
+    [TXT_PAK_COPY] = "Se copiará pak00.pk3 (917 MB).",
+    [TXT_INSTALL] = "Instalar",
+    [TXT_CHOOSE_OTHER] = "Seleccionar manualmente",
+    [TXT_FILES_MISSING] = "Para utilizar ioquakelive necesitas una copia legítima de Quake Live en Steam. Instálalo desde "
+                          "tu biblioteca de Steam o selecciona manualmente el archivo pak00.pk3.",
+    [TXT_FIND_PAK] = "Buscar pak00.pk3",
+    [TXT_SEARCH_AGAIN] = "Buscar de nuevo",
+    [TXT_WRONG_FILE] = "El archivo seleccionado no corresponde al pak00.pk3 de Quake Live.",
+    [TXT_PAK_FAILED] = "No se pudo instalar pak00.pk3. Comprueba que haya suficiente espacio en disco.",
+    [TXT_SETTINGS_INTRO] = "Importa tu configuración y HUD de Quake Live.",
+    [TXT_CONFIG] = "Configuración",
+    [TXT_HUD] = "HUD",
+    [TXT_FILE_ONE] = "%d archivo",
+    [TXT_FILE_MANY] = "%d archivos",
+    [TXT_UNCHANGED] = "Tu instalación original de Quake Live no se modificará.",
+    [TXT_FILES_FAILED] = "No se pudieron copiar algunos archivos.",
+    [TXT_IMPORT] = "Importar",
+    [TXT_SKIP] = "Omitir",
+    [TXT_NEXT] = "Siguiente",
+    [TXT_FINISH] = "Terminar",
+    [TXT_NO_SETTINGS] = "No se encontró ninguna configuración ni HUD en tu instalación de Quake Live.",
+    [TXT_DEMO_ONE] = "Se encontró %d demo en tu instalación de Quake Live (%s).",
+    [TXT_DEMO_MANY] = "Se encontraron %d demos en tu instalación de Quake Live (%s).",
+    [TXT_DEMOS_COPY] = "Se copiarán a ioquakelive.",
+    [TXT_DEMOS_FAILED] = "No se pudieron copiar algunas demos.",
+    [TXT_NO_DEMOS] = "No se encontraron demos en tu instalación de Quake Live.",
+    [TXT_WORKING] = "Copiando: %d%%",
+    [TXT_BACK] = "Atrás",
+    [TXT_TITLE_PREFS] = "Preferencias",
+    [TXT_PREFS_INTRO] = "Puedes cambiarlas cuando quieras desde las opciones.",
+    [TXT_STARTUP] = "Abrir al iniciar el equipo",
+    [TXT_STARTUP_DETAIL] = "Minimizado, para actualizarse solo",
+    [TXT_BETA] = "Versiones experimentales",
+    [TXT_BETA_DETAIL] = "Lo nuevo antes, aún en prueba",
+    [TXT_OPEN_FOLDER] = "Abrir la carpeta del juego",
+    [TXT_RUN_SETUP] = "Configuración inicial",
+    [TXT_REPAIR] = "Reparar la instalación",
+    [TXT_CHECK_NOW] = "Buscar actualizaciones",
+    [TXT_SERVERS_SIDE] = "Servidores",
+    [TXT_SEE_ALL] = "Ver todos",
+    [TXT_SERVERS_TITLE] = "Servidores de Quake Club",
+    [TXT_SERVERS_LOADING] = "Cargando servidores...",
+    [TXT_SERVERS_FAILED] = "No se pudo cargar la lista de servidores.",
+    [TXT_COL_SERVER] = "Servidor",
+    [TXT_COL_MODE] = "Modo y mapa",
+    [TXT_COL_PLAYERS] = "Jugadores",
+    [TXT_OF] = "de",
+    [TXT_STATE_PLAYING] = "En juego",
+    [TXT_STATE_WARMUP] = "Calentamiento",
+    [TXT_STATE_COUNTDOWN] = "Cuenta atrás",
+    [TXT_STATE_PREGAME] = "Previa",
+    [TXT_STATE_WAITING] = "Esperando",
+    [TXT_RED_TEAM] = "Red Team",
+    [TXT_BLUE_TEAM] = "Blue Team",
+    [TXT_SPECTATORS] = "Espectadores",
+    [TXT_NOBODY] = "No hay nadie jugando ahora.",
+    [TXT_JOIN] = "Conectar",
+    [TXT_SEE_SERVER] = "Ver el servidor",
+    [TXT_CLOSE] = "Cerrar",
+    [TXT_TRAY_OPEN] = "Abrir ioquakelive",
+    [TXT_TRAY_QUIT] = "Salir",
 };
 
-#define T(id) texts[lang][id]
+#define T(id) texts[id]
 
 static unsigned Rd16(const unsigned char* p) {
     return (unsigned)p[0] | ((unsigned)p[1] << 8);
@@ -3299,14 +3186,6 @@ static void Cfg_Word(const char* text, const char* key, char* out, size_t size) 
     }
 }
 
-static void Lang_Default(void) {
-    int count = 0;
-    SDL_Locale** locales = SDL_GetPreferredLocales(&count);
-
-    lang = locales && count > 0 && locales[0]->language && !SDL_strncasecmp(locales[0]->language, "es", 2) ? LANG_ES : LANG_EN;
-    SDL_free(locales);
-}
-
 static bool Game_Version(const char* root, char* out, size_t size) {
     static const char mark[] = "ioquakelive ";
     char path[1200];
@@ -3359,19 +3238,13 @@ static void Settings_Load(void) {
                  : strstr(text, "setup 4") ? STEP_PREFS
                                            : STEP_NONE;
     betaChannel = text && strstr(text, "channel beta") != NULL;
-    Lang_Default();
-    if (text && strstr(text, "language en")) {
-        lang = LANG_EN;
-    } else if (text && strstr(text, "language es")) {
-        lang = LANG_ES;
-    }
     SDL_free(text);
 }
 
 static void Settings_Write(const char* root) {
     char path[1200], text[192];
 
-    SDL_snprintf(text, sizeof(text), "language %s\nversion %s\nby " PRODUCT_VERSION "\n", lang == LANG_ES ? "es" : "en", installedVersion);
+    SDL_snprintf(text, sizeof(text), "version %s\nby " PRODUCT_VERSION "\n", installedVersion);
     if (setupSaved != STEP_NONE) {
         SDL_snprintf(text + strlen(text), sizeof(text) - strlen(text), "setup %d\n", setupSaved);
     }
@@ -5637,29 +5510,22 @@ static float Draw_Title(const char* over, const char* title) {
 
 static void Draw_Top(void) {
     const button_t* b;
-    float fh;
     int i;
 
     Draw_Image(&logo, LOGO_X, TOP_MID - LOGO * 0.5f, LOGO, LOGO, 1.0f);
     Draw_Caps(FONT_BRAND, LOGO_X + LOGO + 14.0f, TOP_MID, COL_WHITE, "ioquakelive", TRACK_CAPS);
 
-    Button_Set(BTN_OPTS, UI_W - CTRL_W * 4.0f, 0.0f, CTRL_W, CTRL_H, gameFound && !install.active && setup.step == STEP_NONE);
-    Button_Set(BTN_LANG, UI_W - CTRL_W * 3.0f, 0.0f, CTRL_W, CTRL_H, flags[lang].tex != NULL);
+    Button_Set(BTN_OPTS, UI_W - CTRL_W * 3.0f, 0.0f, CTRL_W, CTRL_H, gameFound && !install.active && setup.step == STEP_NONE);
     Button_Set(BTN_MIN, UI_W - CTRL_W * 2.0f, 0.0f, CTRL_W, CTRL_H, true);
     Button_Set(BTN_CLOSE, UI_W - CTRL_W, 0.0f, CTRL_W, CTRL_H, true);
     for (i = BTN_OPTS; i <= BTN_CLOSE; i++) {
-        float lit = (i == BTN_LANG && langOpen) || (i == BTN_OPTS && optsOpen) ? 1.0f : heat[i];
+        float lit = i == BTN_OPTS && optsOpen ? 1.0f : heat[i];
 
-        if (i == BTN_LANG_A || i == BTN_LANG_B || lit <= 0.0f || !buttons[i].visible) {
+        if (lit <= 0.0f || !buttons[i].visible) {
             continue;
         }
         b = &buttons[i];
         Draw_Rect(b->x, b->y, b->w, b->h, Col_Alpha(COL_HUSH, lit));
-    }
-    b = &buttons[BTN_LANG];
-    if (b->visible) {
-        fh = FLAG_W * (float)flags[lang].h / (float)flags[lang].w;
-        Draw_Image(&flags[lang], b->x + (b->w - FLAG_W) * 0.5f, b->y + (b->h - fh) * 0.5f, FLAG_W, fh, 1.0f);
     }
     b = &buttons[BTN_OPTS];
     if (b->visible) {
@@ -6265,38 +6131,6 @@ static void Draw_Install(void) {
     Draw_Big(BTN_NEXT, T(TXT_INSTALL), true, 0.0f, NULL);
 }
 
-static void Draw_Languages(void) {
-    float open = langHeat * langHeat * (3.0f - 2.0f * langHeat);
-    float drop = (open - 1.0f) * 6.0f;
-    int i;
-
-    for (i = 0; i < LANG_COUNT; i++) {
-        Button_Set(BTN_LANG_A + i, LANG_X + MENU_PAD, LANG_Y + MENU_PAD + LANG_ROW * (float)i, LANG_W - MENU_PAD * 2.0f, LANG_ROW, langOpen);
-    }
-    if (open <= 0.0f) {
-        return;
-    }
-    Draw_Round(LANG_X, LANG_Y + drop, LANG_W, LANG_H, BUTTON_R, Col_Alpha(COL_P3, open));
-    for (i = 0; i < LANG_COUNT; i++) {
-        const button_t* b = &buttons[BTN_LANG_A + i];
-        float mid = b->y + drop + b->h * 0.5f, hot = heat[BTN_LANG_A + i];
-
-        if (hot > 0.0f) {
-            Draw_Round(b->x, b->y + drop, b->w, b->h, ITEM_R, Col_Alpha(COL_P4, open * hot));
-        }
-        if (flags[i].tex) {
-            float fh = FLAG_W * (float)flags[i].h / (float)flags[i].w;
-
-            Draw_Image(&flags[i], b->x + 14.0f, mid - fh * 0.5f, FLAG_W, fh, open);
-        }
-        Draw_Text(FONT_TEXT, b->x + 28.0f + FLAG_W, Text_Mid(FONT_TEXT, mid), Col_Alpha(i == lang ? COL_WHITE : Col_Mix(COL_W70, COL_WHITE, hot), open),
-                  langNames[i], -1);
-        if (i == lang) {
-            Draw_Spin(&iconCheck, b->x + b->w - 14.0f - CHECK_ICON, mid - CHECK_ICON * 0.5f, 0.0f, Col_Alpha(COL_WHITE, open));
-        }
-    }
-}
-
 static void Draw_Options(void) {
     static const int labels[OPTS_ROWS] = {TXT_OPEN_FOLDER, TXT_RUN_SETUP, TXT_REPAIR, TXT_CHECK_NOW, TXT_BETA, TXT_STARTUP};
     float open = optsHeat * optsHeat * (3.0f - 2.0f * optsHeat);
@@ -6683,10 +6517,9 @@ static void Draw_Frame(void) {
         Draw_Content();
     }
     Draw_Status();
-    Draw_Languages();
     Draw_Options();
     if (boxOpen) {
-        Buttons_Hide(BTN_PLAY, BTN_LANG_B);
+        Buttons_Hide(BTN_PLAY, BTN_OPTS);
         Buttons_Hide(BTN_MENU_0, BTN_SIDE_LAST);
     }
     Draw_Box();
@@ -6717,7 +6550,6 @@ static bool Heat_Update(float dt, bool notes) {
     for (i = 0; i < BTN_COUNT; i++) {
         moving |= Ease(&heat[i], hotButton == i ? 1.0f : 0.0f, dt * 9.0f);
     }
-    moving |= Ease(&langHeat, langOpen ? 1.0f : 0.0f, dt * 7.0f);
     moving |= Ease(&optsHeat, optsOpen ? 1.0f : 0.0f, dt * 7.0f);
     if (panelUp != (serversOpen && setup.step == STEP_NONE && !install.active)) {
         panelUp = !panelUp;
@@ -6813,7 +6645,7 @@ static SDL_HitTestResult SDLCALL Window_HitTest(SDL_Window* win, const SDL_Point
 
     (void)win;
     (void)data;
-    if (langOpen || optsOpen || Button_At(x, y) >= 0) {
+    if (optsOpen || Button_At(x, y) >= 0) {
         return SDL_HITTEST_NORMAL;
     }
     if (notesHeight > notesView + 0.5f && x >= COL_X && x < SIDE_X - 24.0f && y >= BODY_TOP) {
@@ -6835,7 +6667,7 @@ static void Notes_Scroll(float amount) {
 }
 
 static bool Feed_Grab(float x, float y) {
-    if (langOpen || setup.step != STEP_NONE || install.active || notesHeight <= notesView + 0.5f || x < COL_X ||
+    if (setup.step != STEP_NONE || install.active || notesHeight <= notesView + 0.5f || x < COL_X ||
         x >= SIDE_X - 24.0f || y < notesTop || y >= notesLow) {
         return false;
     }
@@ -6922,9 +6754,8 @@ static void Box_See(void) {
 }
 
 static bool Button_Press(int index) {
-    bool wasLang = langOpen, wasOpts = optsOpen;
+    bool wasOpts = optsOpen;
 
-    langOpen = false;
     optsOpen = false;
     if (index >= BTN_MENU_0 && index <= BTN_MENU_LAST) {
         if (wasOpts) {
@@ -7015,17 +6846,6 @@ static bool Button_Press(int index) {
                 setup.want[index - BTN_OPT_A] = !setup.want[index - BTN_OPT_A];
             }
             break;
-        case BTN_LANG:
-            langOpen = !wasLang;
-            break;
-        case BTN_LANG_A:
-        case BTN_LANG_B:
-            if (wasLang) {
-                lang = index - BTN_LANG_A;
-                Settings_Save();
-                Tray_Labels();
-            }
-            break;
         case BTN_MIN:
             Window_ToTray();
             break;
@@ -7048,8 +6868,7 @@ static bool Key_Press(SDL_Keycode key) {
         }
         return false;
     }
-    if (langOpen || optsOpen) {
-        langOpen = false;
+    if (optsOpen) {
         optsOpen = false;
         return false;
     }
@@ -7203,7 +7022,6 @@ int main(int argc, char** argv) {
         forced = atoi(option);
     }
     option = SDL_getenv("LAUNCHER_TAB");
-    langOpen = option && option[0] == '2';
     optsOpen = option && option[0] == '4';
     serversOpen = option && (option[0] == '5' || option[0] == '6' || option[0] == '8');
     boxWant = option && (option[0] == '7' || option[0] == '8') ? 1 : 0;
@@ -7337,18 +7155,12 @@ int main(int argc, char** argv) {
 
     Fonts_Load();
     Image_FromPng(&logo, launcherLogo, launcherLogoSize, LOGO);
-    Image_FromPng(&flags[LANG_EN], launcherFlagEn, launcherFlagEnSize, FLAG_W);
-    Image_FromPng(&flags[LANG_ES], launcherFlagEs, launcherFlagEsSize, FLAG_W);
     Icons_Load();
     Image_LoadHero();
     Image_Vignette();
     Settings_Load();
     startupOn = Autostart_On();
 #ifdef LAUNCHER_SHOT
-    option = SDL_getenv("LAUNCHER_LANG");
-    if (option && option[0]) {
-        lang = !SDL_strcmp(option, "es") ? LANG_ES : LANG_EN;
-    }
     option = SDL_getenv("LAUNCHER_UPDATE");
     autoUpdate = option && option[0] == '1';
     autoRepair = option && option[0] == '2';
@@ -7532,7 +7344,6 @@ int main(int argc, char** argv) {
                 stepHeat = (float)SDL_atof(option);
             }
 #endif
-            langHeat = langOpen ? 1.0f : 0.0f;
             optsHeat = optsOpen ? 1.0f : 0.0f;
             for (k = 0; k < shotCount; k++) {
                 shots[k].heat = 1.0f;
