@@ -11,6 +11,7 @@
 #endif
 #else
 #include <dlfcn.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -1111,6 +1112,7 @@ static qboolean CL_UpdateExtract(void) {
     char name[MAX_QPATH];
     unzFile zip;
     FILE* out;
+    char path[MAX_OSPATH];
     int ret, n;
     qboolean ok = qtrue;
 
@@ -1133,7 +1135,8 @@ static qboolean CL_UpdateExtract(void) {
             break;
         }
         CL_UpdateMakeDirs(CL_UpdatePath(va("%s/%s", CL_UPDATE_STAGE, name)));
-        out = Sys_FOpen(CL_UpdatePath(va("%s%c%s", CL_UPDATE_STAGE, PATH_SEP, name)), "wb");
+        Q_strncpyz(path, CL_UpdatePath(va("%s%c%s", CL_UPDATE_STAGE, PATH_SEP, name)), sizeof(path));
+        out = Sys_FOpen(path, "wb");
         if (!out || unzOpenCurrentFile(zip) != UNZ_OK) {
             if (out) {
                 fclose(out);
@@ -1151,6 +1154,11 @@ static qboolean CL_UpdateExtract(void) {
             ok = qfalse;
         }
         fclose(out);
+#ifndef _WIN32
+        if ((info.external_fa >> 16) & 0111) {
+            chmod(path, (mode_t)((info.external_fa >> 16) & 0777));
+        }
+#endif
         Q_strncpyz(clUpdateFiles[clUpdateNumFiles++], name, MAX_QPATH);
     }
     unzClose(zip);
