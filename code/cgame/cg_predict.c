@@ -506,7 +506,7 @@ static void CG_CheckPredictionError(const playerState_t* base) {
         len = VectorLength(delta);
         if (len > 0.1) {
             if (cg_showmiss.integer) {
-                CG_Printf("Prediction miss: %f\n", len);
+                CG_Printf(" Prediction miss: %f { %f %f %f }\n", len, delta[0], delta[1], delta[2]);
             }
             if (cg_errorDecay.integer) {
                 int t;
@@ -518,7 +518,7 @@ static void CG_CheckPredictionError(const playerState_t* base) {
                     f = 0;
                 }
                 if (f > 0 && cg_showmiss.integer) {
-                    CG_Printf("Double prediction decay: %f\n", f);
+                    CG_Printf("Double prediction decay: %.3f\n", f);
                 }
                 VectorScale(cg.predictedError, f, cg.predictedError);
             } else {
@@ -708,9 +708,6 @@ void CG_PredictPlayerState(void) {
     }
 
     if (!moved) {
-        if (cg_showmiss.integer) {
-            CG_Printf("not moved\n");
-        }
         return;
     }
 
