@@ -67,6 +67,11 @@ def make_old(path):
     return old.decode()
 
 
+def signature(app):
+    r = subprocess.run(['codesign', '--verify', '--strict', app], capture_output=True, text=True)
+    return r.returncode == 0, (r.stdout + r.stderr).strip() or 'valid'
+
+
 def leftovers(root, allowed=()):
     allowed = {os.path.normcase(os.path.abspath(p)) for p in allowed}
     found = []
@@ -116,6 +121,10 @@ def main():
     check(os.path.lexists(os.path.join(desktop, args.link)), f'desktop shortcut {args.link}', failures)
     check(not leftovers(root), 'no .new, .part or .old files left', failures)
     check(os.path.isfile(os.path.join(work, 'install.png')), 'install screenshot saved', failures)
+    if sys.platform == 'darwin':
+        app = os.path.join(root, args.game.split('/Contents/')[0])
+        signed, why = signature(app)
+        print(f'  info  game bundle signature after install: {why}')
 
     if runnable(launcher):
         stale = make_old(game)
@@ -138,10 +147,9 @@ def main():
         check(not leftovers(root, [launcher + '.old']), 'no .new, .part or .old files left after the update', failures)
         check(os.path.isfile(os.path.join(work, 'update.png')), 'update screenshot saved', failures)
 
-    if sys.platform == 'darwin':
-        app = os.path.join(root, args.game.split('/Contents/')[0])
-        r = subprocess.run(['codesign', '--verify', '--strict', app], capture_output=True, text=True)
-        check(r.returncode == 0, f'game bundle signature still valid ({(r.stdout + r.stderr).strip() or "valid"})', failures)
+    if sys.platform == 'darwin' and signed:
+        ok, why = signature(app)
+        check(ok, f'game bundle signature still valid ({why})', failures)
 
     print('result:', 'FAILED ' + str(len(failures)) if failures else 'passed')
     sys.exit(1 if failures else 0)
