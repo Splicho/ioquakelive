@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -39,12 +40,41 @@ def config_version(root):
     return None
 
 
-def leftovers(root):
+def bundle(path):
+    head, sep, _ = path.replace(os.sep, '/').partition('.app/')
+    return head + '.app' if sep else path
+
+
+def replace_with(src, dst):
+    src, dst = bundle(src), bundle(dst)
+    if os.path.isdir(src):
+        shutil.rmtree(dst)
+        shutil.copytree(src, dst, symlinks=True)
+    else:
+        shutil.copy2(src, dst)
+
+
+def make_old(path):
+    with open(path, 'rb') as f:
+        data = bytearray(f.read())
+    m = re.search(rb'ioquakelive ([0-9][0-9A-Za-z.-]*)', data)
+    if not m:
+        return None
+    old = re.sub(rb'[0-9]', b'0', m.group(1))
+    data[m.start(1):m.end(1)] = old
+    with open(path, 'wb') as f:
+        f.write(data)
+    return old.decode()
+
+
+def leftovers(root, allowed=()):
+    allowed = {os.path.normcase(os.path.abspath(p)) for p in allowed}
     found = []
     for dirpath, _, filenames in os.walk(root):
         for name in filenames:
-            if name.endswith(('.new', '.part', '.old')):
-                found.append(os.path.join(dirpath, name))
+            path = os.path.join(dirpath, name)
+            if name.endswith(('.new', '.part', '.old')) and os.path.normcase(os.path.abspath(path)) not in allowed:
+                found.append(path)
     return found
 
 
@@ -77,7 +107,6 @@ def main():
         'LAUNCHER_DIR': root,
         'LAUNCHER_DESKTOP': desktop + os.sep,
         'LAUNCHER_NOSTEAM': '1',
-        'LAUNCHER_LANG': 'es',
     }, args.timeout)
     game = os.path.join(root, args.game)
     launcher = os.path.join(root, args.self_name)
@@ -89,21 +118,24 @@ def main():
     check(os.path.isfile(os.path.join(work, 'install.png')), 'install screenshot saved', failures)
 
     if runnable(launcher):
-        print(f'update from 0.0.1 to {latest}')
+        stale = make_old(game)
+        check(stale is not None, f'game marked as an old version ({stale})', failures)
+        print(f'update from {stale} to {latest}')
         with open(os.path.join(root, 'baseq3', 'launcher.cfg'), 'w', encoding='ascii', newline='\n') as f:
-            f.write(f'language es\nversion 0.0.1\nby {args.version}')
+            f.write(f'version {stale}\nby {args.version}')
         old = time.time() - 86400 * 365
         os.utime(game, (old, old))
+        replace_with(os.path.abspath(args.launcher), launcher)
         run(launcher, os.path.join(work, 'update.png'), {
             'LAUNCHER_JSON': os.path.abspath(args.json),
             'LAUNCHER_UPDATE': '1',
             'LAUNCHER_NOSTEAM': '1',
-            'LAUNCHER_LANG': 'es',
         }, args.timeout)
         check(config_version(root) == latest, f'launcher.cfg records {latest} after the update (found {config_version(root)})', failures)
         check(os.path.getmtime(game) > old + 3600, 'game files were replaced by the update', failures)
         check(runnable(game), 'game is still runnable after the update', failures)
-        check(not leftovers(root), 'no .new, .part or .old files left after the update', failures)
+        check(runnable(launcher), 'launcher is still runnable after the update', failures)
+        check(not leftovers(root, [launcher + '.old']), 'no .new, .part or .old files left after the update', failures)
         check(os.path.isfile(os.path.join(work, 'update.png')), 'update screenshot saved', failures)
 
     if sys.platform == 'darwin':
