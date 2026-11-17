@@ -265,7 +265,7 @@ int MSG_ReadBits(msg_t* msg, int bits) {
     }
     if (sgn && bits > 0 && bits < 32) {
         if (value & (1 << (bits - 1))) {
-            value |= -1 ^ ((1 << bits) - 1);
+            value |= -1 ^ ((1U << bits) - 1);
         }
     }
 
