@@ -3439,12 +3439,15 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum) {
     CG_RegisterClients();
     cg.loadingStage++;
 
-    if (trap_Cvar_VariableValue("com_build") != 0) {
+    {
         int weapon;
 
         for (weapon = WP_GAUNTLET; weapon < WP_NUM_WEAPONS; weapon++) {
             CG_RegisterWeapon(weapon);
         }
+    }
+
+    if (trap_Cvar_VariableValue("com_build") != 0) {
         trap_S_RegisterSound("sound/vo/crash/39a.wav", qfalse);
         trap_S_RegisterSound("sound/vo/crash/41a.wav", qfalse);
         trap_S_RegisterSound("sound/vo/crash/40b.wav", qfalse);
