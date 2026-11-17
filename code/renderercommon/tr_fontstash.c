@@ -21,7 +21,7 @@ C89.
 #include "tr_fontstash.h"
 
 #define FONS_SCRATCH_BUF_SIZE 0x20000
-#define FONS_HASH_LUT_SIZE 256
+#define FONS_HASH_LUT_SIZE 2048
 #define FONS_INIT_FONTS 4
 #define FONS_INIT_GLYPHS 256
 #define FONS_INIT_ATLAS_NODES 256
@@ -703,7 +703,7 @@ static FONSglyph *fons__getGlyph(FONScontext *stash, FONSfont *font, unsigned in
 
     stash->nscratch = 0;
 
-    h = fons__hashint(codepoint) & (FONS_HASH_LUT_SIZE - 1);
+    h = fons__hashint(codepoint ^ ((unsigned int)isize << 16) ^ ((unsigned int)iblur << 27)) & (FONS_HASH_LUT_SIZE - 1);
     i = font->lut[h];
     while (i != -1) {
         if (font->glyphs[i].codepoint == codepoint && font->glyphs[i].size == isize && font->glyphs[i].blur == iblur) {
@@ -1149,7 +1149,11 @@ static int fons__emojiMatch(const char *str, const char *end, const char **next)
 static int fons__emojiLead(const char *p) {
     unsigned char c = *(const unsigned char *)p;
 
-    return c >= 0xe2 || c == 0xc2 || c == '#' || c == '*' || (c >= '0' && c <= '9');
+    if (c == '#' || c == '*' || (c >= '0' && c <= '9')) {
+        c = *(const unsigned char *)(p + 1);
+        return c == 0xef || c == 0xe2;
+    }
+    return c >= 0xe2 || c == 0xc2;
 }
 
 static void fons__emojiBox(FONSfont *font, short isize, float x, float y, float *box, float *advance) {
