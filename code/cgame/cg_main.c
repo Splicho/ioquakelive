@@ -55,6 +55,7 @@ Q_EXPORT intptr_t vmMain(int command, intptr_t arg0, intptr_t arg1, intptr_t arg
         case CG_CONSOLE_COMMAND:
             return CG_ConsoleCommand();
         case CG_DRAW_ACTIVE_FRAME:
+            cg.timeFraction = (arg3 > 0 && arg3 < 1000) ? (float)arg3 / 1000.0f : 0.0f;
             CG_DrawActiveFrame(arg0, arg1, arg2);
             return 0;
         case CG_CROSSHAIR_PLAYER:

@@ -63,6 +63,8 @@ typedef struct {
 
 #define MAX_PARSE_ENTITIES (PACKET_BACKUP * MAX_SNAPSHOT_ENTITIES)
 
+#define CL_SMOOTH_SAMPLES 32
+
 extern int g_console_field_width;
 
 typedef struct {
@@ -75,6 +77,17 @@ typedef struct {
     int serverTimeDelta;
     qboolean extrapolatedSnapshot;
     qboolean newSnapshots;
+
+    qboolean smoothActive;
+    double smoothDelta;
+    double smoothTarget;
+    double smoothLastMs;
+    double smoothSamples[CL_SMOOTH_SAMPLES];
+    int smoothSampleCount;
+    int smoothSampleNext;
+    int smoothInterval;
+    int smoothLastSnapTime;
+    float serverTimeFraction;
 
     gameState_t gameState;
     char mapname[MAX_QPATH];
@@ -265,6 +278,7 @@ extern cvar_t* cl_showSend;
 extern cvar_t* cl_timeNudge;
 extern cvar_t* cl_autoTimeNudge;
 extern cvar_t* cl_showTimeDelta;
+extern cvar_t* cl_smoothClock;
 extern cvar_t* cl_freezeDemo;
 
 void CL_DemoSeekApply(void);

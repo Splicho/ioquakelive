@@ -237,7 +237,7 @@ static void CG_InterpolatePlayerState(qboolean grabAngles) {
         return;
     }
 
-    f = (float)(cg.time - prev->serverTime) / (next->serverTime - prev->serverTime);
+    f = ((float)(cg.time - prev->serverTime) + cg.timeFraction) / (next->serverTime - prev->serverTime);
 
     i = next->ps.bobCycle;
     if (i < prev->ps.bobCycle) {
@@ -560,6 +560,8 @@ void CG_PredictPlayerState(void) {
     }
     cg_playerTeam.integer = cg.predictedPlayerState.persistant[PERS_TEAM];
 
+    cg.viewExtrapolate = qfalse;
+
     if (cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW)) {
         CG_InterpolatePlayerState(qfalse);
         return;
@@ -570,6 +572,7 @@ void CG_PredictPlayerState(void) {
         return;
     }
 
+    cg.viewExtrapolate = qtrue;
     cg_pmove.ps = &cg.predictedPlayerState;
     cg_pmove.trace = CG_Trace;
     cg_pmove.pointcontents = CG_PointContents;

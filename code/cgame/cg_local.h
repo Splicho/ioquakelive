@@ -565,6 +565,8 @@ typedef struct {
     snapshot_t activeSnapshots[2];
 
     float frameInterpolation;
+    float timeFraction;
+    qboolean viewExtrapolate;
 
     qboolean thisFrameTeleport;
     qboolean nextFrameTeleport;

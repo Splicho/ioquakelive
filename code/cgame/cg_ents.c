@@ -1145,6 +1145,19 @@ static void CG_InterpolateEntityPosition(centity_t* cent) {
     cent->lerpAngles[2] = LerpAngle(current[2], next[2], f);
 }
 
+static void CG_EvaluateTrajectoryFrac(const trajectory_t* tr, int atTime, vec3_t result) {
+    vec3_t next;
+
+    BG_EvaluateTrajectory(tr, atTime, result);
+    if (cg.timeFraction <= 0.0f || tr->trType == TR_STATIONARY) {
+        return;
+    }
+    BG_EvaluateTrajectory(tr, atTime + 1, next);
+    result[0] += cg.timeFraction * (next[0] - result[0]);
+    result[1] += cg.timeFraction * (next[1] - result[1]);
+    result[2] += cg.timeFraction * (next[2] - result[2]);
+}
+
 static void CG_CalcEntityLerpPositions(centity_t* cent) {
     static int lastNudge;
     int frameMsec = cg_svFps.integer > 0 ? (int)(1000.0f / cg_svFps.integer) : 0;
@@ -1165,7 +1178,7 @@ static void CG_CalcEntityLerpPositions(centity_t* cent) {
         cent->currentState.clientNum != cg.predictedPlayerState.clientNum) {
         cent->currentState.pos.trType = TR_LINEAR_STOP;
         cent->currentState.pos.trTime = cg.snap->serverTime;
-        cent->currentState.pos.trDuration = frameMsec;
+        cent->currentState.pos.trDuration = frameMsec * 2;
     }
 
     if (cent->currentState.eType == ET_MISSILE && cent->currentState.weapon != WP_GRAPPLING_HOOK) {
@@ -1193,8 +1206,8 @@ static void CG_CalcEntityLerpPositions(centity_t* cent) {
         }
     }
 
-    BG_EvaluateTrajectory(&cent->currentState.pos, cg.time + timeshift, cent->lerpOrigin);
-    BG_EvaluateTrajectory(&cent->currentState.apos, cg.time + timeshift, cent->lerpAngles);
+    CG_EvaluateTrajectoryFrac(&cent->currentState.pos, cg.time + timeshift, cent->lerpOrigin);
+    CG_EvaluateTrajectoryFrac(&cent->currentState.apos, cg.time + timeshift, cent->lerpAngles);
 
     if (cent->stuckAxes && cent->currentState.number < MAX_CLIENTS) {
         int i;
@@ -1429,7 +1442,7 @@ void CG_AddPacketEntities(void) {
         if (delta == 0) {
             cg.frameInterpolation = 0;
         } else {
-            cg.frameInterpolation = (float)(cg.time - cg.snap->serverTime) / delta;
+            cg.frameInterpolation = ((float)(cg.time - cg.snap->serverTime) + cg.timeFraction) / delta;
         }
     } else {
         cg.frameInterpolation = 0;

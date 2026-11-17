@@ -859,6 +859,9 @@ static int CG_CalcViewValues(void) {
     cg.speedHistory[cg.speedHistoryIndex] = cg.xyspeed;
 
     VectorCopy(ps->origin, cg.refdef.vieworg);
+    if (cg.viewExtrapolate && ps->commandTime == cg.time && cg.timeFraction > 0.0f) {
+        VectorMA(cg.refdef.vieworg, cg.timeFraction * 0.001f, ps->velocity, cg.refdef.vieworg);
+    }
     VectorCopy(ps->viewangles, cg.refdefViewAngles);
 
     if (cg_filter_angles.integer != 0) {

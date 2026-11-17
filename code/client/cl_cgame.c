@@ -862,11 +862,103 @@ qboolean CL_GameCommand(void) {
 }
 
 void CL_CGameRendering(stereoFrame_t stereo) {
-    VM_Call(cgvm, CG_DRAW_ACTIVE_FRAME, cl.serverTime, stereo, clc.demoplaying);
+    VM_Call(cgvm, CG_DRAW_ACTIVE_FRAME, cl.serverTime, stereo, clc.demoplaying, (int)(cl.serverTimeFraction * 1000.0f));
     VM_Debug(0);
 }
 
 #define RESET_TIME 500
+#define SMOOTH_MARGIN 0.5
+#define SMOOTH_TAU 500.0
+#define SMOOTH_MAX_RATE 0.05
+
+static double CL_SmoothLowSample(void) {
+    double sorted[CL_SMOOTH_SAMPLES];
+    int i, j;
+
+    for (i = 0; i < cl.smoothSampleCount; i++) {
+        double v = cl.smoothSamples[i];
+
+        for (j = i; j > 0 && sorted[j - 1] > v; j--) {
+            sorted[j] = sorted[j - 1];
+        }
+        sorted[j] = v;
+    }
+    return sorted[(cl.smoothSampleCount - 1) / 4];
+}
+
+static void CL_SmoothTimeSnapshot(void) {
+    double sample;
+    double offset;
+    int gap;
+
+    gap = cl.snap.serverTime - cl.smoothLastSnapTime;
+    if (cl.smoothLastSnapTime && gap > 0 && (!cl.smoothInterval || gap < cl.smoothInterval)) {
+        cl.smoothInterval = gap;
+    }
+    cl.smoothLastSnapTime = cl.snap.serverTime;
+
+    sample = cl.snap.serverTime - cl.smoothLastMs;
+    cl.smoothSamples[cl.smoothSampleNext] = sample;
+    cl.smoothSampleNext = (cl.smoothSampleNext + 1) % CL_SMOOTH_SAMPLES;
+    if (cl.smoothSampleCount < CL_SMOOTH_SAMPLES) {
+        cl.smoothSampleCount++;
+    }
+
+    if (!cl.smoothInterval) {
+        return;
+    }
+
+    cl.smoothTarget = CL_SmoothLowSample() - cl.smoothInterval - SMOOTH_MARGIN;
+    offset = fabs(cl.smoothTarget - cl.smoothDelta);
+
+    if (cl.smoothSampleCount < 4 && offset <= RESET_TIME) {
+        cl.smoothDelta = cl.smoothTarget;
+    } else if (offset > RESET_TIME) {
+        cl.smoothSamples[0] = sample;
+        cl.smoothSampleCount = 1;
+        cl.smoothSampleNext = 1;
+        cl.smoothTarget = sample - cl.smoothInterval - SMOOTH_MARGIN;
+        cl.smoothDelta = sample;
+        cl.oldServerTime = cl.snap.serverTime;
+        cl.serverTime = cl.snap.serverTime;
+        if (cl_showTimeDelta->integer) {
+            Com_Printf("<RESET> ");
+        }
+    } else if (offset > 100) {
+        if (cl_showTimeDelta->integer) {
+            Com_Printf("<FAST> ");
+        }
+        cl.smoothDelta = (cl.smoothDelta + cl.smoothTarget) * 0.5;
+    }
+}
+
+static void CL_SmoothTimeAdvance(double nowMs) {
+    double dt;
+    double step;
+    double limit;
+
+    dt = nowMs - cl.smoothLastMs;
+    cl.smoothLastMs = nowMs;
+    if (dt <= 0) {
+        return;
+    }
+    if (dt > 100) {
+        dt = 100;
+    }
+
+    step = (cl.smoothTarget - cl.smoothDelta) * dt / SMOOTH_TAU;
+    limit = dt * SMOOTH_MAX_RATE;
+    if (step > limit) {
+        step = limit;
+    } else if (step < -limit) {
+        step = -limit;
+    }
+    cl.smoothDelta += step;
+}
+
+static qboolean CL_SmoothTimeAllowed(void) {
+    return cl_smoothClock->integer && !clc.demoplaying && com_timescale->value == 1;
+}
 
 void CL_AdjustTimeDelta(void) {
     int newDelta;
@@ -875,6 +967,14 @@ void CL_AdjustTimeDelta(void) {
     cl.newSnapshots = qfalse;
 
     if (clc.demoplaying) {
+        return;
+    }
+
+    if (cl.smoothActive) {
+        CL_SmoothTimeSnapshot();
+        if (cl_showTimeDelta->integer) {
+            Com_Printf("%i ", cl.serverTimeDelta);
+        }
         return;
     }
 
@@ -1003,15 +1103,37 @@ void CL_SetCGameTime(void) {
             }
         }
 
-        cl.serverTime = cls.realtime + cl.serverTimeDelta - tn;
+        if (CL_SmoothTimeAllowed()) {
+            double nowMs = Sys_Microseconds() / 1000.0;
+
+            if (!cl.smoothActive) {
+                cl.smoothActive = qtrue;
+                cl.smoothDelta = cls.realtime + cl.serverTimeDelta - nowMs;
+                cl.smoothTarget = cl.smoothDelta;
+                cl.smoothLastMs = nowMs;
+                cl.smoothSampleCount = 0;
+                cl.smoothSampleNext = 0;
+                cl.extrapolatedSnapshot = qfalse;
+            }
+            CL_SmoothTimeAdvance(nowMs);
+            cl.serverTime = (int)floor(nowMs + cl.smoothDelta);
+            cl.serverTimeFraction = (float)(nowMs + cl.smoothDelta - cl.serverTime);
+            cl.serverTimeDelta = cl.serverTime - cls.realtime;
+            cl.serverTime -= tn;
+        } else {
+            cl.smoothActive = qfalse;
+            cl.serverTimeFraction = 0.0f;
+            cl.serverTime = cls.realtime + cl.serverTimeDelta - tn;
+        }
         prevTimeNudge = tn;
 
         if (cl.serverTime < cl.oldServerTime) {
             cl.serverTime = cl.oldServerTime;
+            cl.serverTimeFraction = 0.0f;
         }
         cl.oldServerTime = cl.serverTime;
 
-        if (cls.realtime + cl.serverTimeDelta >= cl.snap.serverTime - 5) {
+        if (!cl.smoothActive && cls.realtime + cl.serverTimeDelta >= cl.snap.serverTime - 5) {
             cl.extrapolatedSnapshot = qtrue;
         }
     }

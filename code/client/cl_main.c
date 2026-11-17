@@ -50,6 +50,7 @@ cvar_t* cl_packetdup;
 cvar_t* cl_timeNudge;
 cvar_t* cl_autoTimeNudge;
 cvar_t* cl_showTimeDelta;
+cvar_t* cl_smoothClock;
 cvar_t* cl_freezeDemo;
 
 cvar_t* cl_shownet;
@@ -3721,6 +3722,7 @@ void CL_Init(void) {
     cl_shownet = Cvar_Get("cl_shownet", "0", CVAR_TEMP);
     cl_showSend = Cvar_Get("cl_showSend", "0", CVAR_TEMP);
     cl_showTimeDelta = Cvar_Get("cl_showTimeDelta", "0", CVAR_TEMP);
+    cl_smoothClock = Cvar_Get("cl_smoothClock", "1", CVAR_ARCHIVE);
     cl_freezeDemo = Cvar_Get("cl_freezeDemo", "0", CVAR_TEMP);
     rcon_client_password = Cvar_Get("rconPassword", "", CVAR_TEMP);
     cl_activeAction = Cvar_Get("activeAction", "", CVAR_TEMP);

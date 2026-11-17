@@ -777,6 +777,7 @@ static const cvarHelp_t cvarHelp[] = {
     {"cl_shownet", "prints network messages"},
     {"cl_showSend", "prints sent packets"},
     {"cl_showTimeDelta", "prints the time difference to the server"},
+    {"cl_smoothClock", "keeps the game clock smoothly synchronized with the server, without 1-2 ms jumps (0 = original clock)"},
     {"cl_nodelta", "turns off delta compression"},
     {"cl_debugMove", "graph of the mouse movement"},
     {"r_inGameVideo", "plays videos inside maps"},
