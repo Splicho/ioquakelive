@@ -519,6 +519,7 @@ void CL_ParseCommandString(msg_t* msg) {
 
     index = seq & (MAX_RELIABLE_COMMANDS - 1);
     Q_strncpyz(clc.serverCommands[index], s, sizeof(clc.serverCommands[index]));
+    CL_CgamePrefetchCommand(clc.serverCommands[index]);
 }
 
 void CL_ParseServerMessage(msg_t* msg) {

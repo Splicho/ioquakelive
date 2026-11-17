@@ -1286,6 +1286,195 @@ static qboolean R_PrefetchTake( const char *name, byte **pic, int *width, int *h
 	return qfalse;
 }
 
+#define R_SIDE_MAX			32
+#define R_SIDE_EXPIRE_MSEC	180000
+
+static prefetchEntry_t	r_side[R_SIDE_MAX];
+static int				r_sideTime[R_SIDE_MAX];
+
+static qboolean R_ImageLoaded( const char *name ) {
+	char	stripped[MAX_QPATH];
+	image_t	*image;
+	int		hash;
+
+	COM_StripExtension( name, stripped, sizeof( stripped ) );
+	hash = generateHashValue( name );
+	for ( image = hashTable[ hash ]; image; image = image->next ) {
+		if ( !Q_stricmp( name, image->imgName ) || !Q_stricmp( stripped, image->imgName ) ) {
+			return qtrue;
+		}
+	}
+	return qfalse;
+}
+
+static void R_SideFree( prefetchEntry_t *entry ) {
+	while ( entry->state == PF_WORKING ) {
+		ri.ThreadYield();
+	}
+	if ( entry->file ) {
+		free( entry->file );
+		entry->file = NULL;
+	}
+	if ( entry->pixels ) {
+		free( entry->pixels );
+		entry->pixels = NULL;
+	}
+	entry->name[0] = '\0';
+	entry->state = PF_EMPTY;
+}
+
+void R_SideClear( void ) {
+	int i;
+
+	for ( i = 0; i < R_SIDE_MAX; i++ ) {
+		if ( r_side[i].name[0] || r_side[i].state != PF_EMPTY ) {
+			R_SideFree( &r_side[i] );
+		}
+	}
+}
+
+static void R_SideQueue( const char *name ) {
+	int i, slot = -1;
+	int now = ri.Milliseconds();
+
+	if ( !name[0] || R_ImageLoaded( name ) ) {
+		return;
+	}
+	for ( i = 0; i < R_SIDE_MAX; i++ ) {
+		prefetchEntry_t *entry = &r_side[i];
+
+		if ( entry->name[0] ) {
+			if ( R_PrefetchSameName( name, entry->name ) ) {
+				return;
+			}
+			if ( ( now - r_sideTime[i] > R_SIDE_EXPIRE_MSEC || now < r_sideTime[i] ) && entry->state != PF_WORKING ) {
+				R_SideFree( entry );
+			}
+		}
+		if ( !entry->name[0] && slot < 0 ) {
+			slot = i;
+		}
+	}
+	if ( slot < 0 ) {
+		return;
+	}
+	Q_strncpyz( r_side[slot].name, name, MAX_QPATH );
+	r_side[slot].state = PF_EMPTY;
+	r_sideTime[slot] = now;
+}
+
+static qboolean R_SideRead( prefetchEntry_t *entry ) {
+	char		base[MAX_QPATH];
+	const char	*ext, *candidate;
+	void		*buffer = NULL;
+	int			i, known = -1, len = 0;
+
+	Q_strncpyz( base, entry->name, sizeof( base ) );
+	ext = COM_GetExtension( entry->name );
+	if ( *ext ) {
+		for ( i = 0; i < numImageLoaders; i++ ) {
+			if ( !Q_stricmp( ext, imageLoaders[ i ].ext ) ) {
+				known = i;
+				break;
+			}
+		}
+	}
+	if ( known >= 0 ) {
+		len = ri.FS_ReadFile( entry->name, &buffer );
+		if ( len <= 0 || !buffer ) {
+			if ( buffer ) {
+				ri.FS_FreeFile( buffer );
+				buffer = NULL;
+			}
+			COM_StripExtension( entry->name, base, sizeof( base ) );
+		} else {
+			candidate = entry->name;
+		}
+	}
+	for ( i = 0; !buffer && i < numImageLoaders; i++ ) {
+		if ( i == known ) {
+			continue;
+		}
+		candidate = va( "%s.%s", base, imageLoaders[ i ].ext );
+		len = ri.FS_ReadFile( candidate, &buffer );
+		if ( len <= 0 || !buffer ) {
+			if ( buffer ) {
+				ri.FS_FreeFile( buffer );
+			}
+			buffer = NULL;
+			continue;
+		}
+		Q_strncpyz( entry->name, candidate, MAX_QPATH );
+	}
+	if ( !buffer ) {
+		return qfalse;
+	}
+	ext = COM_GetExtension( entry->name );
+	if ( Q_stricmp( ext, "png" ) && Q_stricmp( ext, "tga" ) && Q_stricmp( ext, "jpg" ) && Q_stricmp( ext, "jpeg" ) ) {
+		ri.FS_FreeFile( buffer );
+		return qfalse;
+	}
+	entry->file = malloc( len );
+	if ( !entry->file ) {
+		ri.FS_FreeFile( buffer );
+		return qfalse;
+	}
+	Com_Memcpy( entry->file, buffer, len );
+	ri.FS_FreeFile( buffer );
+	entry->fileLen = len;
+	return qtrue;
+}
+
+void R_SidePump( void ) {
+	int i;
+
+	for ( i = 0; i < R_SIDE_MAX; i++ ) {
+		prefetchEntry_t *entry = &r_side[i];
+
+		if ( !entry->name[0] || entry->state != PF_EMPTY || entry->file ) {
+			continue;
+		}
+		if ( !R_SideRead( entry ) ) {
+			entry->state = PF_FAILED;
+			return;
+		}
+		entry->state = PF_WORKING;
+		ri.JobsSubmit( R_PrefetchDecode, entry );
+		return;
+	}
+}
+
+static qboolean R_SideTake( const char *name, byte **pic, int *width, int *height, const char **localName ) {
+	static char	takenName[MAX_QPATH];
+	int			i, bytes;
+
+	for ( i = 0; i < R_SIDE_MAX; i++ ) {
+		prefetchEntry_t *entry = &r_side[i];
+
+		if ( !entry->name[0] || !R_PrefetchSameName( name, entry->name ) ) {
+			continue;
+		}
+		while ( entry->state == PF_WORKING ) {
+			ri.ThreadYield();
+		}
+		if ( entry->state != PF_READY ) {
+			R_SideFree( entry );
+			return qfalse;
+		}
+		bytes = entry->width * entry->height * 4;
+		Q_strncpyz( r_lastImageName, entry->name, sizeof( r_lastImageName ) );
+		Q_strncpyz( takenName, entry->name, sizeof( takenName ) );
+		*localName = takenName;
+		*pic = (byte *)ri.Malloc( bytes );
+		Com_Memcpy( *pic, entry->pixels, bytes );
+		*width = entry->width;
+		*height = entry->height;
+		R_SideFree( entry );
+		return qtrue;
+	}
+	return qfalse;
+}
+
 void R_PrefetchStart( const char *listName ) {
 	char	fileName[MAX_QPATH];
 	char	*text;
@@ -1293,6 +1482,7 @@ void R_PrefetchStart( const char *listName ) {
 	int		len;
 
 	R_PrefetchFinish();
+	R_SideClear();
 
 	r_prefetchCount = r_prefetchNext = r_prefetchTaken = 0;
 	r_prefetchHits = r_prefetchMisses = 0;
@@ -1421,7 +1611,7 @@ image_t	*R_FindImageFile( const char *name, imgFlags_t flags )
 		if ( blur ) {
 			Q_strncpyz( baseName, name, MIN( (int)sizeof( baseName ), (int)( blur - name ) + 1 ) );
 			localName = R_LoadImage( baseName, &pic, &width, &height );
-		} else if ( !R_PrefetchTake( name, &pic, &width, &height, &localName ) ) {
+		} else if ( !R_PrefetchTake( name, &pic, &width, &height, &localName ) && !R_SideTake( name, &pic, &width, &height, &localName ) ) {
 			localName = R_LoadImage( name, &pic, &width, &height );
 		}
 		r_imageDecodeUs += ri.Microseconds() - start;
@@ -2016,6 +2206,48 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 	memcpy( skin->surfaces, parseSurfaces, skin->numSurfaces * sizeof( skinSurface_t ) );
 
 	return hSkin;
+}
+
+void RE_PrefetchSkin( const char *name ) {
+	char		images[8][MAX_QPATH];
+	char		*text;
+	const char	*text_p;
+	const char	*token;
+	int			i, j, count;
+
+	if ( !name || !name[0] || strlen( name ) >= MAX_QPATH || !ri.JobWorkers() || !r_prefetchTextures || !r_prefetchTextures->integer ) {
+		return;
+	}
+	if ( strlen( name ) < 5 || Q_stricmp( name + strlen( name ) - 5, ".skin" ) ) {
+		return;
+	}
+	for ( i = 1; i < tr.numSkins; i++ ) {
+		if ( !Q_stricmp( tr.skins[i]->name, name ) ) {
+			return;
+		}
+	}
+	if ( ri.FS_ReadFile( name, (void **)&text ) <= 0 || !text ) {
+		return;
+	}
+	text_p = text;
+	while ( text_p && *text_p ) {
+		token = CommaParse( &text_p );
+		if ( !token[0] ) {
+			break;
+		}
+		if ( *text_p == ',' ) {
+			text_p++;
+		}
+		if ( strstr( token, "tag_" ) ) {
+			continue;
+		}
+		token = CommaParse( &text_p );
+		count = R_ShaderImageNames( token, images, ARRAY_LEN( images ) );
+		for ( j = 0; j < count; j++ ) {
+			R_SideQueue( images[j] );
+		}
+	}
+	ri.FS_FreeFile( text );
 }
 
 void	R_InitSkins( void ) {

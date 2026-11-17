@@ -2547,6 +2547,61 @@ int		r_shaderFindCount, r_shaderCachedCount;
 
 static shader_t *R_FindShaderInner( const char *name, int lightmapIndex, qboolean mipRawImage );
 
+int R_ShaderImageNames( const char *name, char images[][MAX_QPATH], int max ) {
+	char		strippedName[MAX_QPATH];
+	const char	*text;
+	const char	*token;
+	int			count = 0;
+	int			depth = 0;
+
+	if ( !name || !name[0] || max <= 0 ) {
+		return 0;
+	}
+	COM_StripExtension( name, strippedName, sizeof( strippedName ) );
+	if ( R_FindShaderByName( strippedName ) != tr.defaultShader ) {
+		return 0;
+	}
+	text = FindShaderInShaderText( strippedName );
+	if ( !text ) {
+		Q_strncpyz( images[0], name, MAX_QPATH );
+		return 1;
+	}
+	while ( 1 ) {
+		token = COM_ParseExt( &text, qtrue );
+		if ( !token[0] ) {
+			break;
+		}
+		if ( token[0] == '{' ) {
+			depth++;
+			continue;
+		}
+		if ( token[0] == '}' ) {
+			if ( --depth <= 0 ) {
+				break;
+			}
+			continue;
+		}
+		if ( !Q_stricmp( token, "map" ) || !Q_stricmp( token, "clampmap" ) ) {
+			token = COM_ParseExt( &text, qfalse );
+			if ( token[0] && token[0] != '$' && token[0] != '*' && count < max ) {
+				Q_strncpyz( images[count++], token, MAX_QPATH );
+			}
+		} else if ( !Q_stricmp( token, "animmap" ) || !Q_stricmp( token, "clampanimmap" ) ) {
+			COM_ParseExt( &text, qfalse );
+			while ( 1 ) {
+				token = COM_ParseExt( &text, qfalse );
+				if ( !token[0] ) {
+					break;
+				}
+				if ( count < max ) {
+					Q_strncpyz( images[count++], token, MAX_QPATH );
+				}
+			}
+		}
+	}
+	return count;
+}
+
 shader_t *R_FindShader( const char *name, int lightmapIndex, qboolean mipRawImage ) {
 	int64_t		start = ri.Microseconds();
 	int			before = tr.numShaders;

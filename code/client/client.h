@@ -520,6 +520,7 @@ void CL_CGameRendering(stereoFrame_t stereo);
 void CL_SetCGameTime(void);
 void CL_FirstSnapshot(void);
 void CL_ShaderStateChanged(void);
+void CL_CgamePrefetchCommand(const char* s);
 
 void CL_InitUI(void);
 void CL_ShutdownUI(void);

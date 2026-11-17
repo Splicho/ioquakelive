@@ -413,6 +413,8 @@ static void R_SetColorMode(GLboolean *rgba, stereoFrame_t stereoFrame, int color
 void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 	drawBufferCommand_t *cmd;
 
+	R_SidePump();
+
 	if ( !tr.registered ) {
 		return;
 	}

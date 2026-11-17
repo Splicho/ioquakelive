@@ -1850,6 +1850,8 @@ static void RE_Shutdown( qboolean destroyWindow ) {
 
 	ri.Printf( PRINT_ALL, "RE_Shutdown( %i )\n", code );
 
+	R_SideClear();
+
 	R_ShutdownCommandBuffers();
 
 	ri.Cmd_RemoveCommand( "modellist" );
@@ -1922,6 +1924,7 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.BeginRegistration = RE_BeginRegistration;
 	re.RegisterModel = RE_RegisterModel;
 	re.RegisterSkin = RE_RegisterSkin;
+	re.PrefetchSkin = RE_PrefetchSkin;
 	re.RegisterShader = RE_RegisterShader;
 	re.RegisterShaderNoMip = RE_RegisterShaderNoMip;
 	re.LoadWorld = RE_LoadWorldMap;

@@ -181,7 +181,8 @@ typedef enum {
     CG_GETPENDINGCMD,
     CG_CLUB_FLAG,
     CG_R_SHADERIMAGESIZE,
-    CG_MATCH_ALERT
+    CG_MATCH_ALERT,
+    CG_R_PREFETCHSKIN
 } cgameImport_t;
 
 typedef enum {
@@ -219,6 +220,8 @@ typedef enum {
 
     CG_SET_CLIENT_TALKING,
 
-    CG_DEMO_REWIND
+    CG_DEMO_REWIND,
+
+    CG_PREFETCH_CLIENT
 } cgameExport_t;
 

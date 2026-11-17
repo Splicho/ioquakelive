@@ -751,21 +751,11 @@ void CG_UpdateAllModelScales(void) {
     }
 }
 
-void CG_NewClientInfo(int clientNum) {
-    clientInfo_t* ci;
+static qboolean CG_BuildClientInfo(int clientNum, const char* configstring, clientInfo_t* info) {
     clientInfo_t newInfo;
-    const char* configstring;
     const char* v;
     char* p;
-    qboolean lowMemory;
-
-    ci = &cgs.clientinfo[clientNum];
-
-    configstring = CG_ConfigString(clientNum + CS_PLAYERS);
-    if (!configstring[0]) {
-        memset(ci, 0, sizeof(*ci));
-        return;
-    }
+    qboolean own = qfalse;
 
     memset(&newInfo, 0, sizeof(newInfo));
 
@@ -867,7 +857,61 @@ void CG_NewClientInfo(int clientNum) {
             Q_strncpyz(newInfo.forcedHeadSkin, v, sizeof(newInfo.forcedHeadSkin));
         }
         Q_strncpyz(newInfo.skinName, v, sizeof(newInfo.skinName));
+        own = qtrue;
+    }
 
+    *info = newInfo;
+    return own;
+}
+
+void CG_PrefetchClient(int clientNum, const char* configstring) {
+    clientInfo_t info;
+    const char* head;
+    int i;
+
+    if (clientNum < 0 || clientNum >= MAX_CLIENTS || clientNum == cg.clientNum || cg.loading || !configstring[0]) {
+        return;
+    }
+    if (CG_BuildClientInfo(clientNum, configstring, &info)) {
+        return;
+    }
+    for (i = 0; i < cgs.maxclients; i++) {
+        const clientInfo_t* match = &cgs.clientinfo[i];
+
+        if (!match->infoValid || match->deferred) {
+            continue;
+        }
+        if (Q_stricmp(info.modelName, match->modelName) || Q_stricmp(info.skinName, match->skinName) ||
+            Q_stricmp(info.forcedHeadModel, match->forcedHeadModel) ||
+            Q_stricmp(info.forcedHeadSkin, match->forcedHeadSkin)) {
+            continue;
+        }
+        if (cgs.gametype >= GT_TEAM && info.team != match->team) {
+            continue;
+        }
+        return;
+    }
+    head = info.forcedHeadModel[0] ? info.forcedHeadModel : info.modelName;
+    trap_R_PrefetchSkin(va("models/players/%s/lower_%s.skin", info.modelName, info.skinName));
+    trap_R_PrefetchSkin(va("models/players/%s/upper_%s.skin", info.modelName, info.skinName));
+    trap_R_PrefetchSkin(va("models/players/%s/head_%s.skin", head, info.forcedHeadSkin));
+}
+
+void CG_NewClientInfo(int clientNum) {
+    clientInfo_t* ci;
+    clientInfo_t newInfo;
+    const char* configstring;
+    qboolean lowMemory;
+
+    ci = &cgs.clientinfo[clientNum];
+
+    configstring = CG_ConfigString(clientNum + CS_PLAYERS);
+    if (!configstring[0]) {
+        memset(ci, 0, sizeof(*ci));
+        return;
+    }
+
+    if (CG_BuildClientInfo(clientNum, configstring, &newInfo)) {
         CG_SetEndScoreboardMenu();
     }
 

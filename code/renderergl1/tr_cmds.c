@@ -404,6 +404,8 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 	colorMaskCommand_t *colcmd = NULL;
 	clearColorCommand_t *clrcmd = NULL;
 
+	R_SidePump();
+
 	if ( !tr.registered ) {
 		return;
 	}

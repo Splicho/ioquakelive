@@ -128,6 +128,34 @@ void CL_AddCgameCommand(const char* cmdName) {
     CL_SetCgameCommandCompletion(cmdName);
 }
 
+void CL_CgamePrefetchCommand(const char* s) {
+    char value[MAX_STRING_CHARS];
+    const char* p;
+    int index, len;
+
+    if (!cgvm || clc.state != CA_ACTIVE || !re.PrefetchSkin || strncmp(s, "cs ", 3)) {
+        return;
+    }
+    index = atoi(s + 3);
+    if (index < CS_PLAYERS || index >= CS_PLAYERS + MAX_CLIENTS) {
+        return;
+    }
+    p = strchr(s + 3, ' ');
+    if (!p) {
+        return;
+    }
+    p++;
+    if (*p == '"') {
+        p++;
+    }
+    Q_strncpyz(value, p, sizeof(value));
+    len = (int)strlen(value);
+    if (len > 0 && value[len - 1] == '"') {
+        value[len - 1] = '\0';
+    }
+    VM_Call(cgvm, CG_PREFETCH_CLIENT, index - CS_PLAYERS, value);
+}
+
 void CL_ConfigstringModified(void) {
     char *old, *s;
     int i, index;
@@ -685,6 +713,11 @@ static intptr_t CL_CgameSystemCallsInner(intptr_t* args) {
             return CL_GetPendingCmd(VMA(1));
         case CG_MATCH_ALERT:
             CL_MatchAlert(args[1] ? qtrue : qfalse);
+            return 0;
+        case CG_R_PREFETCHSKIN:
+            if (re.PrefetchSkin) {
+                re.PrefetchSkin(VMA(1));
+            }
             return 0;
         case CG_GETUSERCMD:
             return CL_GetUserCmd(args[1], VMA(2));

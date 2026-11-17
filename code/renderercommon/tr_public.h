@@ -96,6 +96,8 @@ typedef struct {
     void (*LowLatencyFlash)(void);
 
     qhandle_t (*RegisterShaderFromRaw)(const char* name, const byte* rgba, int width, int height);
+
+    void (*PrefetchSkin)(const char* name);
 } refexport_t;
 
 typedef struct {

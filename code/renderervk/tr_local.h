@@ -1824,4 +1824,10 @@ extern void VBO_Flush( void );
 
 int R_GetLightmapCoords( const int lightmapIndex, float *x, float *y );
 
+
+int R_ShaderImageNames( const char *name, char images[][MAX_QPATH], int max );
+void R_SidePump( void );
+void R_SideClear( void );
+void RE_PrefetchSkin( const char *name );
+
 #endif
