@@ -320,7 +320,7 @@ void Huff_offsetTransmit(huff_t* huff, int ch, byte* fout, int* offset, int maxo
 }
 
 void Huff_Decompress(msg_t* mbuf, int offset) {
-    int ch, cch, i, j, size;
+    int ch, cch, i, j, size, bitOffset, bitCount;
     byte seq[65536];
     byte* buffer;
     huff_t huff;
@@ -329,6 +329,11 @@ void Huff_Decompress(msg_t* mbuf, int offset) {
     buffer = mbuf->data + offset;
 
     if (size <= 0) {
+        return;
+    }
+
+    if (size == 1) {
+        mbuf->cursize = offset;
         return;
     }
 
@@ -343,19 +348,21 @@ void Huff_Decompress(msg_t* mbuf, int offset) {
     if (cch > mbuf->maxsize - offset) {
         cch = mbuf->maxsize - offset;
     }
-    bloc = 16;
+    bitOffset = 16;
+    bitCount = size << 3;
 
     for (j = 0; j < cch; j++) {
-        ch = 0;
-        if ((bloc >> 3) > size) {
-            seq[j] = 0;
+        Huff_offsetReceive(huff.tree, &ch, buffer, &bitOffset, bitCount);
+        if (bitOffset > bitCount) {
             break;
         }
-        Huff_Receive(huff.tree, &ch, buffer);
         if (ch == NYT) {
+            if (bitOffset + 8 > bitCount) {
+                break;
+            }
             ch = 0;
             for (i = 0; i < 8; i++) {
-                ch = (ch << 1) + get_bit(buffer);
+                ch = (ch << 1) + Huff_getBit(buffer, &bitOffset);
             }
         }
 
@@ -363,8 +370,8 @@ void Huff_Decompress(msg_t* mbuf, int offset) {
 
         Huff_addRef(&huff, (byte)ch);
     }
-    mbuf->cursize = cch + offset;
-    Com_Memcpy(mbuf->data + offset, seq, cch);
+    mbuf->cursize = j + offset;
+    Com_Memcpy(mbuf->data + offset, seq, j);
 }
 
 extern int oldsize;
