@@ -260,6 +260,7 @@ static void R_IssueRenderCommands( void ) {
 #endif
 
 	if ( !r_skipBackEnd->integer ) {
+		R_Font_QueueUpload();
 		if ( glConfig.smpActive ) {
 			GLimp_WakeRenderer( backEndData );
 			if ( screenshot ) {

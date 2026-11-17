@@ -1182,6 +1182,116 @@ static void vk_alloc_staging_buffer( VkDeviceSize size )
 	SET_OBJECT_NAME( vk.staging_buffer.memory, "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT );
 }
 
+typedef struct {
+	VkBuffer handle;
+	VkDeviceMemory memory;
+	byte *ptr;
+	VkDeviceSize size;
+} vk_frame_upload_t;
+
+static vk_frame_upload_t vk_frame_upload[ NUM_COMMAND_BUFFERS ];
+
+static void vk_free_frame_upload( vk_frame_upload_t *u )
+{
+	if ( u->handle != VK_NULL_HANDLE ) {
+		qvkDestroyBuffer( vk.device, u->handle, NULL );
+	}
+	if ( u->memory != VK_NULL_HANDLE ) {
+		qvkFreeMemory( vk.device, u->memory, NULL );
+	}
+	Com_Memset( u, 0, sizeof( *u ) );
+}
+
+static void vk_release_frame_uploads( void )
+{
+	int i;
+
+	for ( i = 0; i < NUM_COMMAND_BUFFERS; i++ ) {
+		vk_free_frame_upload( &vk_frame_upload[ i ] );
+	}
+}
+
+static void vk_alloc_frame_upload( vk_frame_upload_t *u, VkDeviceSize size )
+{
+	VkBufferCreateInfo buffer_desc;
+	VkMemoryRequirements memory_requirements;
+	VkMemoryAllocateInfo alloc_info;
+	void *data;
+
+	vk_free_frame_upload( u );
+
+	u->size = PAD( size, 64 * 1024 );
+
+	buffer_desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_desc.pNext = NULL;
+	buffer_desc.flags = 0;
+	buffer_desc.size = u->size;
+	buffer_desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	buffer_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	buffer_desc.queueFamilyIndexCount = 0;
+	buffer_desc.pQueueFamilyIndices = NULL;
+	VK_CHECK( qvkCreateBuffer( vk.device, &buffer_desc, NULL, &u->handle ) );
+
+	qvkGetBufferMemoryRequirements( vk.device, u->handle, &memory_requirements );
+
+	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	alloc_info.pNext = NULL;
+	alloc_info.allocationSize = memory_requirements.size;
+	alloc_info.memoryTypeIndex = find_memory_type( memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+
+	VK_CHECK( qvkAllocateMemory( vk.device, &alloc_info, NULL, &u->memory ) );
+	VK_CHECK( qvkBindBufferMemory( vk.device, u->handle, u->memory, 0 ) );
+
+	VK_CHECK( qvkMapMemory( vk.device, u->memory, 0, VK_WHOLE_SIZE, 0, &data ) );
+	u->ptr = (byte *)data;
+
+	SET_OBJECT_NAME( u->handle, "frame upload buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT );
+	SET_OBJECT_NAME( u->memory, "frame upload buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT );
+}
+
+qboolean vk_can_upload_in_frame( const image_t *image )
+{
+	if ( image == NULL || image->handle == VK_NULL_HANDLE ) {
+		return qfalse;
+	}
+	return ( image->internalFormat == VK_FORMAT_R8G8B8A8_UNORM || image->internalFormat == VK_FORMAT_B8G8R8A8_UNORM ) ? qtrue : qfalse;
+}
+
+void vk_upload_alpha_in_frame( image_t *image, int x, int y, int width, int height, const byte *alpha )
+{
+	vk_frame_upload_t *u = &vk_frame_upload[ vk.cmd_index ];
+	VkDeviceSize size = (VkDeviceSize)width * height * 4;
+	VkBufferImageCopy region;
+	byte *dst;
+	int i, n;
+
+	if ( u->size < size ) {
+		vk_alloc_frame_upload( u, size );
+	}
+
+	n = width * height;
+	dst = u->ptr;
+	for ( i = 0; i < n; i++, dst += 4 ) {
+		dst[0] = dst[1] = dst[2] = 255;
+		dst[3] = alpha[i];
+	}
+
+	Com_Memset( &region, 0, sizeof( region ) );
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.mipLevel = 0;
+	region.imageSubresource.baseArrayLayer = 0;
+	region.imageSubresource.layerCount = 1;
+	region.imageOffset.x = x;
+	region.imageOffset.y = y;
+	region.imageExtent.width = width;
+	region.imageExtent.height = height;
+	region.imageExtent.depth = 1;
+
+	record_image_layout_transition( vk.cmd->command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 0 );
+	qvkCmdCopyBufferToImage( vk.cmd->command_buffer, u->handle, image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region );
+	record_image_layout_transition( vk.cmd->command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
+}
+
 #ifdef USE_VK_VALIDATION
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT object_type, uint64_t object, size_t location,
 	int32_t message_code, const char* layer_prefix, const char* message, void* user_data) {
@@ -4510,6 +4620,7 @@ void vk_shutdown( refShutdownCode_t code )
 #endif
 
 	vk_clean_staging_buffer();
+	vk_release_frame_uploads();
 
 	vk_release_geometry_buffers();
 
@@ -4651,6 +4762,7 @@ void vk_release_resources( void ) {
 		qvkFreeMemory(vk.device, vk_world.image_chunks[i].memory, NULL);
 
 	vk_clean_staging_buffer();
+	vk_release_frame_uploads();
 
 	for ( i = vk.pipelines_world_base; i < vk.pipelines_count; i++ ) {
 		for ( j = 0; j < RENDER_PASS_COUNT; j++ ) {
@@ -7349,6 +7461,8 @@ _retry:
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0 );
 	}
 
+	RB_Font_RecordUpload();
+
 #if 0
 	if ( vk.fboActive ) {
 		record_image_layout_transition( vk.cmd->command_buffer, vk.color_image, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -7554,6 +7668,8 @@ void vk_end_frame( void )
 
 	VK_CHECK( qvkQueueSubmit( vk.queue, 1, &submit_info, vk.cmd->rendering_finished_fence ) );
 	vk.cmd->waitForFence = qtrue;
+
+	RB_Font_UploadSubmitted();
 
 	vk_latency_marker( VK_LATENCY_MARKER_RENDERSUBMIT_END_NV );
 

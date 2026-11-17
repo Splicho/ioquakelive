@@ -1712,6 +1712,9 @@ typedef struct {
 extern vec4_t g_fontColor2D;
 void R_InitFonts( void );
 void R_FontShutdown( void );
+void R_Font_QueueUpload( void );
+void RB_Font_RecordUpload( void );
+void RB_Font_UploadSubmitted( void );
 void R_FontList_f( void );
 int RE_Font_Register( const char *name );
 void RE_Font_DrawString( int x, int y, const char *text, int fontIndex, float scale, int limit, float *maxX, int flags );

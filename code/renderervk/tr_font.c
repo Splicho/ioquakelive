@@ -161,6 +161,98 @@ static int RB_Font_renderResize( void *uptr, int width, int height ) {
 	return 1;
 }
 
+typedef struct {
+	int rect[4];
+	qboolean ready;
+} fontUpload_t;
+
+static int fontDirty[4];
+static fontUpload_t fontUploads[SMP_FRAMES];
+static byte fontUploadAlpha[SMP_FRAMES][FONT_ATLAS_MAX_W * FONT_ATLAS_MAX_H];
+static int fontRecorded = -1;
+
+static void R_Font_ClearUploads( void ) {
+	int i;
+
+	Com_Memset( fontDirty, 0, sizeof( fontDirty ) );
+	for ( i = 0; i < SMP_FRAMES; i++ ) {
+		fontUploads[i].ready = qfalse;
+	}
+	fontRecorded = -1;
+}
+
+void R_Font_QueueUpload( void ) {
+	fontUpload_t *u;
+	const unsigned char *data;
+	int atlasW, atlasH, x0, y0, x1, y1, w, h, y;
+
+	if ( fontDirty[0] >= fontDirty[2] || fontDirty[1] >= fontDirty[3] ) {
+		return;
+	}
+	if ( !fontContext || !fontImage ) {
+		Com_Memset( fontDirty, 0, sizeof( fontDirty ) );
+		return;
+	}
+
+	data = fonsGetTextureData( fontContext, &atlasW, &atlasH );
+	u = &fontUploads[ tr.smpFrame ];
+
+	x0 = fontDirty[0];
+	y0 = fontDirty[1];
+	x1 = fontDirty[2];
+	y1 = fontDirty[3];
+	if ( u->ready ) {
+		x0 = MIN( x0, u->rect[0] );
+		y0 = MIN( y0, u->rect[1] );
+		x1 = MAX( x1, u->rect[2] );
+		y1 = MAX( y1, u->rect[3] );
+	}
+	Com_Memset( fontDirty, 0, sizeof( fontDirty ) );
+
+	x0 = MAX( x0, 0 );
+	y0 = MAX( y0, 0 );
+	x1 = MIN( x1, MIN( atlasW, FONT_ATLAS_MAX_W ) );
+	y1 = MIN( y1, MIN( atlasH, FONT_ATLAS_MAX_H ) );
+	w = x1 - x0;
+	h = y1 - y0;
+	if ( !data || w <= 0 || h <= 0 ) {
+		u->ready = qfalse;
+		return;
+	}
+
+	for ( y = 0; y < h; y++ ) {
+		Com_Memcpy( fontUploadAlpha[ tr.smpFrame ] + y * w, data + ( y0 + y ) * atlasW + x0, w );
+	}
+	u->rect[0] = x0;
+	u->rect[1] = y0;
+	u->rect[2] = x1;
+	u->rect[3] = y1;
+	u->ready = qtrue;
+}
+
+void RB_Font_RecordUpload( void ) {
+	const int slot = backEnd.smpFrame;
+	fontUpload_t *u;
+
+	fontRecorded = -1;
+	if ( slot < 0 || slot >= SMP_FRAMES || !fontImage ) {
+		return;
+	}
+	u = &fontUploads[ slot ];
+	if ( !u->ready ) {
+		return;
+	}
+	vk_upload_alpha_in_frame( fontImage, u->rect[0], u->rect[1], u->rect[2] - u->rect[0], u->rect[3] - u->rect[1], fontUploadAlpha[ slot ] );
+	fontRecorded = slot;
+}
+
+void RB_Font_UploadSubmitted( void ) {
+	if ( fontRecorded >= 0 ) {
+		fontUploads[ fontRecorded ].ready = qfalse;
+		fontRecorded = -1;
+	}
+}
+
 static void RB_Font_renderUpdate( void *uptr, int *rect, const unsigned char *data ) {
 	int w = rect[2] - rect[0];
 	int h = rect[3] - rect[1];
@@ -170,6 +262,21 @@ static void RB_Font_renderUpdate( void *uptr, int *rect, const unsigned char *da
 	(void)uptr;
 
 	if ( !fontImage || w <= 0 || h <= 0 ) {
+		return;
+	}
+
+	if ( vk_can_upload_in_frame( fontImage ) ) {
+		if ( fontDirty[0] >= fontDirty[2] || fontDirty[1] >= fontDirty[3] ) {
+			fontDirty[0] = rect[0];
+			fontDirty[1] = rect[1];
+			fontDirty[2] = rect[2];
+			fontDirty[3] = rect[3];
+		} else {
+			fontDirty[0] = MIN( fontDirty[0], rect[0] );
+			fontDirty[1] = MIN( fontDirty[1], rect[1] );
+			fontDirty[2] = MAX( fontDirty[2], rect[2] );
+			fontDirty[3] = MAX( fontDirty[3], rect[3] );
+		}
 		return;
 	}
 
@@ -232,6 +339,7 @@ static void RB_Font_renderDraw( void *uptr, const float *verts, const float *tco
 
 static void RB_Font_renderDelete( void *uptr ) {
 	(void)uptr;
+	R_Font_ClearUploads();
 	fontImage = NULL;
 	fontShader = 0;
 	fontAtlasWidth = 0;
@@ -433,6 +541,7 @@ void R_FontShutdown( void ) {
 	}
 	fonsDeleteInternal( fontContext );
 	fontContext = NULL;
+	R_Font_ClearUploads();
 	numFontIndices = 0;
 	R_Font_FreeEmoji();
 	for ( i = 0; i < (int)ARRAY_LEN( fallbackFontIds ); i++ ) {
