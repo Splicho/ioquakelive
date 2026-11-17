@@ -807,7 +807,7 @@ static int GLimp_SetMode(int mode, int fullscreen, qboolean noborder, qboolean f
         qglClear(GL_COLOR_BUFFER_BIT);
         SDL_GL_SwapWindow(SDL_window);
 
-        if (!SDL_GL_SetSwapInterval(r_swapInterval->integer)) {
+        if (!SDL_GL_SetSwapInterval(r_swapInterval->integer) && (r_swapInterval->integer >= 0 || !SDL_GL_SetSwapInterval(1))) {
             ri.Printf(PRINT_DEVELOPER, "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError());
         }
 
@@ -1432,7 +1432,7 @@ void GLimp_EndFrame(void) {
     if (r_swapInterval->modified) {
         r_swapInterval->modified = qfalse;
 
-        if (!SDL_GL_SetSwapInterval(r_swapInterval->integer)) {
+        if (!SDL_GL_SetSwapInterval(r_swapInterval->integer) && (r_swapInterval->integer >= 0 || !SDL_GL_SetSwapInterval(1))) {
             ri.Printf(PRINT_DEVELOPER, "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError());
         }
     }
