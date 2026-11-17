@@ -3699,6 +3699,8 @@ static void CG_DrawScoreByOwnerDraw(int ownerDraw, rectDef_t *rect, float scale,
 static void CG_DrawScoreboardPlayerHead(rectDef_t *rect, int ownerDraw) {
     int csIndex, clientNum;
     const char *s;
+    clientInfo_t *ci;
+    qhandle_t pic;
 
     switch (ownerDraw) {
         case CG_MOST_VALUABLE_OFFENSIVE_PLYR: csIndex = 697; break;
@@ -3718,8 +3720,10 @@ static void CG_DrawScoreboardPlayerHead(rectDef_t *rect, int ownerDraw) {
     if (clientNum < 0 || clientNum >= MAX_CLIENTS || !cgs.clientinfo[clientNum].infoValid) {
         return;
     }
-    if (cgs.clientinfo[clientNum].modelIcon) {
-        CG_DrawPic(rect->x, rect->y, rect->w, rect->h, cgs.clientinfo[clientNum].modelIcon);
+    ci = &cgs.clientinfo[clientNum];
+    pic = CG_PlayerAvatar(ci) ? ci->avatar : ci->modelIcon;
+    if (pic) {
+        CG_DrawPic(rect->x, rect->y, rect->w, rect->h, pic);
     }
 }
 
