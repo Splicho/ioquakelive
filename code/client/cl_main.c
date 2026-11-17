@@ -2986,6 +2986,25 @@ qboolean CL_SubMsecFrames(void) {
     return qtrue;
 }
 
+static int CL_DemoFrameMsec(int msec) {
+    static int lastFrameTime;
+    static double rest;
+    int real = com_frameTime - lastFrameTime;
+    double scaled;
+
+    lastFrameTime = com_frameTime;
+    if (!clc.demoplaying || cl_timedemo->integer || cl_avidemo->integer || CL_VideoRecording() ||
+        com_timescale->value <= 0 || com_timescale->value == 1.0f || real <= 0 || real > 5000 ||
+        Cvar_VariableIntegerValue("fixedtime")) {
+        rest = 0;
+        return msec;
+    }
+    scaled = real * (double)com_timescale->value + rest;
+    msec = (int)scaled;
+    rest = scaled - msec;
+    return msec;
+}
+
 static void CL_ReconnectFrame(void) {
     char reason[MAX_STRING_CHARS];
     int left;
@@ -3022,6 +3041,8 @@ void CL_Frame(int msec) {
     if (!com_cl_running->integer) {
         return;
     }
+
+    msec = CL_DemoFrameMsec(msec);
 
 #ifdef USE_CURL
     if (clc.downloadCURLM) {
