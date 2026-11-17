@@ -793,6 +793,27 @@ void CL_CreateNewCommands(void) {
     cl.cmds[cmdNum] = cmd;
 }
 
+static qboolean CL_CommandChangedSinceSent(int oldPacketNum) {
+    const usercmd_t* sent;
+    int sentNum;
+    int i;
+
+    sentNum = cl.outPackets[oldPacketNum].p_cmdNumber;
+    if (clc.state != CA_ACTIVE || sentNum <= 0 || cl.cmdNumber - sentNum <= 0 || cl.cmdNumber - sentNum >= CMD_BACKUP) {
+        return qfalse;
+    }
+
+    sent = &cl.cmds[sentNum & CMD_MASK];
+    for (i = sentNum + 1; i <= cl.cmdNumber; i++) {
+        const usercmd_t* cmd = &cl.cmds[i & CMD_MASK];
+
+        if (cmd->buttons != sent->buttons || cmd->weapon != sent->weapon || cmd->weaponPrimary != sent->weaponPrimary) {
+            return qtrue;
+        }
+    }
+    return qfalse;
+}
+
 qboolean CL_ReadyToSendPacket(void) {
     int oldPacketNum;
     int delta;
@@ -827,6 +848,9 @@ qboolean CL_ReadyToSendPacket(void) {
         Cvar_Set("cl_maxpackets", "125");
     }
     oldPacketNum = (clc.netchan.outgoingSequence - 1) & PACKET_MASK;
+    if (CL_CommandChangedSinceSent(oldPacketNum)) {
+        return qtrue;
+    }
     delta = cls.realtime - cl.outPackets[oldPacketNum].p_realtime;
     if (delta < 1000 / cl_maxpackets->integer) {
         return qfalse;
