@@ -3137,6 +3137,8 @@ void CL_Frame(int msec) {
     CL_CheckForResend();
     CL_RedirectFrame();
 
+    Steam_SetPlaying(clc.state == CA_ACTIVE && !(Key_GetCatcher() & KEYCATCH_UI) ? qtrue : qfalse);
+
     if (com_serviceFrame) {
         CL_SteamServersFrame();
 

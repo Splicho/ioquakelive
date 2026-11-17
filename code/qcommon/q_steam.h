@@ -10,6 +10,7 @@ void Steam_PromptToStart(void);
 void Steam_GS_Init(void);
 
 void Steam_Frame(void);
+void Steam_SetPlaying(qboolean playing);
 
 void Steam_GS_SetMaxPlayers(int maxPlayers);
 

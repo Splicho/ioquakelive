@@ -41,6 +41,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define DISCORD_SITE "https://quakeclub.com"
 #define DISCORD_RETRY_MSEC 20000
 #define DISCORD_GAP_MSEC 5000
+#define DISCORD_POLL_MSEC 100
+#define DISCORD_BUILD_MSEC 1000
 #define DISCORD_TEXT 128
 
 #ifdef MSG_NOSIGNAL
@@ -72,6 +74,10 @@ static char discordWhere[MAX_OSPATH];
 static long long discordSince;
 static byte discordIn[16384];
 static int discordInLen;
+static void* discordMutex;
+static volatile int discordThreadState;
+static qboolean discordWanted;
+static char discordPending[2048];
 
 static const char* const discordGametypes[] = {
     "Free For All", "Duel", "Race", "Team Deathmatch", "Clan Arena", "Capture The Flag", "One Flag CTF",
@@ -155,9 +161,11 @@ static qboolean Discord_Open(void) {
     int n;
 #ifdef _WIN32
     for (n = 0; n < 10; n++) {
-        HANDLE h = CreateFileA(va("\\\\.\\pipe\\discord-ipc-%i", n), GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                               OPEN_EXISTING, 0, NULL);
+        char name[64];
+        HANDLE h;
 
+        Com_sprintf(name, sizeof(name), "\\\\.\\pipe\\discord-ipc-%i", n);
+        h = CreateFileA(name, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
         if (h != INVALID_HANDLE_VALUE) {
             discordPipe = h;
             return qtrue;
@@ -283,13 +291,10 @@ static void Discord_Drain(void) {
             if (op == DISCORD_OP_PING) {
                 Discord_Write(DISCORD_OP_PONG, text, len);
             } else if (op == DISCORD_OP_CLOSE) {
-                Com_DPrintf("Discord closed the presence: %s\n", text);
                 Discord_Close();
                 return;
             } else if (op == DISCORD_OP_FRAME && strstr(text, "\"evt\"") && strstr(text, "\"READY\"")) {
                 discordReady = qtrue;
-            } else if (op == DISCORD_OP_FRAME && strstr(text, "\"evt\"") && strstr(text, "\"ERROR\"")) {
-                Com_DPrintf("Discord presence: %s\n", text);
             }
         }
         if (discordInLen == (int)sizeof(discordIn)) {
@@ -436,24 +441,16 @@ void CL_Discord_Init(void) {
     Cvar_CheckRange(cl_discordPresence, 0, 1, qtrue);
 }
 
-void CL_Discord_Shutdown(void) {
-    if (Discord_IsOpen() && discordReady) {
-        Discord_Send(NULL);
-    }
-    Discord_Close();
-}
-
-void CL_Discord_Frame(void) {
+static void Discord_Step(qboolean wanted, const char* activity) {
     static const char handshake[] = "{\"v\":1,\"client_id\":\"" DISCORD_APP_ID "\"}";
-    char activity[2048];
     int now = Sys_Milliseconds();
 
-    if (!cl_discordPresence || com_dedicated->integer) {
-        return;
-    }
-    if (!cl_discordPresence->integer) {
+    if (!wanted) {
         if (Discord_IsOpen()) {
-            CL_Discord_Shutdown();
+            if (discordReady) {
+                Discord_Send(NULL);
+            }
+            Discord_Close();
         }
         return;
     }
@@ -468,14 +465,79 @@ void CL_Discord_Frame(void) {
         Discord_Write(DISCORD_OP_HANDSHAKE, handshake, (int)strlen(handshake));
     }
     Discord_Drain();
-    if (!discordReady || (discordLastSent && now - discordLastSent < DISCORD_GAP_MSEC)) {
+    if (!discordReady || !activity[0] || (discordLastSent && now - discordLastSent < DISCORD_GAP_MSEC)) {
         return;
     }
-    Discord_Activity(activity, sizeof(activity));
     if (!strcmp(activity, discordLast)) {
         return;
     }
     Discord_Send(activity);
     Q_strncpyz(discordLast, activity, sizeof(discordLast));
     discordLastSent = now;
+}
+
+static void Discord_Thread(void* argument) {
+    char activity[sizeof(discordPending)];
+    qboolean wanted;
+
+    (void)argument;
+    while (discordThreadState == 1) {
+        Sys_MutexLock(discordMutex);
+        wanted = discordWanted;
+        Q_strncpyz(activity, discordPending, sizeof(activity));
+        Sys_MutexUnlock(discordMutex);
+        Discord_Step(wanted, activity);
+        Sys_Sleep(DISCORD_POLL_MSEC);
+    }
+    Discord_Step(qfalse, "");
+    discordThreadState = 3;
+}
+
+void CL_Discord_Shutdown(void) {
+    int waited;
+
+    if (discordThreadState == 1) {
+        discordThreadState = 2;
+        for (waited = 0; discordThreadState != 3 && waited < 1000; waited++) {
+            Sys_Sleep(1);
+        }
+        return;
+    }
+    if (discordThreadState == 3) {
+        return;
+    }
+    Discord_Step(qfalse, "");
+}
+
+void CL_Discord_Frame(void) {
+    static int lastBuilt;
+    static char activity[sizeof(discordPending)];
+    qboolean wanted;
+    int now = Sys_Milliseconds();
+
+    if (!cl_discordPresence || com_dedicated->integer) {
+        return;
+    }
+    wanted = cl_discordPresence->integer ? qtrue : qfalse;
+    if (!discordThreadState) {
+        discordMutex = Sys_MutexCreate();
+        discordThreadState = 1;
+        if (!discordMutex || !Sys_ThreadCreate(Discord_Thread, NULL)) {
+            discordThreadState = 4;
+        }
+    }
+    if (wanted && (!lastBuilt || now - lastBuilt >= DISCORD_BUILD_MSEC || now < lastBuilt)) {
+        lastBuilt = now;
+        Discord_Activity(activity, sizeof(activity));
+    }
+    if (discordThreadState != 1) {
+        if (discordThreadState == 4) {
+            Discord_Step(wanted, activity);
+        }
+        return;
+    }
+    Sys_MutexLock(discordMutex);
+    discordWanted = wanted;
+    Q_strncpyz(discordPending, activity, sizeof(discordPending));
+    Sys_MutexUnlock(discordMutex);
 }

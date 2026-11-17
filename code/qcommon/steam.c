@@ -111,6 +111,8 @@ typedef struct {
 
 static void Steam_WorkshopListen(qboolean asServer);
 static void Steam_P2PListen(qboolean asServer);
+static void Steam_P2PStart(void);
+static void Steam_P2PStop(void);
 static void Steam_AuthListen(void);
 static void Steam_ServersListen(void);
 static void Steam_StatsListen(void);
@@ -1256,6 +1258,7 @@ static void Steam_Start(qboolean started) {
     }
     if (st.Networking) {
         st.networking = st.Networking();
+        Steam_P2PStart();
     }
     if (st.User) {
         st.user = st.User();
@@ -1446,12 +1449,32 @@ qboolean Steam_GS_HandlePacket(netadr_t from, const void* data, int len) {
     return st.HandleIncomingPacket(st.gameServer, data, len, ip, BigShort(from.port)) ? qtrue : qfalse;
 }
 
+#define STEAM_CALLBACK_MSEC 100
+#define STEAM_PLAYING_CALLBACK_MSEC 250
+
+static qboolean steamPlaying;
+
+void Steam_SetPlaying(qboolean playing) {
+    steamPlaying = playing;
+}
+
 void Steam_Frame(void) {
-    if (st.clientUp) {
+    static int lastCallbacks, lastServer;
+    int now = Sys_Milliseconds();
+    int gap = steamPlaying ? STEAM_PLAYING_CALLBACK_MSEC : STEAM_CALLBACK_MSEC;
+
+    if (st.clientUp && (now - lastCallbacks >= gap || now < lastCallbacks)) {
+        lastCallbacks = now;
         st.API_RunCallbacks();
     }
     if (!st.serverUp) {
         return;
+    }
+    if (st.clientUp && !(com_sv_running && com_sv_running->integer)) {
+        if (now - lastServer < STEAM_CALLBACK_MSEC && now >= lastServer) {
+            return;
+        }
+        lastServer = now;
     }
     st.GameServer_RunCallbacks();
     if (com_sv_running && com_sv_running->integer) {
@@ -1535,6 +1558,7 @@ void Steam_Shutdown(void) {
         st.loggedOn = qfalse;
         st.numTracked = 0;
     }
+    Steam_P2PStop();
     if (st.clientUp) {
         st.API_Shutdown();
         st.clientUp = qfalse;
@@ -2995,6 +3019,127 @@ static void* Steam_P2P(qboolean asServer) {
     return asServer ? st.gameServerNetworking : st.networking;
 }
 
+#define STEAM_REPORT_CHANNEL 0
+#define STEAM_P2P_CHANNELS 2
+#define STEAM_P2P_SLOTS 64
+#define STEAM_P2P_POLL_MSEC 15
+
+typedef struct {
+    uint64_t from;
+    unsigned int size;
+    void* data;
+} steamP2PPacket_t;
+
+static struct {
+    void* mutex;
+    volatile int state;
+    qboolean active;
+    steamP2PPacket_t slots[STEAM_P2P_CHANNELS][STEAM_P2P_SLOTS];
+    int head[STEAM_P2P_CHANNELS];
+    int tail[STEAM_P2P_CHANNELS];
+} steamP2P;
+
+static qboolean Steam_P2PRoom(int channel) {
+    qboolean room;
+
+    Sys_MutexLock(steamP2P.mutex);
+    room = steamP2P.head[channel] - steamP2P.tail[channel] < STEAM_P2P_SLOTS ? qtrue : qfalse;
+    Sys_MutexUnlock(steamP2P.mutex);
+    return room;
+}
+
+static void Steam_P2PPush(int channel, uint64_t from, unsigned int size, void* data) {
+    steamP2PPacket_t* packet;
+
+    Sys_MutexLock(steamP2P.mutex);
+    packet = &steamP2P.slots[channel][steamP2P.head[channel] % STEAM_P2P_SLOTS];
+    packet->from = from;
+    packet->size = size;
+    packet->data = data;
+    steamP2P.head[channel]++;
+    Sys_MutexUnlock(steamP2P.mutex);
+}
+
+static qboolean Steam_P2PPop(int channel, steamP2PPacket_t* out) {
+    qboolean popped = qfalse;
+
+    Sys_MutexLock(steamP2P.mutex);
+    if (steamP2P.tail[channel] != steamP2P.head[channel]) {
+        *out = steamP2P.slots[channel][steamP2P.tail[channel] % STEAM_P2P_SLOTS];
+        steamP2P.tail[channel]++;
+        popped = qtrue;
+    }
+    Sys_MutexUnlock(steamP2P.mutex);
+    return popped;
+}
+
+static void Steam_P2PThread(void* argument) {
+    int channel;
+
+    (void)argument;
+    while (steamP2P.state == 1) {
+        for (channel = 0; channel < STEAM_P2P_CHANNELS; channel++) {
+            unsigned int size = 0;
+            unsigned int read = 0;
+            uint64_t from = 0;
+            void* data;
+
+            while (steamP2P.state == 1 && Steam_P2PRoom(channel) &&
+                   st.IsP2PPacketAvailable(st.networking, &size, channel) && size) {
+                data = malloc(size);
+                if (!data) {
+                    break;
+                }
+                if (!st.ReadP2PPacket(st.networking, data, size, &read, &from, channel)) {
+                    free(data);
+                    break;
+                }
+                Steam_P2PPush(channel, from, read, data);
+            }
+        }
+        Sys_Sleep(STEAM_P2P_POLL_MSEC);
+    }
+    steamP2P.state = 3;
+}
+
+static void Steam_P2PStart(void) {
+    if (steamP2P.active || !st.networking || !st.IsP2PPacketAvailable || !st.ReadP2PPacket) {
+        return;
+    }
+    if (!steamP2P.mutex) {
+        steamP2P.mutex = Sys_MutexCreate();
+        if (!steamP2P.mutex) {
+            return;
+        }
+    }
+    steamP2P.state = 1;
+    if (!Sys_ThreadCreate(Steam_P2PThread, NULL)) {
+        steamP2P.state = 0;
+        return;
+    }
+    steamP2P.active = qtrue;
+}
+
+static void Steam_P2PStop(void) {
+    steamP2PPacket_t packet;
+    int waited;
+    int channel;
+
+    if (!steamP2P.active) {
+        return;
+    }
+    steamP2P.state = 2;
+    for (waited = 0; steamP2P.state != 3 && waited < 2000; waited++) {
+        Sys_Sleep(1);
+    }
+    for (channel = 0; channel < STEAM_P2P_CHANNELS; channel++) {
+        while (Steam_P2PPop(channel, &packet)) {
+            free(packet.data);
+        }
+    }
+    steamP2P.active = qfalse;
+}
+
 qboolean Steam_P2PSend(uint64_t to, const void* data, int size, qboolean asServer) {
     void* self = Steam_P2P(asServer);
 
@@ -3012,6 +3157,19 @@ int Steam_P2PReceive(void* buffer, int maxSize, uint64_t* from, qboolean asServe
     unsigned int size = 0;
     unsigned int read = 0;
 
+    if (!asServer && steamP2P.active) {
+        steamP2PPacket_t packet;
+        int count;
+
+        if (!Steam_P2PPop(STEAM_VOICE_CHANNEL, &packet)) {
+            return 0;
+        }
+        count = (int)packet.size < maxSize ? (int)packet.size : maxSize;
+        Com_Memcpy(buffer, packet.data, count);
+        *from = packet.from;
+        free(packet.data);
+        return count;
+    }
     if (!self || !st.IsP2PPacketAvailable || !st.ReadP2PPacket) {
         return 0;
     }
@@ -3023,8 +3181,6 @@ int Steam_P2PReceive(void* buffer, int maxSize, uint64_t* from, qboolean asServe
     }
     return (int)read;
 }
-
-#define STEAM_REPORT_CHANNEL 0
 
 qboolean Steam_GS_SendReport(uint64_t to, const void* data, int size) {
     void* self = Steam_P2P(qtrue);
@@ -3043,6 +3199,15 @@ void* Steam_P2PReadReport(int* size) {
     uint64_t from = 0;
     void* buffer;
 
+    if (steamP2P.active) {
+        steamP2PPacket_t packet;
+
+        if (!Steam_P2PPop(STEAM_REPORT_CHANNEL, &packet)) {
+            return NULL;
+        }
+        *size = (int)packet.size;
+        return packet.data;
+    }
     if (!self || !st.IsP2PPacketAvailable || !st.ReadP2PPacket) {
         return NULL;
     }
