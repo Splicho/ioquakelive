@@ -975,8 +975,18 @@ char* ClientConnect(int clientNum, qboolean firstTime, qboolean isBot) {
     trap_GetUserinfo(clientNum, userinfo, sizeof(userinfo));
 
     value = Info_ValueForKey(userinfo, "ip");
-    if (!isBot && G_GetAccess(clientNum) == -1) {
-        return "You are banned from this server.";
+    if (!isBot) {
+        int access = G_GetAccess(clientNum);
+
+        if (access == -1) {
+            return "You are banned from this server.";
+        }
+        if (strcmp(value, "localhost") && access < 2) {
+            value = Info_ValueForKey(userinfo, "password");
+            if (g_password.string[0] && Q_stricmp(g_password.string, "none") && strcmp(g_password.string, value)) {
+                return "Invalid password";
+            }
+        }
     }
 
     if (ent->inuse) {
