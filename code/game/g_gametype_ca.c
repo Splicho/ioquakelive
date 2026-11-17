@@ -436,8 +436,8 @@ void ClanArenaStatisticsMessage(gentity_t *ent) {
         stringlength = 0;
 
         Com_sprintf(entry, sizeof(entry), " %i %i",
-                    cl->expandedStats.totalDamageDealt,
-                    cl->expandedStats.totalDamageTaken);
+                    cl->expandedStats.totalDamageDealt + cl->pers.teamCarry.damageDealt,
+                    cl->expandedStats.totalDamageTaken + cl->pers.teamCarry.damageTaken);
         stringlength = strlen(entry);
         if (stringlength < (int)sizeof(string)) {
             strcpy(string, entry);
@@ -445,13 +445,15 @@ void ClanArenaStatisticsMessage(gentity_t *ent) {
 
         for (w = 1; w < 16; w++) {
             int j, weapAcc = 0;
+            int hits = cl->expandedStats.shotsHit[w] + cl->pers.teamCarry.shotsHit[w];
+            int shots = cl->expandedStats.shotsFired[w] + cl->pers.teamCarry.shotsFired[w];
 
-            if (cl->expandedStats.shotsHit[w] && cl->expandedStats.shotsFired[w]) {
-                weapAcc = cl->expandedStats.shotsHit[w] * 100 / cl->expandedStats.shotsFired[w];
+            if (hits && shots) {
+                weapAcc = hits * 100 / shots;
             }
 
             Com_sprintf(entry, sizeof(entry), " %i %i",
-                        weapAcc, cl->expandedStats.numWeaponKills[w]);
+                        weapAcc, cl->expandedStats.numWeaponKills[w] + cl->pers.teamCarry.weaponKills[w]);
             j = strlen(entry);
             if (stringlength + j >= (int)sizeof(string))
                 break;
@@ -476,9 +478,11 @@ void ClanArenaScoreboardMessage(gentity_t *ent) {
 
     for (i = 0; i < level.numConnectedClients; i++) {
         int ping, accuracy, perfect, bestWeapon, bestWeaponAccuracy;
-        int alive;
+        int alive, shots;
+        teamCarry_t *c;
 
         cl = &level.clients[level.sortedClients[i]];
+        c = &cl->pers.teamCarry;
 
         if (cl->accuracy_shots) {
             accuracy = cl->accuracy_hits * 100 / cl->accuracy_shots;
@@ -487,7 +491,7 @@ void ClanArenaScoreboardMessage(gentity_t *ent) {
         }
 
         perfect = (cl->ps.persistant[PERS_RANK] == 0 &&
-                   cl->ps.persistant[PERS_KILLED] == 0) ? 1 : 0;
+                   cl->ps.persistant[PERS_KILLED] + c->killed == 0) ? 1 : 0;
         alive = (cl->ps.pm_type == PM_NORMAL) ? 1 : 0;
 
         if (cl->pers.connected == CON_CONNECTING) {
@@ -497,9 +501,9 @@ void ClanArenaScoreboardMessage(gentity_t *ent) {
         }
 
         bestWeapon = STAT_GetBestWeapon(cl);
-        if (cl->expandedStats.shotsFired[bestWeapon] > 0) {
-            bestWeaponAccuracy = cl->expandedStats.shotsHit[bestWeapon] * 100
-                                / cl->expandedStats.shotsFired[bestWeapon];
+        shots = cl->expandedStats.shotsFired[bestWeapon] + c->shotsFired[bestWeapon];
+        if (shots > 0) {
+            bestWeaponAccuracy = (cl->expandedStats.shotsHit[bestWeapon] + c->shotsHit[bestWeapon]) * 100 / shots;
         } else {
             bestWeaponAccuracy = 0;
         }
@@ -508,14 +512,14 @@ void ClanArenaScoreboardMessage(gentity_t *ent) {
                     " %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
                     level.sortedClients[i],
                     cl->sess.sessionTeam,
-                    cl->ps.persistant[PERS_SCORE], ping,
-                    (level.time - cl->pers.enterTime) / 60000,
-                    cl->expandedStats.numKills, cl->expandedStats.numDeaths,
+                    cl->ps.persistant[PERS_SCORE] + c->score, ping,
+                    (level.time - cl->pers.enterTime + c->time) / 60000,
+                    cl->expandedStats.numKills + c->kills, cl->expandedStats.numDeaths + c->deaths,
                     accuracy, bestWeapon, bestWeaponAccuracy,
-                    cl->expandedStats.totalDamageDealt,
-                    cl->ps.persistant[PERS_IMPRESSIVE_COUNT],
-                    cl->ps.persistant[PERS_EXCELLENT_COUNT],
-                    cl->ps.persistant[PERS_GAUNTLET_FRAG_COUNT],
+                    cl->expandedStats.totalDamageDealt + c->damageDealt,
+                    cl->ps.persistant[PERS_IMPRESSIVE_COUNT] + c->impressive,
+                    cl->ps.persistant[PERS_EXCELLENT_COUNT] + c->excellent,
+                    cl->ps.persistant[PERS_GAUNTLET_FRAG_COUNT] + c->gauntlet,
                     perfect, alive);
         j = strlen(entry);
         if (stringlength + j > SCORES_LIST_ROOM) {

@@ -245,6 +245,23 @@ typedef struct {
 #define MAX_VOTE_COUNT 3
 
 typedef struct {
+    int score;
+    int time;
+    int kills;
+    int deaths;
+    int damageDealt;
+    int damageTaken;
+    int killed;
+    int impressive;
+    int excellent;
+    int gauntlet;
+    int shotsFired[16];
+    int shotsHit[16];
+    int weaponDamage[16];
+    int weaponKills[16];
+} teamCarry_t;
+
+typedef struct {
     clientConnected_t connected;
     usercmd_t cmd;
     qboolean localClient;
@@ -275,6 +292,7 @@ typedef struct {
     int lastMapVoteTime;
     int lastMapVoteIndex;
     qboolean teamInfo;
+    teamCarry_t teamCarry;
 } clientPersistant_t;
 
 typedef struct {
@@ -1176,6 +1194,7 @@ extern vmCvar_t g_training;
 extern vmCvar_t g_itemHeight;
 extern vmCvar_t g_itemTimers;
 extern vmCvar_t g_specItemTimers;
+extern vmCvar_t g_caKeepStats;
 extern vmCvar_t g_quadDamageFactor;
 extern vmCvar_t g_freezeRoundDelay;
 extern vmCvar_t g_timeoutCount;

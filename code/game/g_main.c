@@ -343,6 +343,7 @@ vmCvar_t g_training;
 vmCvar_t g_itemHeight;
 vmCvar_t g_itemTimers;
 vmCvar_t g_specItemTimers;
+vmCvar_t g_caKeepStats;
 vmCvar_t g_quadDamageFactor;
 vmCvar_t g_freezeRoundDelay;
 vmCvar_t g_timeoutCount;
@@ -745,6 +746,7 @@ static cvarTable_t gameCvarTable[] = {
     {&g_itemHeight, "g_itemHeight", "35", CVAR_GAMERULE | CVAR_SERVERINFO, 0, NULL},
     {&g_itemTimers, "g_itemTimers", "1", CVAR_GAMERULE | CVAR_SERVERINFO, 0, NULL},
     {&g_specItemTimers, "g_specItemTimers", "1", 0, 0, NULL},
+    {&g_caKeepStats, "g_caKeepStats", "0", 0, 0, NULL},
     {&g_quadDamageFactor, "g_quadDamageFactor", "3", CVAR_GAMERULE | CVAR_SERVERINFO, 0, NULL},
     {&g_freezeRoundDelay, "g_freezeRoundDelay", "4000", CVAR_GAMERULE | CVAR_SERVERINFO, 0, NULL},
     {&g_timeoutCount, "g_timeoutCount", "0", CVAR_GAMERULE | CVAR_SERVERINFO, 0, NULL},
@@ -1816,10 +1818,10 @@ int QDECL SortRanks(const void* a, const void* b) {
         }
         return 0;
     }
-    if (ca->ps.persistant[PERS_SCORE] > cb->ps.persistant[PERS_SCORE]) {
+    if (ca->ps.persistant[PERS_SCORE] + ca->pers.teamCarry.score > cb->ps.persistant[PERS_SCORE] + cb->pers.teamCarry.score) {
         return -1;
     }
-    if (ca->ps.persistant[PERS_SCORE] < cb->ps.persistant[PERS_SCORE]) {
+    if (ca->ps.persistant[PERS_SCORE] + ca->pers.teamCarry.score < cb->ps.persistant[PERS_SCORE] + cb->pers.teamCarry.score) {
         return 1;
     }
 

@@ -537,6 +537,34 @@ change:
     }
 }
 
+static void KeepTeamStats(gclient_t* client, int oldTeam, int team) {
+    teamCarry_t* c = &client->pers.teamCarry;
+    int w;
+
+    if (!g_caKeepStats.integer || g_gametype.integer != GT_CA || level.warmupTime ||
+        (oldTeam != TEAM_RED && oldTeam != TEAM_BLUE) || (team != TEAM_RED && team != TEAM_BLUE)) {
+        memset(c, 0, sizeof(*c));
+        return;
+    }
+
+    c->score += client->ps.persistant[PERS_SCORE];
+    c->time += level.time - client->pers.enterTime;
+    c->kills += client->expandedStats.numKills;
+    c->deaths += client->expandedStats.numDeaths;
+    c->damageDealt += client->expandedStats.totalDamageDealt;
+    c->damageTaken += client->expandedStats.totalDamageTaken;
+    c->killed += client->ps.persistant[PERS_KILLED];
+    c->impressive += client->ps.persistant[PERS_IMPRESSIVE_COUNT];
+    c->excellent += client->ps.persistant[PERS_EXCELLENT_COUNT];
+    c->gauntlet += client->ps.persistant[PERS_GAUNTLET_FRAG_COUNT];
+    for (w = 0; w < 16; w++) {
+        c->shotsFired[w] += client->expandedStats.shotsFired[w];
+        c->shotsHit[w] += client->expandedStats.shotsHit[w];
+        c->weaponDamage[w] += client->expandedStats.damageDealt[w];
+        c->weaponKills[w] += client->expandedStats.numWeaponKills[w];
+    }
+}
+
 void SetTeam_Execute(gentity_t* ent, int team, spectatorState_t specState, int specClient) {
     gclient_t* client = ent->client;
     int clientNum = client - level.clients;
@@ -572,6 +600,7 @@ void SetTeam_Execute(gentity_t* ent, int team, spectatorState_t specState, int s
     }
 
     if (g_gametype.integer != GT_RR || team == TEAM_SPECTATOR) {
+        KeepTeamStats(client, oldTeam, team);
         STAT_PlayerStats(client, qfalse, qtrue);
         STAT_InitClient(ent);
     }

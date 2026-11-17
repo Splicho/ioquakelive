@@ -320,8 +320,8 @@ int STAT_GetBestWeapon(gclient_t *cl) {
     }
 
     for (weapon = 1; weapon < WP_NUM_WEAPONS; weapon++) {
-        if (cl->expandedStats.damageDealt[weapon] > bestDamage) {
-            bestDamage = cl->expandedStats.damageDealt[weapon];
+        if (cl->expandedStats.damageDealt[weapon] + cl->pers.teamCarry.weaponDamage[weapon] > bestDamage) {
+            bestDamage = cl->expandedStats.damageDealt[weapon] + cl->pers.teamCarry.weaponDamage[weapon];
             bestWeapon = weapon;
         }
     }
