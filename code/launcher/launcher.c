@@ -77,8 +77,10 @@
 #define EXTRA_PAGES 4
 #define EXTRA_SIDE 1024
 #define NAME_RUNES 96
-#define COL_X 60.0f
-#define COL_W 1160.0f
+#define TEXT_INK 0.7f
+#define TEXT_INK_OUTFIT 0.42f
+#define COL_W 980.0f
+#define COL_X ((UI_W - COL_W) * 0.5f)
 #define IN_X (COL_X + 24.0f)
 #define LOGO_X 24.0f
 #define TOP_MID 32.0f
@@ -90,15 +92,14 @@
 #define CTRL_H 36.0f
 #define CTRL_Y (TOP_MID - CTRL_H * 0.5f)
 #define PANEL_LOW 300.0f
-#define PANEL_HIGH 72.0f
+#define PANEL_HIGH 80.0f
 #define PANEL_Y panelTop
 #define HEAD_H 48.0f
 #define BODY_TOP (PANEL_Y + HEAD_H)
 #define SIDE_W 380.0f
 #define SIDE_X (COL_X + COL_W - 24.0f - SIDE_W)
-#define TEXT_W (SIDE_X - 64.0f - IN_X)
-#define PANEL_GAP 16.0f
-#define PANEL_END (UI_H - 24.0f)
+#define TEXT_W (SIDE_X - 48.0f - IN_X)
+#define PANEL_END UI_H
 
 #define PLAY_H 52.0f
 #define PLAY_Y (PANEL_END - 24.0f - PLAY_H)
@@ -124,15 +125,16 @@
 #define SRV_MAX 40
 #define SRV_SLOTS 12
 #define SHOT_MAX 48
-#define ROW_H 50.0f
-#define ROW_STEP 54.0f
 #define LIST_W (COL_W - 64.0f)
 #define MODE_X (IN_X + 560.0f)
 #define THUMB_W 64.0f
-#define THUMB_H 36.0f
 #define SIDE_ROWS 3
 #define SIDE_ROW_H 66.0f
 #define SIDE_GAP 6.0f
+#define STEAM_ICON 17.0f
+#define DISCORD_ICON 17.0f
+#define ANIM_MAX 4
+#define ART_PAD 10.0f
 #define SIDE_LINE 17.0f
 #define SIDE_THUMB_W 52.0f
 #define SIDE_THUMB_H 38.0f
@@ -147,7 +149,7 @@
 #define PIC_JOBS 32
 #define PIC_WORKERS 8
 #define PIC_BYTES 0x80000
-#define FLAG_SIDE 21.0f
+#define FLAG_SIDE 22.0f
 #define CLAN_IMAGE "https://www.quakeclub.com/_next/image?url="
 #define CLAN_DEFAULT "/clans-avatars/clan-default.png"
 #define LIVE_API "https://www.quakeclub.com/api/server-live/"
@@ -175,17 +177,28 @@
 #define HUB_PAGE 30
 #define HUB_MEN 32
 #define HUB_RANK_PAGE 50
-#define HUB_ROWS 64
+#define RANK_ROW 32.0f
+#define HUB_DEMO_PAGE 40
+#define HUB_DEMO_MINI 5
+#define HUB_DEMO_MODES 6
+#define DEMO_ROW 56.0f
+#define DEMO_DAY 40.0f
+#define HUB_ROWS 128
 #define HUB_TEXT 0x40000
 #define HUB_CHART_PTS 1100
 #define TRACK_HEAD 0.4f
-#define TRACK_TAB 2.0f
 #define TRACK_CAPS 1.5f
 #define TRACK_BUTTON 1.2f
 #define TRACK_NAV 1.4f
-#define NAV_ITEMS 5
+#define NAV_ITEMS 6
 #define NAV_GAP 24.0f
 #define NAV_X 236.0f
+#define NAV_PILL 12.0f
+#define PULL_MAX 40.0f
+#define ROLL_MAX 64
+#define TOAST_MAX 4
+#define TOAST_H 42.0f
+#define TOAST_LIFE 4.0f
 
 #define STABLE_API "https://api.github.com/repos/foressssst/ioquakelive/releases/latest"
 #define BETA_API "https://api.github.com/repos/foressssst/ioquakelive/releases?per_page=1"
@@ -221,19 +234,20 @@
 
 #define COL_BLACK 0x000000FF
 #define COL_PURE 0xFFFFFFFF
-#define COL_P1 0x24211DFF
-#define COL_P2 0x2F2B27FF
-#define COL_P3 0x393531FF
-#define COL_P4 0x44403BFF
-#define COL_WHITE 0xF2F0E9FF
-#define COL_W85 0xF2F0E9E6
-#define COL_W70 0xA5A199FF
-#define COL_W40 0xA5A19999
-#define COL_DOT 0x76726BFF
-#define COL_INK 0x141310FF
+#define COL_PAGE 0x1F1F1FFF
+#define COL_P1 0x313131FF
+#define COL_P2 0x3A3A3AFF
+#define COL_P3 0x424242FF
+#define COL_P4 0x4E4E4EFF
+#define COL_WHITE 0xF2F2F2FF
+#define COL_W85 0xF2F2F2E6
+#define COL_W70 0xA8A8A8FF
+#define COL_W40 0xA8A8A899
+#define COL_DOT 0x777777FF
+#define COL_INK 0x141414FF
 #define COL_OK 0x5DB872FF
 #define COL_MAL 0xDC5C54FF
-#define COL_LINE 0x524D47FF
+#define COL_LINE 0x555555FF
 #define COL_GOLD 0xC9A961FF
 #define COL_RED 0xD65A52FF
 #define COL_BLUE 0x4D86D9FF
@@ -304,7 +318,6 @@ enum { VULKAN_PROBING, VULKAN_USABLE, VULKAN_MISSING };
 enum {
     BTN_PLAY,
     BTN_UPDATE,
-    BTN_STEAM,
     BTN_SERVERS,
     BTN_NEXT,
     BTN_ALT,
@@ -312,6 +325,7 @@ enum {
     BTN_OPT_A,
     BTN_OPT_B,
     BTN_ME,
+    BTN_DISCORD,
     BTN_OPTS,
     BTN_MIN,
     BTN_CLOSE,
@@ -328,8 +342,7 @@ enum {
     BTN_BOX_CLOSE,
     BTN_BOX,
     BTN_VEIL,
-    BTN_HUB_TAB_0,
-    BTN_HUB_CLOSE = BTN_HUB_TAB_0 + 4,
+    BTN_HUB_CLOSE,
     BTN_HUB_SITE,
     BTN_HUB_MODE_0,
     BTN_HUB_SEASON_0 = BTN_HUB_MODE_0 + HUB_MODES + 1,
@@ -339,6 +352,7 @@ enum {
     BTN_HUB_PREV,
     BTN_HUB_NEXT,
     BTN_HUB_BACK,
+    BTN_HUB_DEMOS_ALL,
     BTN_HUB_ROW_0,
     BTN_HUB = BTN_HUB_ROW_0 + HUB_ROWS,
     BTN_COUNT
@@ -370,8 +384,7 @@ enum {
     TXT_FAIL_NET,
     TXT_FAIL_FILE,
     TXT_FAIL_BUSY,
-    TXT_STEAM_OFF,
-    TXT_STEAM_OPEN,
+    TXT_PLAY_STEAM,
     TXT_STEAM_OPENING,
     TXT_NO_VULKAN,
     TXT_SETUP_STEP,
@@ -448,6 +461,27 @@ enum {
     TXT_HUB_RANKING,
     TXT_HUB_SERVERS,
     TXT_NAV_HOME,
+    TXT_NAV_MATCHES,
+    TXT_DEMOS,
+    TXT_DEMOS_OF,
+    TXT_DEMO_ALL,
+    TXT_DEMO_MINE,
+    TXT_DEMO_WATCH,
+    TXT_DEMO_GET,
+    TXT_DEMO_FAILED,
+    TXT_TOAST_DEMO_FAIL,
+    TXT_TOAST_DEMO_OK,
+    TXT_TOAST_START,
+    TXT_DEMO_BY,
+    TXT_DEMO_RESULT,
+    TXT_DEMO_TIME,
+    TXT_DEMO_SIZE,
+    TXT_DEMO_LOOKING,
+    TXT_DEMO_NO_RESULT,
+    TXT_DEMO_TODAY,
+    TXT_DEMO_YESTERDAY,
+    TXT_DEMO_EMPTY,
+    TXT_DEMO_EMPTY_MODE,
     TXT_HUB_SITE,
     TXT_HUB_SINCE,
     TXT_HUB_ABOUT,
@@ -660,10 +694,18 @@ extern const unsigned char launcherFontMedium[];
 extern const unsigned char launcherFontStrong[];
 extern const unsigned char launcherLogo[];
 extern const unsigned int launcherLogoSize;
+extern const unsigned char launcherSteam[];
+extern const unsigned int launcherSteamSize;
+extern const unsigned char launcherDiscord[];
+extern const unsigned int launcherDiscordSize;
+extern const char launcherFlagCodes[];
+extern const unsigned int launcherFlagEnds[];
+extern const unsigned char launcherFlags[];
 
 static SDL_Window* window;
 static SDL_Renderer* renderer;
-static image_t hero, shade, logo, iconMore, iconCheck, iconSlash, iconGear;
+static image_t hero, heroSoft, shade, logo, iconMore, iconCheck, iconSlash, iconGear, iconSteam, iconDiscord;
+static float artX, artY, artMidX, artMidY, artGoalX, artGoalY;
 static float uiScale = 1.0f;
 static const float artBox[2][4] = {{-24.0f, -40.0f, UI_W * 1.06f, UI_H * 1.06f}, {-12.0f, -26.0f, UI_W + 24.0f, UI_H + 24.0f}};
 static const char* basePath = "";
@@ -714,8 +756,7 @@ static float heat[BTN_COUNT];
 static SDL_Cursor* cursorArrow;
 static SDL_Cursor* cursorHand;
 static int hotButton = -1;
-static float navX, navW, navGoalX, navGoalW;
-static bool navReady;
+static float navLit[NAV_ITEMS], navX[NAV_ITEMS], navW[NAV_ITEMS], pillX = -1.0f, pillW;
 static bool gameFound, vulkanFound, heroCustom, firstRun;
 static int rendererHint = -1;
 static SDL_AtomicInt vulkanState;
@@ -723,15 +764,42 @@ static char** gameArgs;
 static int gameArgCount;
 static float introHeat, notesLow, thumbY, thumbH, dragStart, dragFrom, textTrack;
 static int dragMode;
-static float notesHeat, notesScroll, notesGoal, notesHeight, notesView, notesTop;
+static float notesHeat, notesScroll, notesGoal, notesHeight, notesView, notesTop, notesPull;
 static float stepHeat = 1.0f, slideX, slideFade = 1.0f;
+static float xfX, xfY, xfS = 1.0f, xfA = 1.0f, xfCX, xfCY;
+typedef struct {
+    Uint64 at;
+    float top;
+} wave_t;
+static wave_t waveHub, waveSide;
+static const wave_t* waveNow;
+static int waveView = -1;
+static bool waveReady, waveServers;
+typedef struct {
+    char key[48];
+    float from, goal;
+    Uint64 at;
+} roll_t;
+static roll_t rolls[ROLL_MAX];
+static int rollCount;
+static Uint64 rollUntil;
+typedef struct {
+    char text[128];
+    Uint64 at;
+    float y;
+} toast_t;
+static toast_t toasts[TOAST_MAX];
+static bool checkAsked;
+static Uint64 pressAt[BTN_COUNT], shakeAt[BTN_COUNT];
+static int animIndex[ANIM_MAX], animCount;
+static bool runePlain;
 static int stepDir, stepFrom;
 static Uint64 stepStart;
 static float panelTop = PANEL_LOW;
 static bool slideClip;
 static bool optsOpen, betaChannel, startMinimized, startupOn, autoTried, prefStartup, prefBeta;
 static float optsHeat;
-static char connectTo[64];
+static char connectTo[64], demoTo[128], joinNow[64];
 static SDL_Thread* checkThread;
 typedef struct {
     char name[96], map[32], mode[16], addr[48];
@@ -787,7 +855,7 @@ static bool serversLoaded, serversFailed;
 static char serversText[65536];
 static server_t boxServer;
 static bool boxOpen, liveLoaded, liveFailed, liveAgain;
-static float boxHeat, boxGoal, boxView;
+static float boxHeat, boxGoal, boxView, boxMost, boxPull;
 static player_t livePlayers[LIVE_MAX], liveNext[LIVE_MAX];
 static int liveCount, liveNextCount, liveScore[2], liveNextScore[2], boxWant;
 static char liveGame[24], liveNextGame[24], liveNextAddr[48];
@@ -840,7 +908,7 @@ static char appRoot[1024];
 static char pickPath[1024];
 static Sint64 userWhen;
 static bool steamMissing;
-static Uint64 steamChecked, steamOpening;
+static Uint64 steamChecked, steamLaunch, steamReady;
 
 static const char* const texts[TXT_COUNT] = {
     [TXT_PLAY] = "Jugar",
@@ -862,8 +930,7 @@ static const char* const texts[TXT_COUNT] = {
     [TXT_FAIL_NET] = "La descarga falló. Comprueba tu conexión a internet e inténtalo de nuevo.",
     [TXT_FAIL_FILE] = "No se pudieron instalar los archivos. Comprueba que haya suficiente espacio en disco.",
     [TXT_FAIL_BUSY] = "Cierra ioquakelive e inténtalo de nuevo.",
-    [TXT_STEAM_OFF] = "Steam no está abierto.",
-    [TXT_STEAM_OPEN] = "Abrir Steam",
+    [TXT_PLAY_STEAM] = "Abrir Steam y jugar",
     [TXT_STEAM_OPENING] = "Abriendo Steam...",
     [TXT_NO_VULKAN] = "Tu equipo no es compatible con Vulkan, así que por ahora jugarás con OpenGL. Actualizar los drivers de tu tarjeta de video puede solucionarlo.",
     [TXT_SETUP_STEP] = "Configuración inicial · Paso %d de %d",
@@ -941,6 +1008,27 @@ static const char* const texts[TXT_COUNT] = {
     [TXT_HUB_RANKING] = "Ranking",
     [TXT_HUB_SERVERS] = "Servidores",
     [TXT_NAV_HOME] = "Inicio",
+    [TXT_NAV_MATCHES] = "Mis partidas",
+    [TXT_DEMOS] = "Demos",
+    [TXT_DEMOS_OF] = "Demos de",
+    [TXT_DEMO_ALL] = "Todas",
+    [TXT_DEMO_MINE] = "Mis demos",
+    [TXT_DEMO_WATCH] = "Ver demo",
+    [TXT_DEMO_GET] = "Descargar",
+    [TXT_DEMO_FAILED] = "No se pudo descargar",
+    [TXT_TOAST_DEMO_FAIL] = "No se pudo descargar la demo.",
+    [TXT_TOAST_DEMO_OK] = "Demo descargada.",
+    [TXT_TOAST_START] = "No se pudo abrir el juego.",
+    [TXT_DEMO_BY] = "Grabada por",
+    [TXT_DEMO_RESULT] = "Resultado",
+    [TXT_DEMO_TIME] = "Hora",
+    [TXT_DEMO_SIZE] = "Peso",
+    [TXT_DEMO_LOOKING] = "Mirando",
+    [TXT_DEMO_NO_RESULT] = "Sin resultado",
+    [TXT_DEMO_TODAY] = "Hoy",
+    [TXT_DEMO_YESTERDAY] = "Ayer",
+    [TXT_DEMO_EMPTY] = "Todavía no hay demos.",
+    [TXT_DEMO_EMPTY_MODE] = "No hay demos de %s.",
     [TXT_HUB_SITE] = "Ver en la web",
     [TXT_HUB_SINCE] = "Miembro desde %s",
     [TXT_HUB_ABOUT] = "Sobre mí",
@@ -1247,6 +1335,22 @@ static unsigned char* Font_Raster(font_t* font, const stbtt_fontinfo* info, floa
     return alpha;
 }
 
+static unsigned char Glyph_Ink(int face, unsigned char a) {
+    static unsigned char ink[2][256];
+    static bool ready;
+
+    if (!ready) {
+        int i;
+
+        for (i = 0; i < 256; i++) {
+            ink[0][i] = (unsigned char)(SDL_powf((float)i / 255.0f, TEXT_INK) * 255.0f + 0.5f);
+            ink[1][i] = (unsigned char)(SDL_powf((float)i / 255.0f, TEXT_INK_OUTFIT) * 255.0f + 0.5f);
+        }
+        ready = true;
+    }
+    return ink[face >= FACE_DISPLAY][a];
+}
+
 static bool Font_Upload(font_t* font, unsigned char* alpha, int atlasH) {
     const int atlasW = 1024;
     SDL_Surface* surface;
@@ -1265,7 +1369,7 @@ static bool Font_Upload(font_t* font, unsigned char* alpha, int atlasH) {
             row[j * 4 + 0] = 255;
             row[j * 4 + 1] = 255;
             row[j * 4 + 2] = 255;
-            row[j * 4 + 3] = alpha[(size_t)i * atlasW + j];
+            row[j * 4 + 3] = Glyph_Ink(font->face, alpha[(size_t)i * atlasW + j]);
         }
     }
     free(alpha);
@@ -1446,7 +1550,7 @@ static int Glyph_Bake(const font_t* font, Uint32 cp, glyph_t* g) {
         R_MakeGlyphBitmapSubpixel(info, alpha, cell->w, cell->h, cell->w, scale, scale, (float)s / FONT_SHIFTS, 0.0f, index);
         for (i = 0; i < cell->w * cell->h; i++) {
             rgba[i * 4 + 0] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = 255;
-            rgba[i * 4 + 3] = alpha[i];
+            rgba[i * 4 + 3] = Glyph_Ink(font->face, alpha[i]);
         }
         r.x = cell->ax;
         r.y = cell->ay;
@@ -1960,18 +2064,191 @@ static void Draw_Color(Uint32 rgba) {
 }
 
 static Uint32 Col_Fade(Uint32 rgba) {
-    return slideFade >= 1.0f ? rgba : (rgba & 0xFFFFFF00u) | (Uint32)((float)(rgba & 255) * slideFade + 0.5f);
+    float a = slideFade * xfA;
+
+    return a >= 1.0f ? rgba : (rgba & 0xFFFFFF00u) | (Uint32)((float)(rgba & 255) * a + 0.5f);
+}
+
+static float Px_X(float x) {
+    return (x + slideX + xfX + (x - xfCX) * (xfS - 1.0f)) * uiScale;
+}
+
+static float Px_Y(float y) {
+    return (y + xfY + (y - xfCY) * (xfS - 1.0f)) * uiScale;
+}
+
+static float Anim_Since(Uint64 at) {
+    return at ? (float)(SDL_GetTicks() - at) / 1000.0f : 99.0f;
+}
+
+static Uint64 Anim_Now(void) {
+    return SDL_max(SDL_GetTicks(), 1);
+}
+
+static float Press_Scale(int index) {
+    float depth = SDL_clamp(10.0f / SDL_max(buttons[index].w, 1.0f), 0.015f, 0.06f), t = Anim_Since(pressAt[index]);
+
+    if (t < 0.07f) {
+        return 1.0f - depth * t / 0.07f;
+    }
+    t = (t - 0.07f) / 0.5f;
+    if (t >= 1.0f) {
+        return 1.0f;
+    }
+    return 1.0f - depth * SDL_powf(2.0f, -10.0f * t) * SDL_cosf(t * 3.0f * SDL_PI_F);
+}
+
+static float Shake_Offset(int index) {
+    float t = Anim_Since(shakeAt[index]);
+
+    return t < 0.4f ? 7.0f * (1.0f - t / 0.4f) * SDL_sinf(t * 70.0f) : 0.0f;
+}
+
+static float Wave_Progress(const wave_t* w, float y) {
+    float delay = SDL_clamp((y - w->top) / 44.0f, 0.0f, 12.0f) * 0.03f;
+
+    return SDL_clamp((Anim_Since(w->at) - delay) / 0.28f, 0.0f, 1.0f);
+}
+
+static void Xf_Pick(float x, float y, float w, float h) {
+    int i;
+
+    xfS = 1.0f;
+    xfX = 0.0f;
+    xfY = 0.0f;
+    xfA = 1.0f;
+    if (waveNow) {
+        float p = 1.0f - Wave_Progress(waveNow, y);
+
+        xfA = 1.0f - p * p * p;
+        xfY = p * p * p * 14.0f;
+    }
+    for (i = 0; i < animCount; i++) {
+        const button_t* b = &buttons[animIndex[i]];
+
+        if (x >= b->x - 1.0f && y >= b->y - 1.0f && x + w <= b->x + b->w + 1.0f && y + h <= b->y + b->h + 1.0f) {
+            xfS = Press_Scale(animIndex[i]);
+            xfX = Shake_Offset(animIndex[i]);
+            xfCX = b->x + b->w * 0.5f;
+            xfCY = b->y + b->h * 0.5f;
+            return;
+        }
+    }
+}
+
+static bool Anim_Update(void) {
+    Uint64 now = SDL_GetTicks();
+    int i;
+
+    animCount = 0;
+    for (i = 0; i < BTN_COUNT; i++) {
+        if (pressAt[i] && now - pressAt[i] >= 600) {
+            pressAt[i] = 0;
+        }
+        if (shakeAt[i] && now - shakeAt[i] >= 400) {
+            shakeAt[i] = 0;
+        }
+        if ((pressAt[i] || shakeAt[i]) && animCount < ANIM_MAX) {
+            animIndex[animCount++] = i;
+        }
+    }
+    return animCount > 0 || Anim_Since(waveHub.at) < 0.7f || Anim_Since(waveSide.at) < 0.7f || now < rollUntil;
+}
+
+static float Roll_Get(const char* key, float goal, bool fromZero) {
+    roll_t* r = NULL;
+    float t, e, shown;
+    int i;
+
+    for (i = 0; i < rollCount && !r; i++) {
+        if (!SDL_strcmp(rolls[i].key, key)) {
+            r = &rolls[i];
+        }
+    }
+    if (!r) {
+        r = &rolls[rollCount < ROLL_MAX ? rollCount++ : (int)(SDL_GetTicks() % ROLL_MAX)];
+        SDL_strlcpy(r->key, key, sizeof(r->key));
+        r->from = r->goal = fromZero ? 0.0f : goal;
+        r->at = 0;
+    }
+    t = SDL_min(Anim_Since(r->at) / 0.7f, 1.0f);
+    e = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+    shown = r->from + (r->goal - r->from) * e;
+    if (goal != r->goal) {
+        r->from = shown;
+        r->goal = goal;
+        r->at = Anim_Now();
+        rollUntil = r->at + 750;
+    }
+    return shown;
+}
+
+static int Roll_Int(const char* key, int goal, bool fromZero) {
+    return (int)SDL_roundf(Roll_Get(key, (float)goal, fromZero));
+}
+
+static void Toast(const char* text) {
+    int i;
+
+    for (i = TOAST_MAX - 1; i > 0; i--) {
+        toasts[i] = toasts[i - 1];
+    }
+    SDL_strlcpy(toasts[0].text, text, sizeof(toasts[0].text));
+    toasts[0].at = Anim_Now();
+    toasts[0].y = -1.0f;
+}
+
+static bool Glide(float* value, float goal, float rate, float snap) {
+    float d = goal - *value;
+
+    if (SDL_fabsf(d) <= snap) {
+        *value = goal;
+        return false;
+    }
+    *value += d * SDL_min(1.0f, rate);
+    return true;
+}
+
+static bool Toast_Update(float dt) {
+    bool moving = false;
+    int i, slot = 0;
+
+    for (i = 0; i < TOAST_MAX; i++) {
+        float goal = TOP_MID * 2.0f + 12.0f + (float)slot * (TOAST_H + 8.0f);
+
+        if (!toasts[i].at) {
+            continue;
+        }
+        if (Anim_Since(toasts[i].at) >= TOAST_LIFE) {
+            toasts[i].at = 0;
+            continue;
+        }
+        if (toasts[i].y < 0.0f) {
+            toasts[i].y = goal;
+        }
+        Glide(&toasts[i].y, goal, dt * 12.0f, 0.05f);
+        moving = true;
+        slot++;
+#ifdef LAUNCHER_SHOT
+        if (SDL_getenv("LAUNCHER_TOAST")) {
+            toasts[i].at = SDL_GetTicks() - 1000;
+            toasts[i].y = goal;
+            moving = false;
+        }
+#endif
+    }
+    return moving;
 }
 
 static void Draw_Rect(float x, float y, float w, float h, Uint32 rgba) {
     SDL_FRect r;
 
-    x += slideX;
+    Xf_Pick(x, y, w, h);
     rgba = Col_Fade(rgba);
-    r.x = SDL_roundf(x * uiScale);
-    r.y = SDL_roundf(y * uiScale);
-    r.w = SDL_roundf((x + w) * uiScale) - r.x;
-    r.h = SDL_roundf((y + h) * uiScale) - r.y;
+    r.x = SDL_roundf(Px_X(x));
+    r.y = SDL_roundf(Px_Y(y));
+    r.w = SDL_roundf(Px_X(x + w)) - r.x;
+    r.h = SDL_roundf(Px_Y(y + h)) - r.y;
     Draw_Color(rgba);
     SDL_RenderFillRect(renderer, &r);
 }
@@ -1994,11 +2271,16 @@ static Uint32 Col_Alpha(Uint32 rgba, float alpha) {
 
 static void Shape_Make(shape_t* s, float x, float y, float w, float h, float radius) {
     static const float start[4] = {180.0f, 270.0f, 0.0f, 90.0f};
-    float x0 = SDL_roundf((x + slideX) * uiScale), y0 = SDL_roundf(y * uiScale);
-    float x1 = SDL_roundf((x + slideX + w) * uiScale), y1 = SDL_roundf((y + h) * uiScale);
-    float r = SDL_min(radius * uiScale, SDL_min(x1 - x0, y1 - y0) * 0.5f);
+    float x0, y0, x1, y1, r;
     float nx[SHAPE_MAX], ny[SHAPE_MAX];
     int steps, corner, i;
+
+    Xf_Pick(x, y, w, h);
+    x0 = SDL_roundf(Px_X(x));
+    y0 = SDL_roundf(Px_Y(y));
+    x1 = SDL_roundf(Px_X(x + w));
+    y1 = SDL_roundf(Px_Y(y + h));
+    r = SDL_min(radius * xfS * uiScale, SDL_min(x1 - x0, y1 - y0) * 0.5f);
 
     if (r < 1.0f) {
         r = 0.0f;
@@ -2097,6 +2379,7 @@ static void Draw_Round(float x, float y, float w, float h, float radius, Uint32 
     shape_t s;
     mesh_t m;
 
+    Xf_Pick(x, y, w, h);
     rgba = Col_Fade(rgba);
     if (w <= 0.0f || h <= 0.0f || !(rgba & 255)) {
         return;
@@ -2110,6 +2393,7 @@ static void Draw_RoundLine(float x, float y, float w, float h, float radius, Uin
     shape_t s;
     mesh_t m;
 
+    Xf_Pick(x, y, w, h);
     rgba = Col_Fade(rgba);
     if (w <= 0.0f || h <= 0.0f || !(rgba & 255)) {
         return;
@@ -2121,7 +2405,7 @@ static void Draw_RoundLine(float x, float y, float w, float h, float radius, Uin
     SDL_RenderGeometry(renderer, NULL, m.v, m.nv, m.idx, m.ni);
 }
 
-static void Draw_Image(const image_t* image, float x, float y, float w, float h, float alpha) {
+static void Draw_ImageAt(const image_t* image, float x, float y, float w, float h, float alpha, bool snap) {
     SDL_FRect src, dst;
     float want, have;
 
@@ -2141,14 +2425,25 @@ static void Draw_Image(const image_t* image, float x, float y, float w, float h,
         src.x = 0.0f;
         src.y = ((float)image->h - src.h) * 0.5f;
     }
-    x += slideX;
-    alpha *= slideFade;
-    dst.x = SDL_roundf(x * uiScale);
-    dst.y = SDL_roundf(y * uiScale);
-    dst.w = SDL_roundf((x + w) * uiScale) - dst.x;
-    dst.h = SDL_roundf((y + h) * uiScale) - dst.y;
+    Xf_Pick(x, y, w, h);
+    alpha *= slideFade * xfA;
+    if (snap) {
+        dst.x = SDL_roundf(Px_X(x));
+        dst.y = SDL_roundf(Px_Y(y));
+        dst.w = SDL_roundf(Px_X(x + w)) - dst.x;
+        dst.h = SDL_roundf(Px_Y(y + h)) - dst.y;
+    } else {
+        dst.x = Px_X(x);
+        dst.y = Px_Y(y);
+        dst.w = Px_X(x + w) - dst.x;
+        dst.h = Px_Y(y + h) - dst.y;
+    }
     SDL_SetTextureAlphaMod(image->tex, (Uint8)(alpha * 255.0f + 0.5f));
     SDL_RenderTexture(renderer, image->tex, image->w == (int)dst.w && image->h == (int)dst.h ? NULL : &src, &dst);
+}
+
+static void Draw_Image(const image_t* image, float x, float y, float w, float h, float alpha) {
+    Draw_ImageAt(image, x, y, w, h, alpha, true);
 }
 
 static void Draw_RoundImage(const image_t* image, float x, float y, float w, float h, float radius, Uint32 rgba) {
@@ -2157,6 +2452,7 @@ static void Draw_RoundImage(const image_t* image, float x, float y, float w, flo
     float want, have, u0 = 0.0f, v0 = 0.0f, uw = 1.0f, vh = 1.0f, x0, y0, x1, y1;
     int i;
 
+    Xf_Pick(x, y, w, h);
     rgba = Col_Fade(rgba);
     if (!image->tex || w <= 0.0f || h <= 0.0f || !(rgba & 255)) {
         return;
@@ -2172,10 +2468,10 @@ static void Draw_RoundImage(const image_t* image, float x, float y, float w, flo
     }
     Shape_Make(&s, x, y, w, h, radius);
     Mesh_Fill(&m, &s, rgba);
-    x0 = SDL_roundf((x + slideX) * uiScale);
-    y0 = SDL_roundf(y * uiScale);
-    x1 = SDL_roundf((x + slideX + w) * uiScale);
-    y1 = SDL_roundf((y + h) * uiScale);
+    x0 = SDL_roundf(Px_X(x));
+    y0 = SDL_roundf(Px_Y(y));
+    x1 = SDL_roundf(Px_X(x + w));
+    y1 = SDL_roundf(Px_Y(y + h));
     for (i = 0; i < m.nv; i++) {
         float fx = SDL_clamp((m.v[i].position.x - x0) / (x1 - x0), 0.0f, 1.0f);
         float fy = SDL_clamp((m.v[i].position.y - y0) / (y1 - y0), 0.0f, 1.0f);
@@ -2186,20 +2482,102 @@ static void Draw_RoundImage(const image_t* image, float x, float y, float w, flo
     SDL_RenderGeometry(renderer, image->tex, m.v, m.nv, m.idx, m.ni);
 }
 
+static void Banner_Point(SDL_Vertex* v, float px, float py, const float* box, const float* uv, float alpha) {
+    v->position.x = SDL_roundf(Px_X(px));
+    v->position.y = SDL_roundf(Px_Y(py));
+    v->color.r = v->color.g = v->color.b = 1.0f;
+    v->color.a = alpha;
+    v->tex_coord.x = uv[0] + (px - box[0]) / box[2] * uv[2];
+    v->tex_coord.y = uv[1] + (py - box[1]) / box[3] * uv[3];
+}
+
+static void Draw_Banner(const image_t* image, float x, float y, float w, float h, float radius, float alpha) {
+    const float box[4] = {x, y, w, h};
+    const float solid = x + w * 0.22f, gone = x + w * 0.64f;
+    float uv[4] = {0.0f, 0.0f, 1.0f, 1.0f}, have;
+    SDL_Vertex v[24];
+    int idx[64], nv = 1, ni = 0, i, steps = 5;
+
+    Xf_Pick(x, y, w, h);
+    alpha *= slideFade * xfA;
+    if (!image->tex || w <= 0.0f || h <= 0.0f || alpha <= 0.0f) {
+        return;
+    }
+    have = (float)image->w / (float)image->h;
+    if (have > w / h) {
+        uv[2] = w / h / have;
+        uv[0] = (1.0f - uv[2]) * 0.5f;
+    } else {
+        uv[3] = have / (w / h);
+        uv[1] = (1.0f - uv[3]) * 0.3f;
+    }
+    radius = SDL_min(radius, h * 0.5f);
+    Banner_Point(&v[0], x + radius, y + h * 0.5f, box, uv, alpha);
+    for (i = 0; i <= steps; i++) {
+        float a = SDL_PI_F * (1.5f - 0.5f * (float)i / (float)steps);
+
+        Banner_Point(&v[nv++], x + radius + radius * SDL_cosf(a), y + radius + radius * SDL_sinf(a), box, uv, alpha);
+    }
+    for (i = 0; i <= steps; i++) {
+        float a = SDL_PI_F * (1.0f - 0.5f * (float)i / (float)steps);
+
+        Banner_Point(&v[nv++], x + radius + radius * SDL_cosf(a), y + h - radius + radius * SDL_sinf(a), box, uv, alpha);
+    }
+    for (i = 1; i < nv - 1; i++) {
+        idx[ni++] = 0;
+        idx[ni++] = i;
+        idx[ni++] = i + 1;
+    }
+    Banner_Point(&v[nv], x + radius, y, box, uv, alpha);
+    Banner_Point(&v[nv + 1], solid, y, box, uv, alpha);
+    Banner_Point(&v[nv + 2], gone, y, box, uv, 0.0f);
+    Banner_Point(&v[nv + 3], x + radius, y + h, box, uv, alpha);
+    Banner_Point(&v[nv + 4], solid, y + h, box, uv, alpha);
+    Banner_Point(&v[nv + 5], gone, y + h, box, uv, 0.0f);
+    for (i = 0; i < 2; i++) {
+        idx[ni++] = nv + i;
+        idx[ni++] = nv + i + 1;
+        idx[ni++] = nv + i + 4;
+        idx[ni++] = nv + i;
+        idx[ni++] = nv + i + 4;
+        idx[ni++] = nv + i + 3;
+    }
+    nv += 6;
+    SDL_RenderGeometry(renderer, image->tex, v, nv, idx, ni);
+}
+
 static void Draw_Spin(const image_t* image, float x, float y, float angle, Uint32 rgba) {
     SDL_FRect dst;
 
     if (!image->tex) {
         return;
     }
+    Xf_Pick(x, y, (float)image->w / uiScale, (float)image->h / uiScale);
     rgba = Col_Fade(rgba);
-    dst.x = SDL_roundf((x + slideX) * uiScale);
-    dst.y = SDL_roundf(y * uiScale);
-    dst.w = (float)image->w;
-    dst.h = (float)image->h;
+    dst.x = SDL_roundf(Px_X(x));
+    dst.y = SDL_roundf(Px_Y(y));
+    dst.w = (float)image->w * xfS;
+    dst.h = (float)image->h * xfS;
     SDL_SetTextureColorMod(image->tex, (Uint8)(rgba >> 24), (Uint8)(rgba >> 16), (Uint8)(rgba >> 8));
     SDL_SetTextureAlphaMod(image->tex, (Uint8)rgba);
     SDL_RenderTextureRotated(renderer, image->tex, NULL, &dst, angle, NULL, SDL_FLIP_NONE);
+}
+
+static void Draw_Icon(const image_t* image, float x, float y, float size, Uint32 rgba) {
+    SDL_FRect dst;
+
+    if (!image->tex) {
+        return;
+    }
+    Xf_Pick(x, y, size, size);
+    rgba = Col_Fade(rgba);
+    dst.x = SDL_roundf(Px_X(x));
+    dst.y = SDL_roundf(Px_Y(y));
+    dst.w = SDL_roundf(Px_X(x + size)) - dst.x;
+    dst.h = SDL_roundf(Px_Y(y + size)) - dst.y;
+    SDL_SetTextureColorMod(image->tex, (Uint8)(rgba >> 24), (Uint8)(rgba >> 16), (Uint8)(rgba >> 8));
+    SDL_SetTextureAlphaMod(image->tex, (Uint8)rgba);
+    SDL_RenderTexture(renderer, image->tex, NULL, &dst);
 }
 
 static Uint32 Text_Code(const char** text) {
@@ -2415,17 +2793,17 @@ static void Draw_Text(int fontIndex, float x, float y, Uint32 rgba, const char* 
     SDL_Texture* last = NULL;
     float px, py;
 
-    x += slideX;
+    Xf_Pick(x, y, 0.0f, 0.0f);
     rgba = Col_Fade(rgba);
-    px = SDL_roundf(x * uiScale);
-    py = SDL_roundf(y * uiScale + font->ascent);
+    px = SDL_roundf(Px_X(x));
+    py = SDL_roundf(Px_Y(y) + font->ascent * xfS);
 
     if (!fontsReady) {
         char line[256];
 
         SDL_snprintf(line, sizeof(line), "%.*s", (int)(end - text), text);
         Draw_Color(rgba);
-        SDL_RenderDebugText(renderer, x * uiScale, y * uiScale, line);
+        SDL_RenderDebugText(renderer, Px_X(x), Px_Y(y), line);
         return;
     }
     while (text < end && *text) {
@@ -2463,14 +2841,14 @@ static void Draw_Glyph(int fontIndex, Uint32 cp, float* px, float py, Uint32 rgb
         src.y = (float)cell->ay;
         src.w = (float)cell->w;
         src.h = (float)cell->h;
-        dst.x = base + cell->ox;
-        dst.y = py + cell->oy;
-        dst.w = src.w;
-        dst.h = src.h;
+        dst.x = base + (float)cell->ox * xfS;
+        dst.y = py + (float)cell->oy * xfS;
+        dst.w = src.w * xfS;
+        dst.h = src.h * xfS;
         SDL_RenderTexture(renderer, tex, &src, &dst);
     }
     if (track || g->advance > 0.0f) {
-        *px += g->advance + textTrack * uiScale;
+        *px += (g->advance + textTrack * uiScale) * xfS;
     }
 }
 
@@ -2705,11 +3083,12 @@ static void Draw_Runes(int fontIndex, float x, float y, Uint32 rgba, const nameR
     if (!fontsReady) {
         return;
     }
+    Xf_Pick(x, y, 0.0f, 0.0f);
     rgba = Col_Fade(rgba);
-    px = SDL_roundf((x + slideX) * uiScale);
-    py = SDL_roundf(y * uiScale + fonts[fontIndex].ascent);
+    px = SDL_roundf(Px_X(x));
+    py = SDL_roundf(Px_Y(y) + fonts[fontIndex].ascent * xfS);
     for (i = 0; i < n; i++) {
-        Uint32 col = r[i].col ? ((r[i].col & 0xFFFFFF00u) | (rgba & 0xFFu)) : rgba;
+        Uint32 col = r[i].col && !runePlain ? ((r[i].col & 0xFFFFFF00u) | (rgba & 0xFFu)) : rgba;
 
         if (col != lastCol) {
             lastCol = col;
@@ -3969,6 +4348,16 @@ static bool Steam_Running(void) {
 #endif
 }
 
+static bool Steam_LoggedIn(void) {
+#ifdef _WIN32
+    DWORD user = 0, bytes = sizeof(user);
+
+    return RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam\\ActiveProcess", L"ActiveUser", RRF_RT_REG_DWORD, NULL, &user, &bytes) == ERROR_SUCCESS && user;
+#else
+    return true;
+#endif
+}
+
 static void Steam_Poll(Uint64 now) {
     char root[1024];
 
@@ -5095,9 +5484,9 @@ static void Live_Identity(player_t* list, int n) {
     free(text);
 }
 
-enum { HUB_PROFILE, HUB_MATCHES, HUB_RANKING, HUB_SERVERS };
+enum { HUB_PROFILE, HUB_MATCHES, HUB_RANKING, HUB_SERVERS, HUB_MATCH, HUB_DEMOS, HUB_VIEWS };
 enum { WHY_NONE, WHY_PLACEMENT, WHY_INACTIVE, WHY_BANNED };
-enum { HIT_NONE, HIT_MATCH, HIT_PLAYER, HIT_SERVER };
+enum { HIT_NONE, HIT_MATCH, HIT_PLAYER, HIT_SERVER, HIT_SERVER_JOIN, HIT_DEMO_PLAY, HIT_DEMO_GET };
 enum { SUB_SUMMARY, SUB_WEAPONS, SUB_MEDALS, SUB_FLAGS };
 
 typedef struct {
@@ -5164,7 +5553,7 @@ typedef struct {
 } hubMatch_t;
 
 typedef struct {
-    char steamId[24], raw[96], avatar[200], clanPic[200], country[4], clanTag[24];
+    char steamId[24], raw[96], avatar[200], clanPic[200], country[4], clanTag[24], banner[200];
     int rating, games, winRate, rank, lastAlive, clutches;
     float kd;
     bool inactive, clan, haveWin, haveLast, haveClutch;
@@ -5175,6 +5564,20 @@ typedef struct {
     int total, count;
     hubRank_t rows[HUB_RANK_PAGE];
 } hubRanking_t;
+
+typedef struct {
+    char carpeta[24], archivo[128], local[128], match[48], map[32], mode[8], server[128], day[12], hour[8];
+    char steamId[24], raw[96], avatar[200], clanPic[200], country[4], clanTag[24];
+    int bytes, result, hi, lo;
+    bool spec, score, clan, have;
+} hubDemo_t;
+
+typedef struct {
+    int status;
+    int page, pages, total, count;
+    char raw[96];
+    hubDemo_t demos[HUB_DEMO_PAGE];
+} hubDemos_t;
 
 typedef struct {
     SDL_Thread* thread;
@@ -5199,6 +5602,7 @@ typedef struct {
 static const char* const hubModeId[HUB_MODES] = {"ca", "duel", "ctf", "ffa", "tdm", "ad", "ft", "dom"};
 static const char* const hubModeName[HUB_MODES] = {"CA", "Duel", "CTF", "FFA", "TDM", "AD", "FT", "DOM"};
 static const int hubRankModes[HUB_RANK_MODES] = {0, 2, 1, 4, 3};
+static const int hubDemoModes[HUB_DEMO_MODES] = {0, 1, 2, 4, 3, 7};
 static const char* const hubSeasonId[HUB_SEASONS] = {"s1", "s2", "s3"};
 static const char* const hubWeaponKey[9] = {"RG", "RL", "PG", "SG", "LG", "GL", "MG", "HMG", "GT"};
 static const char* const hubWeaponName[9] = {"Railgun",          "Rocket Launcher", "Plasma Gun",        "Shotgun", "Lightning Gun",
@@ -5259,6 +5663,7 @@ static void Hub_LoadStats(const char* key, void* out);
 static void Hub_LoadGames(const char* key, void* out);
 static void Hub_LoadMatch(const char* key, void* out);
 static void Hub_LoadRanking(const char* key, void* out);
+static void Hub_LoadDemos(const char* key, void* out);
 
 static hubPlayer_t hubPlayer, hubPlayerNext;
 static hubStats_t hubStats, hubStatsNext;
@@ -5270,16 +5675,25 @@ static slot_t slotStats = {NULL, {0}, "", "", "", Hub_LoadStats, &hubStatsNext, 
 static slot_t slotGames = {NULL, {0}, "", "", "", Hub_LoadGames, &hubGamesNext, &hubGames, sizeof(hubGames), "hubgames"};
 static slot_t slotMatch = {NULL, {0}, "", "", "", Hub_LoadMatch, &hubMatchNext, &hubMatch, sizeof(hubMatch), "hubmatch"};
 static slot_t slotRank = {NULL, {0}, "", "", "", Hub_LoadRanking, &hubRankNext, &hubRank, sizeof(hubRank), "hubrank"};
-static slot_t* const hubSlots[5] = {&slotPlayer, &slotStats, &slotGames, &slotMatch, &slotRank};
+static hubDemos_t hubDemos, hubDemosNext, hubProDemos, hubProDemosNext;
+static slot_t slotDemos = {NULL, {0}, "", "", "", Hub_LoadDemos, &hubDemosNext, &hubDemos, sizeof(hubDemos), "hubdemos"};
+static slot_t slotProDemos = {NULL, {0}, "", "", "", Hub_LoadDemos, &hubProDemosNext, &hubProDemos, sizeof(hubProDemos), "hubprodemos"};
+static slot_t* const hubSlots[7] = {&slotPlayer, &slotStats, &slotGames, &slotMatch, &slotRank, &slotDemos, &slotProDemos};
 static bool hubOpen, hubFonts;
 static int hubTab, hubMode, hubSeason = HUB_SEASONS - 1, hubGamesMode, hubPage = 1, hubRankMode, hubRankPage = 1, hubSub, hubHitCount;
-static float hubHeat, hubGoal[5], hubView[5], hubMost[5];
+static int hubDemoMode, hubDemoPage = 1;
+static char hubDemoWho[24];
+static float hubHeat, hubGoal[HUB_VIEWS], hubView[HUB_VIEWS], hubMost[HUB_VIEWS], hubPull[HUB_VIEWS], hubSwap = 1.0f, hubHue;
+static int hubShown = -1;
+static Uint32 hubHueBody = COL_P1, hubHueHead = COL_P3;
 static char hubWho[24], hubMatchId[48];
 static hubHit_t hubHits[HUB_ROWS];
 static tone_t tone;
 
 static void Hub_Pics(void);
 static void Hub_Shots(void);
+static float Hub_ProDemos(float y);
+static const char* Map_Title(const char* map);
 static void Box_Open(const server_t* s);
 
 static SDL_Thread* hubFontThread;
@@ -5903,10 +6317,142 @@ static void Hub_LoadRanking(const char* key, void* out) {
         r->clan = r->clanTag[0] != '\0';
         Json_Text(Json_Value(item, "\"clanAvatarUrl\""), value, sizeof(value));
         Site_Url(r->clanPic, sizeof(r->clanPic), value);
+        Json_Text(Json_Value(item, "\"banner\""), r->banner, sizeof(r->banner));
+        if (r->banner[0] != '/') {
+            r->banner[0] = '\0';
+        }
     }
     rk->total = Json_Int(text, "\"totalCount\"", NULL);
     Hub_Identities(text, HUB_TEXT, rk->count, &rk->rows[0].steamId, &rk->rows[0].avatar, &rk->rows[0].clanPic, &rk->rows[0].clan, sizeof(hubRank_t));
     rk->status = PRO_READY;
+    free(text);
+}
+
+static void Demo_Local(const char* archivo, char* out, size_t size) {
+    const char* ext = SDL_strrchr(archivo, '.');
+    size_t i, n = SDL_strlen(archivo);
+
+    out[0] = '\0';
+    if (!ext || SDL_strncasecmp(ext, ".dm_", 4) || n >= size || n < 6) {
+        return;
+    }
+    for (i = 0; i < n; i++) {
+        char c = archivo[i];
+
+        out[i] = SDL_isalnum((unsigned char)c) || c == '.' || c == '-' || c == '_' || c == '~' ? c : '_';
+    }
+    out[n] = '\0';
+}
+
+static void Demo_Path(const char* local, char* out, size_t size) {
+    SDL_snprintf(out, size, "%sbaseq3/demos/%s", basePath, local);
+}
+
+static bool Demo_Have(const char* local) {
+    char path[1024];
+    SDL_PathInfo info;
+
+    if (!local[0]) {
+        return false;
+    }
+    Demo_Path(local, path, sizeof(path));
+    return SDL_GetPathInfo(path, &info) && info.type == SDL_PATHTYPE_FILE && info.size > 0;
+}
+
+static void Demo_Score(const char* p, hubDemo_t* d) {
+    long a, b;
+    char* next;
+
+    p = p ? Json_Value(p, "\"marcador\"") : NULL;
+    if (!p || *p != '[') {
+        return;
+    }
+    a = SDL_strtol(p + 1, &next, 10);
+    if (next == p + 1 || *next != ',') {
+        return;
+    }
+    b = SDL_strtol(next + 1, NULL, 10);
+    d->hi = (int)SDL_max(a, b);
+    d->lo = (int)SDL_min(a, b);
+    d->score = true;
+}
+
+static void Hub_LoadDemos(const char* key, void* out) {
+    hubDemos_t* ds = out;
+    char who[24], mode[8], url[320], item[4096], value[200], raw[96];
+    char* text = malloc(HUB_TEXT);
+    const char *p, *end, *q;
+    int page;
+
+    ds->status = PRO_FAILED;
+    if (!text || SDL_sscanf(key, "%23[^|]|%7[^|]|%d", who, mode, &page) != 3) {
+        free(text);
+        return;
+    }
+    if (SDL_strcmp(who, "todo")) {
+        SDL_snprintf(url, sizeof(url), SITE "/api/demos?steamId=%s&modo=%s&page=%d", who, mode, page);
+    } else {
+        SDL_snprintf(url, sizeof(url), SITE "/api/demos?modo=%s&page=%d", mode, page);
+    }
+    if (!Http_Get(url, text, HUB_TEXT) || !(p = Json_Array(text, "\"demos\"", &end))) {
+        free(text);
+        return;
+    }
+    while (ds->count < HUB_DEMO_PAGE && (p = Json_Item(p, end, item, sizeof(item))) != NULL) {
+        hubDemo_t* d = &ds->demos[ds->count++];
+        SDL_DateTime dt;
+        Sint64 ts;
+
+        Json_Text(Json_Value(item, "\"carpeta\""), d->carpeta, sizeof(d->carpeta));
+        Json_Text(Json_Value(item, "\"archivo\""), d->archivo, sizeof(d->archivo));
+        Json_Text(Json_Value(item, "\"servidor\""), d->server, sizeof(d->server));
+        Json_Text(Json_Value(item, "\"mapa\""), d->map, sizeof(d->map));
+        Json_Text(Json_Value(item, "\"modo\""), d->mode, sizeof(d->mode));
+        Json_Text(Json_Value(item, "\"dia\""), d->day, sizeof(d->day));
+        Json_Text(Json_Value(item, "\"steamId\""), d->steamId, sizeof(d->steamId));
+        d->bytes = Json_Int(item, "\"bytes\"", NULL);
+        d->spec = Json_True(item, "\"espectador\"");
+        q = Json_Value(item, "\"ts\"");
+        ts = q ? SDL_strtoll(q, NULL, 10) : 0;
+        if (ts > 0 && SDL_TimeToDateTime((SDL_Time)ts * SDL_NS_PER_MS, &dt, true)) {
+            SDL_snprintf(d->hour, sizeof(d->hour), "%02d:%02d", dt.hour, dt.minute);
+            SDL_snprintf(d->day, sizeof(d->day), "%04d-%02d-%02d", dt.year, dt.month, dt.day);
+        }
+        q = Json_Value(item, "\"partida\"");
+        if (q && *q == '{') {
+            Json_Text(Json_Value(q, "\"matchId\""), d->match, sizeof(d->match));
+            Json_Text(Json_Value(q, "\"resultado\""), value, sizeof(value));
+            d->result = !SDL_strcmp(value, "win") ? 1 : !SDL_strcmp(value, "loss") ? 2 : 0;
+            Demo_Score(q, d);
+        }
+        q = Json_Value(item, "\"jugador\"");
+        if (q && *q == '{') {
+            Json_Text(Json_Value(q, "\"steamId\""), d->steamId, sizeof(d->steamId));
+            Json_Text(Json_Value(q, "\"username\""), d->raw, sizeof(d->raw));
+            Json_Text(Json_Value(q, "\"avatar\""), value, sizeof(value));
+            Site_Url(d->avatar, sizeof(d->avatar), value);
+            Country_Code(q, d->country);
+            Json_Text(Json_Value(q, "\"clanTag\""), raw, sizeof(raw));
+            Server_Name(raw, d->clanTag, sizeof(d->clanTag));
+            d->clan = d->clanTag[0] != '\0';
+            Json_Text(Json_Value(q, "\"clanAvatarUrl\""), value, sizeof(value));
+            Site_Url(d->clanPic, sizeof(d->clanPic), value);
+        }
+        if (!Steam_IdValid(d->steamId)) {
+            d->steamId[0] = '\0';
+        }
+        Demo_Local(d->archivo, d->local, sizeof(d->local));
+        d->have = Demo_Have(d->local);
+    }
+    ds->total = Json_Int(end, "\"total\"", NULL);
+    ds->page = SDL_max(1, Json_Int(end, "\"pagina\"", NULL));
+    ds->pages = SDL_max(1, Json_Int(end, "\"paginas\"", NULL));
+    q = Json_Value(end, "\"jugador\"");
+    if (q && *q == '{') {
+        Json_Text(Json_Value(q, "\"username\""), ds->raw, sizeof(ds->raw));
+    }
+    Hub_Identities(text, HUB_TEXT, ds->count, &ds->demos[0].steamId, &ds->demos[0].avatar, &ds->demos[0].clanPic, &ds->demos[0].clan, sizeof(hubDemo_t));
+    ds->status = PRO_READY;
     free(text);
 }
 
@@ -5978,6 +6524,7 @@ static void Hub_Want(void) {
         SDL_strlcpy(slotPlayer.want, hubWho, sizeof(slotPlayer.want));
         if (hubTab == HUB_PROFILE) {
             SDL_snprintf(slotStats.want, sizeof(slotStats.want), "%s|%s|%s", hubWho, hubModeId[hubMode], hubSeasonId[hubSeason]);
+            SDL_snprintf(slotProDemos.want, sizeof(slotProDemos.want), "%s|todo|1", hubWho);
         }
         if (hubTab == HUB_MATCHES && !hubMatchId[0]) {
             SDL_snprintf(slotGames.want, sizeof(slotGames.want), "%s|%s|%d", hubWho, hubGamesMode ? hubModeId[hubGamesMode - 1] : "todo", hubPage);
@@ -5989,6 +6536,10 @@ static void Hub_Want(void) {
     if (hubTab == HUB_RANKING) {
         SDL_snprintf(slotRank.want, sizeof(slotRank.want), "%s|%d", hubModeId[hubRankModes[hubRankMode]], hubRankPage);
     }
+    if (hubTab == HUB_DEMOS) {
+        SDL_snprintf(slotDemos.want, sizeof(slotDemos.want), "%s|%s|%d", hubDemoWho[0] ? hubDemoWho : "todo", hubDemoMode ? hubModeId[hubDemoModes[hubDemoMode - 1]] : "todo",
+                     hubDemoPage);
+    }
 }
 
 static void Hub_Poll(void) {
@@ -5998,6 +6549,12 @@ static void Hub_Poll(void) {
     for (i = 0; i < (int)SDL_arraysize(hubSlots); i++) {
         Slot_Poll(hubSlots[i]);
     }
+}
+
+static void Hub_Demos(const char* who) {
+    SDL_strlcpy(hubDemoWho, who, sizeof(hubDemoWho));
+    hubDemoPage = 1;
+    hubGoal[HUB_DEMOS] = hubView[HUB_DEMOS] = 0.0f;
 }
 
 static void Hub_Open(int tab, const char* steamId) {
@@ -6045,7 +6602,7 @@ static void Hub_Match(const char* id) {
     }
     SDL_strlcpy(hubMatchId, id, sizeof(hubMatchId));
     hubSub = SUB_SUMMARY;
-    hubGoal[4] = hubView[4] = 0.0f;
+    hubGoal[HUB_MATCH] = hubView[HUB_MATCH] = 0.0f;
     hubTab = HUB_MATCHES;
 }
 
@@ -6675,8 +7232,25 @@ static void Profile_Poll(void) {
         SDL_SetAtomicInt(&meState, 0);
     }
 }
+static void Flag_Copy(const char* code, picNew_t* n) {
+    int i, count = (int)SDL_strlen(launcherFlagCodes) / 2;
+
+    for (i = 0; i < count; i++) {
+        if (SDL_tolower((unsigned char)code[0]) == launcherFlagCodes[i * 2] && SDL_tolower((unsigned char)code[1]) == launcherFlagCodes[i * 2 + 1]) {
+            unsigned int start = i ? launcherFlagEnds[i - 1] : 0;
+
+            n->size = launcherFlagEnds[i] - start;
+            n->data = malloc(n->size);
+            if (n->data) {
+                SDL_memcpy(n->data, launcherFlags + start, n->size);
+            }
+            return;
+        }
+    }
+}
+
 static void Pic_Fetch(int i) {
-    char url[640], escaped[512], file[64];
+    char url[640], escaped[512];
     picNew_t* n = &picsNew[i];
     const char* key = picsJob[i];
     bytes_t bytes;
@@ -6685,13 +7259,12 @@ static void Pic_Fetch(int i) {
     n->data = NULL;
     n->size = 0;
     if (key[0] == 'f') {
-        SDL_snprintf(file, sizeof(file), "emoji/%x-%x.png", 0x1f1e6 + (key[2] - 'A'), 0x1f1e6 + (key[3] - 'A'));
-        n->data = Pak_Read(PAK_OURS, file, &n->size);
+        Flag_Copy(key + 2, n);
         return;
     }
-    if ((key[0] == 'c' || key[0] == 'B') && SDL_strncmp(key + 2, "https://", 8)) {
+    if ((key[0] == 'c' || key[0] == 'B' || key[0] == 'R') && SDL_strncmp(key + 2, "https://", 8)) {
         Url_Escape(key + 2, escaped, sizeof(escaped));
-        SDL_snprintf(url, sizeof(url), CLAN_IMAGE "%s&w=%d&q=75", escaped, key[0] == 'B' ? (HUB_CW * uiScale > 1200.0f ? 1920 : 1200) : 64);
+        SDL_snprintf(url, sizeof(url), CLAN_IMAGE "%s&w=%d&q=75", escaped, key[0] == 'c' ? 64 : key[0] == 'R' ? 640 : HUB_CW * uiScale > 1200.0f ? 1920 : 1200);
     } else if (key[2] == '/') {
         SDL_snprintf(url, sizeof(url), SITE "%s", key + 2);
     } else {
@@ -6812,6 +7385,7 @@ static void Pics_Poll(void) {
                                n->key[0] == 'f'   ? FLAG_SIDE
                                : n->key[0] == 'A' ? 104.0f
                                : n->key[0] == 'B' ? HUB_CW
+                               : n->key[0] == 'R' ? 560.0f
                                : n->key[0] == 'i' ? 56.0f
                                : n->key[0] == 'c' ? 44.0f
                                                   : 28.0f);
@@ -7235,6 +7809,9 @@ static bool Game_Start(void) {
     if (connectTo[0]) {
         args[++i] = "+connect";
         args[++i] = connectTo;
+    } else if (demoTo[0]) {
+        args[++i] = "+demo";
+        args[++i] = demoTo;
     }
     args[i + 1] = NULL;
     SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "IOQUAKELIVE_LAUNCHER", "return", true);
@@ -7244,6 +7821,160 @@ static bool Game_Start(void) {
     }
     SDL_DestroyProcess(process);
     return true;
+}
+
+typedef struct {
+    SDL_IOStream* out;
+    Uint64 tick;
+} demoSave_t;
+
+static SDL_Thread* demoThread;
+static SDL_AtomicInt demoState, demoGot;
+static char demoUrl[400], demoFile[1024], demoName[128], demoFail[128], demoNow[128];
+static int demoBytes;
+static bool demoWatch;
+
+static bool Demo_Sink(void* ctx, const void* data, size_t n) {
+    demoSave_t* save = ctx;
+
+    if (SDL_WriteIO(save->out, data, n) != n) {
+        return false;
+    }
+    SDL_AddAtomicInt(&demoGot, (int)n);
+    if (SDL_GetTicks() - save->tick > 80) {
+        save->tick = SDL_GetTicks();
+        Wake();
+    }
+    return true;
+}
+
+static int SDLCALL Demo_Thread(void* data) {
+    char part[1040];
+    demoSave_t save;
+    bool ok;
+
+    (void)data;
+    SDL_snprintf(part, sizeof(part), "%s.part", demoFile);
+    save.out = SDL_IOFromFile(part, "wb");
+    save.tick = 0;
+    ok = save.out && Http_Fetch(demoUrl, 30000, Demo_Sink, &save);
+    if (save.out && !SDL_CloseIO(save.out)) {
+        ok = false;
+    }
+    ok = ok && SDL_GetAtomicInt(&demoGot) > 0 && (float)SDL_GetAtomicInt(&demoGot) >= (float)demoBytes * 0.98f;
+    if (ok) {
+        SDL_RemovePath(demoFile);
+        ok = SDL_RenamePath(part, demoFile);
+    }
+    if (!ok) {
+        SDL_RemovePath(part);
+    }
+    SDL_SetAtomicInt(&demoState, ok ? 2 : 3);
+    Wake();
+    return 0;
+}
+
+static bool Demo_Busy(void) {
+    return SDL_GetAtomicInt(&demoState) != 0;
+}
+
+static float Demo_Progress(void) {
+    return demoBytes > 0 ? SDL_clamp((float)SDL_GetAtomicInt(&demoGot) / (float)demoBytes, 0.0f, 1.0f) : 0.0f;
+}
+
+static void Demo_Mark(hubDemos_t* ds, const char* name) {
+    int i;
+
+    for (i = 0; i < ds->count; i++) {
+        if (!SDL_strcmp(ds->demos[i].local, name)) {
+            ds->demos[i].have = true;
+        }
+    }
+}
+
+static void Demo_Begin(const hubDemo_t* d, bool watch) {
+    char dir[1024], file[400];
+
+    if (!d->local[0] || Demo_Busy() || (watch && !Play_Ready())) {
+        return;
+    }
+    demoFail[0] = '\0';
+    if (Demo_Have(d->local)) {
+        Demo_Mark(&hubDemos, d->local);
+        Demo_Mark(&hubProDemos, d->local);
+        if (watch) {
+            SDL_strlcpy(demoNow, d->local, sizeof(demoNow));
+        }
+        return;
+    }
+    SDL_snprintf(dir, sizeof(dir), "%sbaseq3/demos", basePath);
+    SDL_CreateDirectory(dir);
+    Url_Escape(d->archivo, file, sizeof(file));
+    SDL_snprintf(demoUrl, sizeof(demoUrl), SITE "/api/demos/download/%s/%s", d->carpeta, file);
+    Demo_Path(d->local, demoFile, sizeof(demoFile));
+    SDL_strlcpy(demoName, d->local, sizeof(demoName));
+    demoBytes = d->bytes;
+    demoWatch = watch;
+    SDL_SetAtomicInt(&demoGot, 0);
+    SDL_SetAtomicInt(&demoState, 1);
+    demoThread = SDL_CreateThread(Demo_Thread, "demo", NULL);
+    if (!demoThread) {
+        SDL_SetAtomicInt(&demoState, 0);
+        SDL_strlcpy(demoFail, d->local, sizeof(demoFail));
+    }
+}
+
+static bool Launch_Poll(void) {
+    int state = SDL_GetAtomicInt(&demoState);
+    Uint64 now = SDL_GetTicks();
+    bool ok;
+
+    if (steamLaunch && (now - steamLaunch > 120000 || !Play_Ready())) {
+        steamLaunch = steamReady = 0;
+    } else if (steamLaunch && !steamMissing && Steam_LoggedIn()) {
+        if (!steamReady) {
+            steamReady = now;
+        } else if (now - steamReady > 2500) {
+            steamLaunch = steamReady = 0;
+            if (Game_Start()) {
+                return true;
+            }
+            shakeAt[BTN_PLAY] = Anim_Now();
+            Toast(T(TXT_TOAST_START));
+        }
+    }
+    if (joinNow[0]) {
+        SDL_strlcpy(connectTo, joinNow, sizeof(connectTo));
+        joinNow[0] = '\0';
+        ok = Play_Ready() && Game_Start();
+        connectTo[0] = '\0';
+        return ok;
+    }
+    if (state == 2 || state == 3) {
+        SDL_WaitThread(demoThread, NULL);
+        demoThread = NULL;
+        SDL_SetAtomicInt(&demoState, 0);
+        if (state == 3) {
+            SDL_strlcpy(demoFail, demoName, sizeof(demoFail));
+            Toast(T(TXT_TOAST_DEMO_FAIL));
+        } else {
+            Demo_Mark(&hubDemos, demoName);
+            Demo_Mark(&hubProDemos, demoName);
+            if (demoWatch) {
+                SDL_strlcpy(demoNow, demoName, sizeof(demoNow));
+            } else {
+                Toast(T(TXT_TOAST_DEMO_OK));
+            }
+        }
+    }
+    if (!demoNow[0]) {
+        return false;
+    }
+    SDL_strlcpy(demoTo, demoNow, sizeof(demoTo));
+    demoNow[0] = '\0';
+    ok = Play_Ready() && Game_Start();
+    demoTo[0] = '\0';
+    return ok;
 }
 
 static void Button_Set(int index, float x, float y, float w, float h, bool visible) {
@@ -7276,40 +8007,104 @@ static void Buttons_Hide(int first, int last) {
 }
 
 static void Draw_Page(void) {
-    Draw_Color(COL_P1);
+    Draw_Color(COL_PAGE);
     SDL_RenderClear(renderer);
 }
 
-static void Draw_Art(void) {
+static void Draw_Hero(const image_t* image, float alpha) {
     const float* box = artBox[heroCustom ? 1 : 0];
 
+    Draw_ImageAt(image, box[0] - ART_PAD + artX, box[1] - ART_PAD + artY, box[2] + ART_PAD * 2.0f, box[3] + ART_PAD * 2.0f, alpha, false);
+}
+
+static void Draw_Art(void) {
     if (hero.tex) {
-        Draw_Image(&hero, box[0], box[1], box[2], box[3], 1.0f);
+        Draw_Hero(&hero, 1.0f);
         Draw_Image(&shade, 0.0f, 0.0f, UI_W, UI_H, 1.0f);
     }
 }
 
-static void Draw_Shadow(float x, float y, float w, float h, float radius) {
+static SDL_Texture* Blur_Step(SDL_Texture* from, int w, int h) {
+    SDL_Texture* to = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, w, h);
+
+    if (to && SDL_SetRenderTarget(renderer, to)) {
+        SDL_SetTextureScaleMode(to, SDL_SCALEMODE_LINEAR);
+        SDL_SetTextureBlendMode(to, SDL_BLENDMODE_NONE);
+        SDL_RenderTexture(renderer, from, NULL, NULL);
+        return to;
+    }
+    if (to) {
+        SDL_DestroyTexture(to);
+    }
+    return NULL;
+}
+
+static void Art_Blur(void) {
+    SDL_BlendMode mode = SDL_BLENDMODE_BLEND;
+    SDL_Texture* cur;
+    int w, h, i;
+
+    if (heroSoft.tex) {
+        SDL_DestroyTexture(heroSoft.tex);
+        heroSoft.tex = NULL;
+    }
+    if (!hero.tex) {
+        return;
+    }
+    SDL_GetTextureBlendMode(hero.tex, &mode);
+    SDL_SetTextureBlendMode(hero.tex, SDL_BLENDMODE_NONE);
+    SDL_SetTextureAlphaMod(hero.tex, 255);
+    cur = hero.tex;
+    w = hero.w;
+    h = hero.h;
+    for (i = 0; i < 5 && cur; i++) {
+        SDL_Texture* next;
+
+        w = SDL_max(w / 2, 1);
+        h = SDL_max(h / 2, 1);
+        next = Blur_Step(cur, w, h);
+        if (cur != hero.tex) {
+            SDL_DestroyTexture(cur);
+        }
+        cur = next;
+    }
+    if (cur) {
+        SDL_Texture* up = Blur_Step(cur, w * 4, h * 4);
+
+        SDL_DestroyTexture(cur);
+        cur = up;
+    }
+    SDL_SetRenderTarget(renderer, NULL);
+    SDL_SetTextureBlendMode(hero.tex, mode);
+    if (cur) {
+        SDL_SetTextureBlendMode(cur, SDL_BLENDMODE_BLEND);
+        heroSoft.tex = cur;
+        heroSoft.w = w * 4;
+        heroSoft.h = h * 4;
+    }
+}
+
+static void Draw_Shadow(float x, float y, float w, float h, float radius, float alpha) {
     int i;
 
     for (i = 1; i <= 6; i++) {
         float g = (float)i * 2.5f;
 
-        Draw_Round(x - g, y - g + 3.0f, w + g * 2.0f, h + g * 2.0f, radius + g, COL_SHADE);
+        Draw_Round(x - g, y - g + 3.0f, w + g * 2.0f, h + g * 2.0f, radius + g, Col_Alpha(COL_SHADE, alpha));
     }
 }
 
-static void Draw_Sheet(float x, float y, float w, float h) {
-    Draw_Shadow(x, y, w, h, PANEL_R);
+static void Draw_Sheet(float x, float y, float w, float h, Uint32 fill, Uint32 head) {
+    h += PANEL_R * 2.0f;
+    Draw_Shadow(x, y, w, h, PANEL_R, 1.0f);
     Draw_Round(x - 1.0f, y - 1.0f, w + 2.0f, h + 2.0f, PANEL_R + 1.0f, COL_RING);
-    Draw_Round(x, y, w, h, PANEL_R, COL_P2);
+    Draw_Round(x, y, w, h, PANEL_R, fill);
+    Draw_Round(x, y, w, HEAD_H + PANEL_R * 2.0f, PANEL_R, head);
+    Draw_Rect(x, y + HEAD_H, w, PANEL_R * 2.0f, fill);
 }
 
 static void Draw_Panel(void) {
-    float side = SIDE_X - 24.0f, h = PANEL_END - PANEL_Y;
-
-    Draw_Sheet(COL_X, PANEL_Y, side - PANEL_GAP - COL_X, h);
-    Draw_Sheet(side, PANEL_Y, COL_X + COL_W - side, h);
+    Draw_Sheet(COL_X, PANEL_Y, COL_W, PANEL_END - PANEL_Y, COL_P1, COL_P3);
 }
 
 static float Caps_Width(int fontIndex, const char* text, float track) {
@@ -7333,12 +8128,12 @@ static void Draw_Label(float x, float width, Uint32 rgba, const char* text) {
     textTrack = 0.0f;
 }
 
-static float Draw_Big(int index, const char* text, bool ready, float done, const char* work) {
-    float x = SIDE_X, y = PLAY_Y, h = PLAY_H, mid = PLAY_Y + PLAY_H * 0.5f, w, tw;
+static float Draw_Big(int index, const char* text, bool ready, float done, const char* work, const image_t* icon) {
+    float x = SIDE_X, y = PLAY_Y, h = PLAY_H, mid = PLAY_Y + PLAY_H * 0.5f, w, tw, iw = icon && icon->tex ? STEAM_ICON + 12.0f : 0.0f;
     float hot = ready && !work ? heat[index] : 0.0f;
 
     tw = Caps_Width(FONT_PLAY, text, TRACK_BUTTON);
-    w = SDL_max(SIDE_W, tw + 64.0f);
+    w = SDL_max(SIDE_W, tw + iw + 64.0f);
     Button_Set(index, x, y, w, h, ready && !work);
     if (work) {
         done = SDL_clamp(done, 0.0f, 1.0f);
@@ -7351,7 +8146,10 @@ static float Draw_Big(int index, const char* text, bool ready, float done, const
         return w;
     }
     Draw_Round(x, y, w, h, BUTTON_R, ready ? Col_Mix(COL_WHITE, COL_PURE, hot) : COL_P3);
-    Draw_Caps(FONT_PLAY, x + (w - tw) * 0.5f, mid, ready ? COL_INK : COL_W70, text, TRACK_BUTTON);
+    if (iw > 0.0f) {
+        Draw_Icon(icon, x + (w - tw - iw) * 0.5f, mid - STEAM_ICON * 0.5f, STEAM_ICON, ready ? COL_INK : COL_W70);
+    }
+    Draw_Caps(FONT_PLAY, x + (w - tw + iw) * 0.5f, mid, ready ? COL_INK : COL_W70, text, TRACK_BUTTON);
     return w;
 }
 
@@ -7364,8 +8162,8 @@ static float Draw_Title(const char* over, const char* title) {
     return BODY_TOP + 26.0f;
 }
 
-static const int navNames[NAV_ITEMS] = {TXT_NAV_HOME, TXT_HUB_SERVERS, TXT_HUB_RANKING, TXT_HUB_MATCHES, TXT_HUB_PROFILE};
-static const int navTabs[NAV_ITEMS] = {-1, HUB_SERVERS, HUB_RANKING, HUB_MATCHES, HUB_PROFILE};
+static const int navNames[NAV_ITEMS] = {TXT_NAV_HOME, TXT_HUB_SERVERS, TXT_HUB_RANKING, TXT_DEMOS, TXT_NAV_MATCHES, TXT_HUB_PROFILE};
+static const int navTabs[NAV_ITEMS] = {-1, HUB_SERVERS, HUB_RANKING, HUB_DEMOS, HUB_MATCHES, HUB_PROFILE};
 
 static bool Nav_Shown(void) {
     return gameFound && !install.active && setup.step == STEP_NONE;
@@ -7387,38 +8185,34 @@ static int Nav_Active(void) {
 }
 
 static void Draw_Nav(void) {
-    float x = NAV_X, hotX = -1.0f, hotW = 0.0f;
+    float x = NAV_X;
     bool live = Nav_Shown() && !boxOpen;
-    int i, count = Nav_Count(), active = Nav_Active();
+    int i, count = Nav_Count();
 
     Buttons_Hide(BTN_NAV_0, BTN_NAV_LAST);
     if (!Nav_Shown()) {
-        navReady = false;
+        pillX = -1.0f;
         return;
     }
     for (i = 0; i < count; i++) {
-        const char* text = T(navNames[i]);
-        float tw = Caps_Width(FONT_NAV, text, TRACK_NAV);
-        Uint32 c = i == active ? COL_WHITE : Col_Mix(COL_W70, COL_WHITE, heat[BTN_NAV_0 + i]);
+        float tw = Caps_Width(FONT_NAV, T(navNames[i]), TRACK_NAV);
 
-        Draw_Caps(FONT_NAV, x, TOP_MID, c, text, TRACK_NAV);
-        Button_Set(BTN_NAV_0 + i, x - NAV_GAP * 0.5f, TOP_MID - 18.0f, tw + NAV_GAP, 36.0f, live);
-        if (i == active || (hotButton == BTN_NAV_0 + i && live)) {
-            if (hotButton == BTN_NAV_0 + i || hotX < 0.0f) {
-                hotX = x;
-                hotW = tw;
-            }
-        }
+        navX[i] = x - NAV_PILL;
+        navW[i] = tw + NAV_PILL * 2.0f;
         x += tw + NAV_GAP;
     }
-    navGoalX = hotX;
-    navGoalW = hotW;
-    if (!navReady) {
-        navX = navGoalX;
-        navW = navGoalW;
-        navReady = true;
+    if (pillX >= 0.0f) {
+        Draw_Round(pillX, TOP_MID - 15.0f, pillW, 30.0f, 15.0f, Col_Alpha(COL_WHITE, 0.09f));
     }
-    Draw_Round(navX, TOP_MID + 14.0f, navW, 2.0f, 1.0f, COL_GOLD);
+    x = NAV_X;
+    for (i = 0; i < count; i++) {
+        const char* text = T(navNames[i]);
+        float tw = Caps_Width(FONT_NAV, text, TRACK_NAV);
+
+        Draw_Caps(FONT_NAV, x, TOP_MID, Col_Mix(COL_W70, COL_WHITE, SDL_max(navLit[i], heat[BTN_NAV_0 + i])), text, TRACK_NAV);
+        Button_Set(BTN_NAV_0 + i, x - NAV_GAP * 0.5f, TOP_MID - 18.0f, tw + NAV_GAP, 36.0f, live);
+        x += tw + NAV_GAP;
+    }
 }
 
 static void Draw_Top(void) {
@@ -7429,10 +8223,11 @@ static void Draw_Top(void) {
     Draw_Caps(FONT_BRAND, LOGO_X + LOGO + 14.0f, TOP_MID, COL_WHITE, "ioquakelive", TRACK_CAPS);
     Draw_Nav();
 
+    Button_Set(BTN_DISCORD, UI_W - CTRL_W * 4.0f, CTRL_Y, CTRL_W, CTRL_H, true);
     Button_Set(BTN_OPTS, UI_W - CTRL_W * 3.0f, CTRL_Y, CTRL_W, CTRL_H, gameFound && !install.active && setup.step == STEP_NONE);
     Button_Set(BTN_MIN, UI_W - CTRL_W * 2.0f, CTRL_Y, CTRL_W, CTRL_H, true);
     Button_Set(BTN_CLOSE, UI_W - CTRL_W, CTRL_Y, CTRL_W, CTRL_H, true);
-    for (i = BTN_OPTS; i <= BTN_CLOSE; i++) {
+    for (i = BTN_DISCORD; i <= BTN_CLOSE; i++) {
         float lit = i == BTN_OPTS && optsOpen ? 1.0f : heat[i];
 
         if (lit <= 0.0f || !buttons[i].visible) {
@@ -7440,6 +8235,10 @@ static void Draw_Top(void) {
         }
         b = &buttons[i];
         Draw_Round(b->x, b->y, b->w, b->h, ITEM_R, Col_Alpha(COL_HUSH, lit));
+    }
+    b = &buttons[BTN_DISCORD];
+    if (b->visible) {
+        Draw_Icon(&iconDiscord, b->x + (b->w - DISCORD_ICON) * 0.5f, b->y + (b->h - DISCORD_ICON) * 0.5f, DISCORD_ICON, COL_WHITE);
     }
     b = &buttons[BTN_OPTS];
     if (b->visible) {
@@ -7487,7 +8286,7 @@ static void Draw_Feed(float alpha) {
     SDL_SetRenderClipRect(renderer, NULL);
     if (notesHeight > notesView + 0.5f) {
         thumbH = notesView * notesView / notesHeight;
-        thumbY = notesTop + (notesView - thumbH) * notesScroll / (notesHeight - notesView);
+        thumbY = notesTop + (notesView - thumbH) * SDL_clamp(notesScroll / (notesHeight - notesView), 0.0f, 1.0f);
         Draw_Round(IN_X + TEXT_W - 4.0f, thumbY, 4.0f, thumbH, 2.0f, Col_Alpha(dragMode == 2 ? COL_W70 : COL_DOT, alpha));
     }
 }
@@ -7501,45 +8300,6 @@ static Uint32 Col_Gray(float level, float alpha) {
     Uint32 v = (Uint32)(SDL_clamp(level, 0.0f, 1.0f) * 255.0f + 0.5f);
 
     return (v << 24) | (v << 16) | (v << 8) | (Uint32)(SDL_clamp(alpha, 0.0f, 1.0f) * 255.0f + 0.5f);
-}
-
-static int Draw_Clamp(int fontIndex, float x, float top, float first, float rest, float lineH, int lines, Uint32 rgba, const char* text, bool draw) {
-    const char* p = text;
-    int line;
-
-    for (line = 0; line < lines && *p; line++) {
-        const char* end = p;
-        float mid = top + lineH * ((float)line + 0.5f), width = line ? rest : first;
-
-        for (;;) {
-            const char* q = end;
-
-            while (*q == ' ') {
-                q++;
-            }
-            while (*q && *q != ' ') {
-                q++;
-            }
-            if (q == end || (end != p && Text_Width(fontIndex, p, (int)(q - p)) > width)) {
-                break;
-            }
-            end = q;
-        }
-        if (line == lines - 1 || Text_Width(fontIndex, p, (int)(end - p)) > width) {
-            if (draw) {
-                Draw_Text(fontIndex, x, Text_Mid(fontIndex, mid), rgba, Text_Fit(fontIndex, p, width), -1);
-            }
-            return line + 1;
-        }
-        if (draw) {
-            Draw_Text(fontIndex, x, Text_Mid(fontIndex, mid), rgba, p, (int)(end - p));
-        }
-        p = end;
-        while (*p == ' ') {
-            p++;
-        }
-    }
-    return line;
 }
 
 static void Draw_CapsFit(int fontIndex, float x, float mid, Uint32 rgba, const char* text, float track, float width) {
@@ -7593,7 +8353,7 @@ static float Draw_Count(float right, float mid, const server_t* s, bool draw, bo
     int bold = FONT_SV_COUNT, thin = compact ? FONT_SV_COUNT : FONT_SV_OF;
     float nw, rw;
 
-    SDL_snprintf(num, sizeof(num), "%d", s->players);
+    SDL_snprintf(num, sizeof(num), "%d", Roll_Int(s->addr, s->players, false));
     SDL_snprintf(rest, sizeof(rest), " %s %d", T(TXT_OF), s->max);
     nw = Text_Width(bold, num, -1);
     rw = Text_Width(thin, rest, -1);
@@ -7604,40 +8364,44 @@ static float Draw_Count(float right, float mid, const server_t* s, bool draw, bo
     return nw + rw;
 }
 
+static void Draw_Fill(float x, float y, float w, const server_t* s) {
+    float k = s->max > 0 ? SDL_clamp(Roll_Get(s->addr, (float)s->players, false) / (float)s->max, 0.0f, 1.0f) : 0.0f;
+
+    Draw_Round(x, y, w, 4.0f, 2.0f, Col_Alpha(COL_BLACK, 0.28f));
+    if (k > 0.0f) {
+        Draw_Round(x, y, SDL_max(4.0f, w * k), 4.0f, 2.0f, COL_OK);
+    }
+}
+
 static void Side_Row(const server_t* s, float x, float y, float w, float hot) {
     char line[64], head[sizeof(s->name)];
-    float tx = x + 12.0f + SIDE_THUMB_W + 12.0f, tw = x + w - 12.0f - tx, block, top;
-    float first = tw - Draw_Count(0.0f, 0.0f, s, false, true) - 12.0f;
+    float tx = x + 12.0f + SIDE_THUMB_W + 14.0f, bw = SDL_max(Draw_Count(0.0f, 0.0f, s, false, true), 52.0f);
+    float room = x + w - 14.0f - bw - 16.0f - tx, block, top;
     const char *rest = NULL, *p = s->name;
-    int lines;
 
     textTrack = 0.88f;
-    if (Text_Width(FONT_SV_SIDE, s->name, -1) > first) {
+    if (Text_Width(FONT_SV_SIDE, s->name, -1) > room) {
         while ((p = SDL_strstr(p, " | ")) != NULL) {
-            if (Text_Width(FONT_SV_SIDE, s->name, (int)(p - s->name)) <= first) {
+            if (Text_Width(FONT_SV_SIDE, s->name, (int)(p - s->name)) <= room) {
                 rest = p + 3;
                 SDL_strlcpy(head, s->name, (size_t)(p - s->name) + 1);
             }
             p += 3;
         }
     }
-    lines = rest ? 2 : Draw_Clamp(FONT_SV_SIDE, 0.0f, 0.0f, first, tw, SIDE_LINE, 2, 0, s->name, false);
-    textTrack = 0.0f;
+    block = SIDE_LINE * (rest ? 2.0f : 1.0f) + 19.0f;
+    top = y + (SIDE_ROW_H - block) * 0.5f;
     Draw_Round(x, y, w, SIDE_ROW_H, BUTTON_R, Col_Mix(COL_P3, COL_P4, hot));
     Draw_Thumb(s->map, x + 12.0f, y + (SIDE_ROW_H - SIDE_THUMB_H) * 0.5f, SIDE_THUMB_W, SIDE_THUMB_H);
-    block = SIDE_LINE * (float)lines + 19.0f;
-    top = y + (SIDE_ROW_H - block) * 0.5f;
-    textTrack = 0.88f;
+    Draw_Text(FONT_SV_SIDE, tx, Text_Mid(FONT_SV_SIDE, top + SIDE_LINE * 0.5f), COL_WHITE, Text_Fit(FONT_SV_SIDE, rest ? head : s->name, room), -1);
     if (rest) {
-        Draw_Clamp(FONT_SV_SIDE, tx, top, first, first, SIDE_LINE, 1, COL_WHITE, head, true);
-        Draw_Clamp(FONT_SV_SIDE, tx, top + SIDE_LINE, tw, tw, SIDE_LINE, 1, COL_WHITE, rest, true);
-    } else {
-        Draw_Clamp(FONT_SV_SIDE, tx, top, first, tw, SIDE_LINE, 2, COL_WHITE, s->name, true);
+        Draw_Text(FONT_SV_SIDE, tx, Text_Mid(FONT_SV_SIDE, top + SIDE_LINE * 1.5f), COL_WHITE, Text_Fit(FONT_SV_SIDE, rest, room), -1);
     }
     textTrack = 0.0f;
-    Draw_Count(x + w - 12.0f, top + SIDE_LINE * 0.5f, s, true, true);
-    SDL_snprintf(line, sizeof(line), "%s - %s", s->mode, s->map);
-    Draw_CapsFit(FONT_SV_META, tx, top + block - 9.0f, COL_W70, line, 1.2f, tw);
+    SDL_snprintf(line, sizeof(line), "%s - %s", s->mode, Map_Title(s->map));
+    Draw_CapsFit(FONT_SV_META, tx, top + block - 9.0f, COL_W70, line, 1.2f, room);
+    Draw_Count(x + w - 14.0f, top + SIDE_LINE * 0.5f, s, true, true);
+    Draw_Fill(x + w - 14.0f - bw, top + block - 11.0f, bw, s);
 }
 
 static void Draw_SideHead(void) {
@@ -7659,18 +8423,25 @@ static void Draw_SideServers(float y) {
 
     n = (int)((PLAY_Y - 12.0f - y + SIDE_GAP) / (SIDE_ROW_H + SIDE_GAP));
     n = SDL_min(n, SDL_min(serverCount, SIDE_ROWS));
+    if (n > 0 && !waveServers) {
+        waveServers = true;
+        waveSide.at = Anim_Now();
+    }
+    waveSide.top = y;
+    waveNow = &waveSide;
     for (i = 0; i < n; i++) {
         float ry = y + (float)i * (SIDE_ROW_H + SIDE_GAP);
 
         Button_Set(BTN_SIDE_0 + i, x, ry, w, SIDE_ROW_H, true);
         Side_Row(&servers[i], x, ry, w, heat[BTN_SIDE_0 + i]);
     }
+    waveNow = NULL;
 }
 
 static void Draw_Card(void) {
     char work[64];
     float x = SIDE_X, row = BODY_TOP + 32.0f;
-    bool busy = Update_Busy(), ready = Play_Ready();
+    bool busy = Update_Busy(), ready = Play_Ready(), steam = steamMissing && !busy;
 
     if (gameFound) {
         Draw_SideHead();
@@ -7684,20 +8455,9 @@ static void Draw_Card(void) {
         }
     }
 
-    Button_Set(BTN_STEAM, 0.0f, 0.0f, 0.0f, 0.0f, false);
     if (!busy) {
         if (install.fail != FAIL_NONE) {
             Draw_Row(x, row, COL_MAL, COL_WHITE, T(TXT_FAIL_FOLDER + install.fail - 1), SIDE_W);
-            row += 36.0f;
-        }
-        if (gameFound && steamMissing) {
-            bool opening = steamOpening && SDL_GetTicks() - steamOpening < 20000;
-            const char* off = T(opening ? TXT_STEAM_OPENING : TXT_STEAM_OFF);
-
-            Draw_Row(x, row, COL_DOT, COL_W70, off, SIDE_W);
-            if (!opening) {
-                Draw_Link(BTN_STEAM, x + 18.0f + Text_Width(FONT_TEXT, off, -1) + 14.0f, row, T(TXT_STEAM_OPEN));
-            }
             row += 36.0f;
         }
         if (gameFound && vulkanFound && SDL_GetAtomicInt(&vulkanState) == VULKAN_MISSING) {
@@ -7711,14 +8471,18 @@ static void Draw_Card(void) {
         Draw_Text(FONT_SMALL, x, Text_Mid(FONT_SMALL, row), COL_W70, Text_Fit(FONT_SMALL, T(serversFailed ? TXT_SERVERS_FAILED : TXT_SERVERS_LOADING), SIDE_W), -1);
     }
 
-    Draw_Big(BTN_PLAY, T(TXT_PLAY), ready, busy ? Job_Done() : 0.0f, busy ? work : NULL);
+    if (steamLaunch && !busy) {
+        Draw_Big(BTN_PLAY, T(TXT_PLAY_STEAM), ready, steamMissing ? 0.35f : 0.8f, T(TXT_STEAM_OPENING), NULL);
+        return;
+    }
+    Draw_Big(BTN_PLAY, T(steam ? TXT_PLAY_STEAM : TXT_PLAY), ready, busy ? Job_Done() : 0.0f, busy ? work : NULL, steam ? &iconSteam : NULL);
 }
 
 static void Draw_Status(void) {
     char line[96];
     const char* text = line;
     int state = SDL_GetAtomicInt(&checkState);
-    float x = (buttons[BTN_ME].visible ? buttons[BTN_ME].x : UI_W - CTRL_W * 3.0f) - 14.0f;
+    float x = (buttons[BTN_ME].visible ? buttons[BTN_ME].x : UI_W - CTRL_W * 4.0f) - 14.0f;
 
     Button_Set(BTN_UPDATE, 0.0f, 0.0f, 0.0f, 0.0f, false);
     if (!gameFound || install.active || setup.step != STEP_NONE) {
@@ -8017,13 +8781,13 @@ static void Draw_Setup(void) {
     if (working) {
         Slide_End();
         SDL_snprintf(work, sizeof(work), T(TXT_WORKING), (int)(Job_Done() * 100.0f));
-        Draw_Big(BTN_NEXT, next, false, Job_Done(), work);
+        Draw_Big(BTN_NEXT, next, false, Job_Done(), work, NULL);
         Buttons_Hide(BTN_NEXT, BTN_OPT_B);
         return;
     }
     Setup_Note(note);
     Slide_End();
-    Draw_Big(BTN_NEXT, next, true, 0.0f, NULL);
+    Draw_Big(BTN_NEXT, next, true, 0.0f, NULL, NULL);
     if (alt) {
         Draw_Link(BTN_ALT, SIDE_X, PLAY_Y - 30.0f, alt);
     }
@@ -8050,14 +8814,14 @@ static void Draw_Install(void) {
         } else {
             SDL_strlcpy(line, T(TXT_INSTALLING), sizeof(line));
         }
-        Draw_Big(BTN_NEXT, T(TXT_INSTALL), false, done, line);
+        Draw_Big(BTN_NEXT, T(TXT_INSTALL), false, done, line, NULL);
         return;
     }
     Draw_Link(BTN_ALT, x, y + 16.0f, T(TXT_CHANGE_FOLDER));
     Draw_Check(BTN_OPT_A, x - 12.0f, y + 46.0f, w + 24.0f, install.shortcut, T(TXT_SHORTCUT), "");
     note = install.fail != FAIL_NONE ? T(TXT_FAIL_FOLDER + install.fail - 1) : T(install.adopt ? TXT_ADOPT : install.local ? TXT_FROM_FILE : TXT_FROM_GITHUB);
     Draw_Para(FONT_BODY, SIDE_X, BODY_TOP + 26.0f, SIDE_W, 25.0f, install.fail != FAIL_NONE ? COL_WHITE : COL_W70, note);
-    Draw_Big(BTN_NEXT, T(TXT_INSTALL), true, 0.0f, NULL);
+    Draw_Big(BTN_NEXT, T(TXT_INSTALL), true, 0.0f, NULL, NULL);
 }
 
 static void Draw_Options(void) {
@@ -8074,6 +8838,8 @@ static void Draw_Options(void) {
     if (open <= 0.0f) {
         return;
     }
+    Draw_Shadow(OPTS_X, OPTS_Y + drop, OPTS_W, OPTS_H, BUTTON_R, open);
+    Draw_Round(OPTS_X - 1.0f, OPTS_Y + drop - 1.0f, OPTS_W + 2.0f, OPTS_H + 2.0f, BUTTON_R + 1.0f, Col_Alpha(COL_RING, open));
     Draw_Round(OPTS_X, OPTS_Y + drop, OPTS_W, OPTS_H, BUTTON_R, Col_Alpha(COL_P3, open));
     Draw_Rect(OPTS_X + MENU_PAD + 10.0f, OPTS_Y + drop + MENU_PAD + OPTS_ROW * 4.0f + OPTS_GAP * 0.5f, OPTS_W - MENU_PAD * 2.0f - 20.0f, 1.0f,
               Col_Alpha(COL_LINE, open));
@@ -8327,8 +9093,9 @@ static void Draw_Box(void) {
     Draw_CapsFit(FONT_SV_MAP, x + 24.0f, y + COVER_H - 22.0f, COL_W70, line, 0.72f, BOX_W - 48.0f);
     top = y + COVER_H + 18.0f;
     most = SDL_max(0.0f, content - bodyH);
+    boxMost = most;
     boxGoal = SDL_clamp(boxGoal, 0.0f, most);
-    boxView = SDL_clamp(boxView, 0.0f, most);
+    boxView = SDL_clamp(boxView, -PULL_MAX, most + PULL_MAX);
     clip.x = (int)(x * uiScale);
     clip.y = (int)(top * uiScale);
     clip.w = (int)(BOX_W * uiScale);
@@ -8364,7 +9131,7 @@ static void Draw_Me(void) {
         nw = SDL_min(Runes_Width(FONT_NAV, r, Name_Runes(meProfile.raw, r, NAME_RUNES)), 150.0f);
         textTrack = 0.0f;
         w = 8.0f + 24.0f + 10.0f + nw + 12.0f;
-        x = UI_W - CTRL_W * 3.0f - 8.0f - w;
+        x = UI_W - CTRL_W * 4.0f - 8.0f - w;
         Button_Set(BTN_ME, x, CTRL_Y + 4.0f, w, CTRL_H - 8.0f, true);
         if (heat[BTN_ME] > 0.0f) {
             Draw_Round(x, CTRL_Y + 4.0f, w, CTRL_H - 8.0f, 6.0f, Col_Alpha(COL_HUSH, heat[BTN_ME]));
@@ -8849,7 +9616,7 @@ static float Hub_StatsCard(float y) {
     Hub_Tile(x, ty, w, h, T(TXT_HUB_TIER), tone.p3);
     ty += (h - 150.0f) * 0.5f;
     Hub_Icon(hubTierImage[Tier_Of(elo)], x + 18.0f + 28.0f, ty + 88.3f, 56.0f);
-    SDL_snprintf(line, sizeof(line), "%d", elo);
+    SDL_snprintf(line, sizeof(line), "%d", Roll_Int("elo", elo, true));
     Hub_Plain(FONT_HUB_FIGURE, x + 18.0f + 56.0f + 16.0f, ty + 81.0f, tone.ink, line, 0.28f);
     SDL_snprintf(line, sizeof(line), T(TXT_HUB_ELO), Text_Upper(mode));
     Draw_Caps(FONT_HUB_LABEL, x + 18.0f + 56.0f + 16.0f, ty + 103.0f, tone.ink2, line, 0.84f);
@@ -8863,7 +9630,7 @@ static float Hub_StatsCard(float y) {
 
         o = Hub_Tile(x, ty, w, h, T(TXT_HUB_GLOBAL), Col_Mix(tone.p3, tone.p4, hot));
         Hub_Set(BTN_HUB_RANKLINK, x, ty, w, h);
-        SDL_snprintf(line, sizeof(line), "#%d", st->rank);
+        SDL_snprintf(line, sizeof(line), "#%d", Roll_Int("rank", st->rank, true));
         Num_Text(st->total, a, sizeof(a));
         SDL_snprintf(aside, sizeof(aside), T(TXT_HUB_PLAYERS), a);
     } else if (closed) {
@@ -8894,18 +9661,18 @@ static float Hub_StatsCard(float y) {
     x += w + 10.0f;
 
     o = Hub_Tile(x, ty, w, h, T(TXT_HUB_RECORD), tone.p3);
-    SDL_snprintf(line, sizeof(line), "%d-%d", wins, losses);
+    SDL_snprintf(line, sizeof(line), "%d-%d", Roll_Int("wins", wins, true), Roll_Int("losses", losses, true));
     Hub_Plain(FONT_HUB_FIGURE, x + 18.0f, ty + o + 59.3f, tone.ink, line, 0.28f);
-    SDL_snprintf(line, sizeof(line), T(TXT_HUB_WINRATE), rate);
+    SDL_snprintf(line, sizeof(line), T(TXT_HUB_WINRATE), Roll_Int("rate", rate, true));
     o += 14.7f * (float)(Caps_Wrap(FONT_HUB_LABEL, x + 18.0f, ty + o + 85.4f, 14.7f, tone.ink2, line, 0.84f, w - 36.0f, true) - 1);
     Draw_Round(x + 18.0f, ty + o + 106.7f, w - 36.0f, 4.0f, 2.0f, tone.p1);
     if (rate > 0) {
-        Draw_Round(x + 18.0f, ty + o + 106.7f, SDL_max(4.0f, (w - 36.0f) * (float)rate / 100.0f), 4.0f, 2.0f, tone.ink);
+        Draw_Round(x + 18.0f, ty + o + 106.7f, SDL_max(4.0f, (w - 36.0f) * Roll_Get("rate", (float)rate, true) / 100.0f), 4.0f, 2.0f, tone.ink);
     }
     x += w + 10.0f;
 
     o = Hub_Tile(x, ty, w, h, T(TXT_HUB_KD), tone.p3);
-    SDL_snprintf(line, sizeof(line), "%.2f", st->kills > 0 ? (float)st->kills / (float)SDL_max(st->deaths, 1) : 0.0f);
+    SDL_snprintf(line, sizeof(line), "%.2f", Roll_Get("kd", st->kills > 0 ? (float)st->kills / (float)SDL_max(st->deaths, 1) : 0.0f, true));
     Hub_Plain(FONT_HUB_FIGURE, x + 18.0f, ty + o + 59.3f, tone.ink, line, 0.28f);
     Num_Text(st->kills, a, sizeof(a));
     Num_Text(st->deaths, b, sizeof(b));
@@ -9013,10 +9780,15 @@ static void Chart_Vertex(int i, float x, float y, SDL_FColor c) {
 static void Hub_Chart(float x, float y, float w, float h) {
     static float px[HUB_CHART_PTS], py[HUB_CHART_PTS];
     const hubStats_t* st = &hubStats;
-    SDL_FColor fill = Chart_Color(tone.gold, 0.08f), line = Chart_Color(tone.gold, 1.0f), clear = Chart_Color(tone.gold, 0.0f);
+    SDL_FColor fill, line, clear;
     float lo, hi, half = 1.25f, feather = 0.6f / uiScale;
     char text[48], num[24];
     int n, i, nv = 0, ni = 0;
+
+    Xf_Pick(x, y, w, h);
+    fill = Chart_Color(tone.gold, 0.08f);
+    line = Chart_Color(tone.gold, 1.0f);
+    clear = Chart_Color(tone.gold, 0.0f);
 
     n = Chart_Points(st, x, y, w, h, px, py, &lo, &hi);
     for (i = 0; i < n; i++) {
@@ -9350,7 +10122,7 @@ static float Hub_ProfileView(float y) {
     y = Hub_HistoryCard(y) + HUB_SECTION;
     y = Hub_IconsCard(y, false) + HUB_SECTION;
     y = Hub_IconsCard(y, true) + HUB_SECTION;
-    return Hub_RecentCard(y);
+    return Hub_ProDemos(Hub_RecentCard(y));
 }
 
 static float Hub_Pages(float y, int page, int pages) {
@@ -9375,16 +10147,6 @@ static float Hub_Pages(float y, int page, int pages) {
     return y + 40.0f;
 }
 
-static float Hub_PageTitle(float y, const char* text, const char* raw) {
-    float w = Caps_Width(FONT_HUB_PAGE, text, 0.52f);
-
-    Draw_Caps(FONT_HUB_PAGE, HUB_IN, y + 16.0f, tone.ink, text, 0.52f);
-    if (raw) {
-        Draw_NameFit(FONT_HUB_PAGE, HUB_IN + w + 10.0f, y + 16.0f, tone.ink, Text_Upper(raw), 0.52f, HUB_CW - w - 10.0f);
-    }
-    return y + 32.0f;
-}
-
 static float Hub_GamesView(float y) {
     static const char* modes[HUB_MODES + 1];
     const hubGames_t* gs = &hubGames;
@@ -9400,7 +10162,6 @@ static float Hub_GamesView(float y) {
     for (i = 0; i < HUB_MODES; i++) {
         modes[i + 1] = hubModeName[i];
     }
-    y = Hub_PageTitle(y, T(TXT_HUB_GAMES_OF), Slot_Ready(&slotPlayer) && hubPlayer.status == PRO_READY ? hubPlayer.raw : "");
     if (Slot_Ready(&slotGames) && gs->status == PRO_READY) {
         Num_Text(gs->total, num, sizeof(num));
         if (!gs->total) {
@@ -9414,7 +10175,7 @@ static float Hub_GamesView(float y) {
         } else {
             SDL_snprintf(line, sizeof(line), T(gs->total == 1 ? TXT_HUB_COUNT_ALL_ONE : TXT_HUB_COUNT_ALL), num);
         }
-        Hub_Plain(FONT_HUB_BIO, HUB_IN, y + 22.0f, tone.ink2, line, 0.0f);
+        Hub_Plain(FONT_HUB_BIO, HUB_IN, y + 10.0f, tone.ink2, line, 0.0f);
     }
     y += 40.0f;
     Hub_Tabs(BTN_HUB_MODE_0, HUB_MODES + 1, modes, hubGamesMode, HUB_IN, y + 10.0f, FONT_HUB_TAB, 0.96f, 30.0f);
@@ -9447,9 +10208,250 @@ static float Hub_GamesView(float y) {
     return y + HUB_PAD * 2.0f + body;
 }
 
+static float Demo_WatchWidth(void) {
+    return Caps_Width(FONT_BOXBTN, T(TXT_DEMO_WATCH), TRACK_BUTTON) + 32.0f;
+}
+
+static void Demo_Columns(float x, float w, float* col) {
+    float bw = Demo_WatchWidth(), fr = (w - 64.0f - 92.0f - 44.0f - 64.0f - bw - 8.0f - 32.0f - 14.0f * 6.0f) / 2.3f;
+
+    col[0] = x;
+    col[1] = col[0] + 64.0f + 14.0f;
+    col[2] = col[1] + fr * 1.3f + 14.0f;
+    col[3] = col[2] + fr + 14.0f;
+    col[4] = col[3] + 92.0f + 14.0f;
+    col[5] = col[4] + 44.0f + 14.0f;
+    col[6] = col[5] + 64.0f + 14.0f;
+    col[7] = col[6] + bw + 8.0f;
+    col[8] = col[7] + 32.0f;
+}
+
+static void Demo_Head(float x, float w, float mid) {
+    static const int labels[5] = {TXT_HUB_COL_SERVER, TXT_DEMO_BY, TXT_DEMO_RESULT, TXT_DEMO_TIME, TXT_DEMO_SIZE};
+    float col[9];
+    int i;
+
+    Demo_Columns(x + 8.0f, w - 16.0f, col);
+    for (i = 0; i < 5; i++) {
+        Draw_Caps(FONT_HUB_MONO, col[1 + i], mid, tone.ink2, T(labels[i]), 1.6f);
+    }
+}
+
+static void Demo_Size(int bytes, char* out, size_t size) {
+    if (bytes >= 1024 * 1024) {
+        int tenths = (int)((float)bytes / (1024.0f * 1024.0f) * 10.0f + 0.5f);
+
+        SDL_snprintf(out, size, "%d,%d MB", tenths / 10, tenths % 10);
+    } else {
+        SDL_snprintf(out, size, "%d KB", SDL_max(1, (bytes + 512) / 1024));
+    }
+}
+
+static void Demo_DayName(const char* day, char* out, size_t size) {
+    static const char* const days[7] = {"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"};
+    SDL_DateTime now, ago;
+    SDL_Time t;
+    char today[12] = "", yesterday[12] = "";
+    int y, m, d, wd;
+
+    if (SDL_GetCurrentTime(&t) && SDL_TimeToDateTime(t, &now, true) && SDL_TimeToDateTime(t - (SDL_Time)86400 * SDL_NS_PER_SECOND, &ago, true)) {
+        SDL_snprintf(today, sizeof(today), "%04d-%02d-%02d", now.year, now.month, now.day);
+        SDL_snprintf(yesterday, sizeof(yesterday), "%04d-%02d-%02d", ago.year, ago.month, ago.day);
+    }
+    if (!SDL_strcmp(day, today)) {
+        SDL_strlcpy(out, T(TXT_DEMO_TODAY), size);
+    } else if (!SDL_strcmp(day, yesterday)) {
+        SDL_strlcpy(out, T(TXT_DEMO_YESTERDAY), size);
+    } else if (SDL_sscanf(day, "%d-%d-%d", &y, &m, &d) == 3 && m >= 1 && m <= 12 && (wd = SDL_GetDayOfWeek(y, m, d)) >= 0) {
+        SDL_snprintf(out, size, "%s, %d de %s", days[wd], d, hubMonths[m - 1]);
+    } else {
+        SDL_strlcpy(out, day, size);
+    }
+}
+
+static float Row_Fill(int kind, int index, bool profile, float x, float y, float w, float h, Uint32* ink) {
+    float hot = Hub_Hit(kind, index, profile ? "p" : "", x, y, w, h);
+
+    Draw_Round(x, y, w, h, 6.0f, Col_Mix(tone.p3, tone.p4, hot));
+    *ink = Col_Mix(tone.ink2, tone.ink, hot);
+    return hot;
+}
+
+static void Demo_Row(const hubDemos_t* ds, int index, bool profile, float x, float y, float w) {
+    const hubDemo_t* d = &ds->demos[index];
+    char line[160];
+    float col[9], mid = y + DEMO_ROW * 0.5f, nx, bh = 32.0f, by = mid - bh * 0.5f;
+    bool busy = Demo_Busy() && !SDL_strcmp(demoName, d->local), failed = demoFail[0] && !SDL_strcmp(demoFail, d->local);
+    Uint32 ink;
+
+    Demo_Columns(x + 8.0f, w - 16.0f, col);
+    Hub_Shot(d->map, col[0], mid - 20.0f, 64.0f, 40.0f, 6.0f, 1.0f);
+    Draw_CapsFit(FONT_HUB_SEASON, col[1], mid - 8.0f, tone.ink, d->server[0] ? d->server : "-", 0.4f, col[2] - col[1] - 14.0f);
+    if (failed) {
+        Hub_Fit(FONT_HUB_DATO, col[1], mid + 9.0f, COL_MAL, T(TXT_DEMO_FAILED), col[2] - col[1] - 14.0f);
+    } else {
+        SDL_snprintf(line, sizeof(line), "%s - %s", Text_Upper(d->mode), Map_Title(d->map));
+        Draw_CapsFit(FONT_HUB_MAPLINE, col[1], mid + 9.0f, tone.ink2, line, 0.69f, col[2] - col[1] - 14.0f);
+    }
+    if (d->raw[0]) {
+        float hot = 0.0f, end;
+
+        nx = Hub_Badges(d->raw, d->avatar, d->country, d->clan, d->clanPic, d->clanTag, col[2], mid);
+        end = col[3] - 14.0f;
+        if (d->steamId[0] && SDL_strcmp(d->steamId, hubDemoWho)) {
+            hot = Hub_Hit(HIT_PLAYER, index, d->steamId, col[2], mid - 14.0f, end - col[2], 28.0f);
+        }
+        Draw_NameFit(FONT_HUB_RIVAL, nx, mid, Col_Mix(tone.ink, COL_PURE, hot), d->raw, 0.6f, end - nx);
+    } else {
+        Hub_Plain(FONT_HUB_RIVAL, col[2], mid, tone.ink2, "-", 0.0f);
+    }
+    if (d->spec) {
+        Hub_Plain(FONT_HUB_DATO, col[3], mid, tone.ink2, T(TXT_DEMO_LOOKING), 0.0f);
+    } else if (d->result && d->score) {
+        float rw = Caps_Width(FONT_HUB_GLOBEB, "W", 0.0f) + 8.0f;
+
+        Hub_Plain(FONT_HUB_GLOBEB, col[3], mid, d->result == 1 ? COL_OK : COL_MAL, d->result == 1 ? "W" : "L", 0.0f);
+        SDL_snprintf(line, sizeof(line), "%d-%d", d->result == 1 ? d->hi : d->lo, d->result == 1 ? d->lo : d->hi);
+        Hub_Plain(FONT_HUB_DATO, col[3] + rw, mid, tone.ink, line, 0.0f);
+    } else {
+        Hub_Fit(FONT_HUB_DATO, col[3], mid, tone.ink2, T(TXT_DEMO_NO_RESULT), col[4] - col[3] - 14.0f);
+    }
+    Hub_Plain(FONT_HUB_DATO, col[4], mid, tone.ink2, d->hour[0] ? d->hour : "-", 0.0f);
+    Demo_Size(d->bytes, line, sizeof(line));
+    Hub_Plain(FONT_HUB_DATO, col[5], mid, tone.ink2, line, 0.0f);
+    Row_Fill(HIT_DEMO_PLAY, index, profile, col[6], by, col[7] - 8.0f - col[6], bh, &ink);
+    if (busy && demoWatch) {
+        float p = Demo_Progress();
+
+        Draw_Round(col[6], by, (col[7] - 8.0f - col[6]) * p, bh, 6.0f, Col_Alpha(COL_GOLD, 0.35f));
+        SDL_snprintf(line, sizeof(line), "%d %%", (int)(p * 100.0f));
+        Hub_CapsCenter(FONT_BOXBTN, (col[6] + col[7] - 8.0f) * 0.5f, mid, tone.ink, line, TRACK_BUTTON);
+    } else {
+        Hub_CapsCenter(FONT_BOXBTN, (col[6] + col[7] - 8.0f) * 0.5f, mid, ink, T(TXT_DEMO_WATCH), TRACK_BUTTON);
+    }
+    if (d->have) {
+        Draw_Round(col[7], by, 32.0f, bh, 6.0f, Col_Alpha(tone.p3, 0.5f));
+        Draw_Spin(&iconCheck, col[7] + (32.0f - CHECK_ICON) * 0.5f, mid - CHECK_ICON * 0.5f, 0.0f, COL_OK);
+    } else {
+        float ax = col[7] + 16.0f;
+
+        Row_Fill(HIT_DEMO_GET, index, profile, col[7], by, 32.0f, bh, &ink);
+        if (busy && !demoWatch) {
+            float p = Demo_Progress();
+
+            Draw_Round(col[7], by + bh * (1.0f - p), 32.0f, bh * p, 6.0f, Col_Alpha(COL_GOLD, 0.35f));
+        }
+        if (failed) {
+            ink = COL_MAL;
+        }
+        Draw_Rect(ax - 1.0f, mid - 8.0f, 2.0f, 11.0f, ink);
+        Draw_Spin(&iconMore, ax - MORE_ICON * 0.5f, mid - MORE_ICON * 0.5f + 1.0f, 180.0f, ink);
+        Draw_Rect(ax - 7.0f, mid + 8.0f, 14.0f, 2.0f, ink);
+    }
+}
+
+static int Demo_Groups(const hubDemos_t* ds, int count) {
+    int i, n = 0;
+
+    for (i = 0; i < count; i++) {
+        n += !i || SDL_strcmp(ds->demos[i].day, ds->demos[i - 1].day);
+    }
+    return n;
+}
+
+static float Demo_ListHeight(const hubDemos_t* ds, int count) {
+    return 28.0f + (float)Demo_Groups(ds, count) * DEMO_DAY + (float)count * DEMO_ROW;
+}
+
+static float Demo_List(const hubDemos_t* ds, int count, bool profile, float x, float y, float w) {
+    char day[64];
+    int i;
+
+    Demo_Head(x, w, y + 10.0f);
+    y += 28.0f;
+    for (i = 0; i < count; i++) {
+        if (!i || SDL_strcmp(ds->demos[i].day, ds->demos[i - 1].day)) {
+            if (Hub_Visible(y, DEMO_DAY)) {
+                if (i) {
+                    Draw_Rect(x + 8.0f, y + 6.0f, w - 16.0f, 1.0f, Col_Alpha(tone.ink2, 0.18f));
+                }
+                Demo_DayName(ds->demos[i].day, day, sizeof(day));
+                Draw_Caps(FONT_HUB_SEASON, x + 8.0f, y + DEMO_DAY * 0.5f + 4.0f, tone.ink, day, 0.78f);
+            }
+            y += DEMO_DAY;
+        }
+        if (Hub_Visible(y, DEMO_ROW)) {
+            Demo_Row(ds, i, profile, x, y, w);
+        }
+        y += DEMO_ROW;
+    }
+    return y;
+}
+
+static float Hub_DemosView(float y) {
+    static const char* modes[HUB_DEMO_MODES + 1];
+    const char* tabs[2] = {T(TXT_DEMO_ALL), T(TXT_DEMO_MINE)};
+    const hubDemos_t* ds = &hubDemos;
+    const char* modeName = hubDemoMode ? hubModeName[hubDemoModes[hubDemoMode - 1]] : NULL;
+    char line[128];
+    float x = HUB_IN + HUB_PAD, w = HUB_CW - HUB_PAD * 2.0f, ty, body;
+    bool mine = meProfile.status == PRO_READY;
+    int i, selected = !hubDemoWho[0] ? 0 : mine && !SDL_strcmp(hubDemoWho, meProfile.steamId) ? 1 : -1;
+
+    modes[0] = T(TXT_HUB_ALL);
+    for (i = 0; i < HUB_DEMO_MODES; i++) {
+        modes[i + 1] = hubModeName[hubDemoModes[i]];
+    }
+    Hub_Tabs(BTN_HUB_SUB_0, mine ? 2 : 1, tabs, selected, HUB_IN, y + 10.0f, FONT_HUB_TAB, 0.96f, 30.0f);
+    Hub_Tabs(BTN_HUB_MODE_0, HUB_DEMO_MODES + 1, modes, hubDemoMode, HUB_IN, y + 44.0f, FONT_HUB_SEASON, 0.78f, 20.0f);
+    y += 54.0f + 24.0f;
+    if (!Slot_Ready(&slotDemos) || ds->status != PRO_READY) {
+        return Hub_Status(y, &slotDemos, TXT_HUB_FAILED);
+    }
+    if (!ds->count) {
+        if (modeName) {
+            SDL_snprintf(line, sizeof(line), T(TXT_DEMO_EMPTY_MODE), modeName);
+        } else {
+            SDL_strlcpy(line, T(TXT_DEMO_EMPTY), sizeof(line));
+        }
+        body = Hub_Empty(0.0f, 0.0f, w, line, false);
+        Hub_Card(y, HUB_PAD * 2.0f + body, NULL, NULL);
+        Hub_Empty(x, y + HUB_PAD, w, line, true);
+        return y + HUB_PAD * 2.0f + body;
+    }
+    body = Demo_ListHeight(ds, ds->count) + (ds->pages > 1 ? 24.0f + 40.0f : 0.0f);
+    ty = Hub_Card(y, HUB_PAD * 2.0f + body, NULL, NULL);
+    Hub_Pages(Demo_List(ds, ds->count, false, x, ty, w) + 24.0f, ds->page, ds->pages);
+    return y + HUB_PAD * 2.0f + body;
+}
+
+static float Hub_ProDemos(float y) {
+    const hubDemos_t* ds = &hubProDemos;
+    float x = HUB_IN + HUB_PAD, w = HUB_CW - HUB_PAD * 2.0f, body, ty, bw;
+    int count;
+
+    if (!Slot_Ready(&slotProDemos) || ds->status != PRO_READY) {
+        return y;
+    }
+    y += HUB_SECTION;
+    count = SDL_min(ds->count, HUB_DEMO_MINI);
+    if (!count) {
+        body = Hub_Empty(0.0f, 0.0f, w, T(TXT_DEMO_EMPTY), false);
+        ty = Hub_Card(y, HUB_PAD * 2.0f + 24.0f + 16.0f + body, T(TXT_DEMOS), NULL) + 16.0f;
+        Hub_Empty(x, ty, w, T(TXT_DEMO_EMPTY), true);
+        return y + HUB_PAD * 2.0f + 24.0f + 16.0f + body;
+    }
+    body = Demo_ListHeight(ds, count);
+    ty = Hub_Card(y, HUB_PAD * 2.0f + 24.0f + 16.0f + body, T(TXT_DEMOS), NULL) + 16.0f;
+    bw = Caps_Width(FONT_BOXBTN, T(TXT_HUB_SEE_ALL), TRACK_BUTTON) + 36.0f;
+    Hub_Button(BTN_HUB_DEMOS_ALL, HUB_IN + HUB_CW - HUB_PAD - bw, y + HUB_PAD - 8.0f, T(TXT_HUB_SEE_ALL), tone.p3, tone.p4);
+    Demo_List(ds, count, true, x, ty, w);
+    return y + HUB_PAD * 2.0f + 24.0f + 16.0f + body;
+}
+
 static void Rank_Columns(float x, float w, bool clutch, float* col, float* width) {
-    static const float fixedCa[9] = {52.0f, 0.0f, 144.0f, 80.0f, 104.0f, 64.0f, 48.0f, 64.0f, 56.0f};
-    static const float fixed[7] = {52.0f, 0.0f, 144.0f, 80.0f, 48.0f, 64.0f, 56.0f};
+    static const float fixedCa[9] = {52.0f, 0.0f, 128.0f, 80.0f, 96.0f, 64.0f, 48.0f, 64.0f, 56.0f};
+    static const float fixed[7] = {52.0f, 0.0f, 128.0f, 80.0f, 48.0f, 64.0f, 56.0f};
     const float* f = clutch ? fixedCa : fixed;
     int n = clutch ? 9 : 7, i;
     float sum = 0.0f;
@@ -9474,7 +10476,6 @@ static float Hub_RankView(float y) {
     for (i = 0; i < HUB_RANK_MODES; i++) {
         modes[i] = hubModeName[hubRankModes[i]];
     }
-    y = Hub_PageTitle(y, T(TXT_HUB_RANKING), NULL) + 16.0f;
     Hub_Tabs(BTN_HUB_MODE_0, HUB_RANK_MODES, modes, hubRankMode, HUB_IN, y + 10.0f, FONT_HUB_TAB, 0.96f, 30.0f);
     y += 20.0f + 24.0f;
     if (!Slot_Ready(&slotRank) || rk->status != PRO_READY) {
@@ -9488,9 +10489,9 @@ static float Hub_RankView(float y) {
         return y + HUB_PAD * 2.0f + body;
     }
     pages = (rk->total + HUB_RANK_PAGE - 1) / HUB_RANK_PAGE;
-    body = 28.0f + (float)rk->count * 44.0f + (pages > 1 ? 24.0f + 40.0f : 0.0f);
+    body = 28.0f + (float)rk->count * RANK_ROW + (pages > 1 ? 24.0f + 40.0f : 0.0f);
     ty = Hub_Card(y, HUB_PAD * 2.0f + body, NULL, NULL);
-    Rank_Columns(x + 16.0f, w - 32.0f, clutch, col, width);
+    Rank_Columns(x + 8.0f, w - 16.0f, clutch, col, width);
     n = 0;
     labels[n++] = TXT_HUB_COL_RANK;
     labels[n++] = TXT_HUB_COL_PLAYER;
@@ -9504,7 +10505,7 @@ static float Hub_RankView(float y) {
     labels[n++] = TXT_HUB_COL_ELO;
     labels[n++] = TXT_HUB_COL_KD;
     for (i = 0; i < n; i++) {
-        if (i < 2) {
+        if (i == 1) {
             Draw_Caps(FONT_HUB_MONO, col[i], ty + 10.0f, tone.ink2, T(labels[i]), 1.6f);
         } else {
             Hub_CapsCenter(FONT_HUB_MONO, col[i] + width[i] * 0.5f, ty + 10.0f, tone.ink2, T(labels[i]), 1.6f);
@@ -9512,26 +10513,36 @@ static float Hub_RankView(float y) {
     }
     for (i = 0; i < rk->count; i++) {
         const hubRank_t* r = &rk->rows[i];
-        float ry = ty + 28.0f + 44.0f * (float)i, mid = ry + 22.0f, hot, nx, fade = slideFade;
+        const pic_t* cover = r->banner[0] ? Pic_Get("R:", r->banner) : NULL;
+        float ry = ty + 28.0f + RANK_ROW * (float)i, mid = ry + RANK_ROW * 0.5f, hot, nx, fade = slideFade;
         int c = 2;
 
-        if (!Hub_Visible(ry, 44.0f)) {
+        if (!Hub_Visible(ry, RANK_ROW)) {
             continue;
         }
-        hot = Hub_Hit(HIT_PLAYER, i, r->steamId, x, ry, w, 44.0f);
+        hot = Hub_Hit(HIT_PLAYER, i, r->steamId, x, ry, w, RANK_ROW);
         if (r->inactive) {
             slideFade = fade * (0.45f + 0.45f * hot);
         }
-        if (hot > 0.0f) {
-            Draw_Round(x, ry, w, 44.0f, 8.0f, Col_Alpha(tone.p3, hot));
+        if (cover) {
+            Draw_Banner(&cover->img, x, ry, w, RANK_ROW, 8.0f, (0.62f + 0.28f * hot) * cover->heat);
+        } else if (hot > 0.0f) {
+            Draw_Round(x, ry, w, RANK_ROW, 8.0f, Col_Alpha(tone.p3, hot));
         }
+        SDL_strlcpy(line, r->rank > 0 ? "" : "\xe2\x80\x94", sizeof(line));
         if (r->rank > 0) {
             SDL_snprintf(line, sizeof(line), "#%d", r->rank);
-            Hub_Plain(FONT_HUB_RANKNUM, col[0], mid, tone.ink, line, 0.0f);
-        } else {
-            Hub_Plain(FONT_HUB_RANKNUM, col[0], mid, tone.ink2, "\xe2\x80\x94", 0.0f);
         }
+        if (cover) {
+            Hub_Center(FONT_HUB_RANKNUM, col[0] + width[0] * 0.5f, mid + 1.0f, Col_Alpha(COL_BLACK, 0.6f), line);
+        }
+        Hub_Center(FONT_HUB_RANKNUM, col[0] + width[0] * 0.5f, mid, r->rank > 0 ? tone.ink : tone.ink2, line);
         nx = Hub_Badges(r->raw, r->avatar, r->country, r->clan, r->clanPic, r->clanTag, col[1], mid);
+        if (cover) {
+            runePlain = true;
+            Draw_NameFit(FONT_HUB_RANKNAME, nx, mid + 1.0f, Col_Alpha(COL_BLACK, 0.6f), r->raw, 0.0f, col[1] + width[1] - nx);
+            runePlain = false;
+        }
         Draw_NameFit(FONT_HUB_RANKNAME, nx, mid, tone.ink, r->raw, 0.0f, col[1] + width[1] - nx);
         SDL_snprintf(line, sizeof(line), "%d", r->games);
         Hub_Center(FONT_HUB_RANKSTAT, col[c] + width[c] * 0.5f, mid, tone.ink2, line);
@@ -9568,42 +10579,52 @@ static float Hub_RankView(float y) {
         Hub_Center(FONT_HUB_RANKSTAT, col[c] + width[c] * 0.5f, mid, tone.ink2, num);
         slideFade = fade;
     }
-    Hub_Pages(ty + 28.0f + 44.0f * (float)rk->count + 24.0f, hubRankPage, pages);
+    Hub_Pages(ty + 28.0f + RANK_ROW * (float)rk->count + 24.0f, hubRankPage, pages);
     return y + HUB_PAD * 2.0f + body;
 }
 
 static float Hub_ServersView(float y) {
-    float x = HUB_IN + HUB_PAD, w = HUB_CW - HUB_PAD * 2.0f, ty, head, modeX = x + 64.0f + 16.0f + (w - 80.0f) * 0.52f;
+    char line[96];
+    float x = HUB_IN + HUB_PAD, w = HUB_CW - HUB_PAD * 2.0f, ty, col[6], bw = Caps_Width(FONT_BOXBTN, T(TXT_JOIN), TRACK_BUTTON) + 32.0f, fr;
     int i;
 
-    y = Hub_PageTitle(y, T(TXT_SERVERS_TITLE), NULL) + 24.0f;
     if (!serversLoaded) {
         return Hub_Note(y, T(serversFailed ? TXT_SERVERS_FAILED : TXT_SERVERS_LOADING));
     }
-    ty = Hub_Card(y, HUB_PAD * 2.0f + 28.0f + (float)serverCount * ROW_STEP, NULL, NULL);
-    head = ty + 10.0f;
-    Draw_Caps(FONT_SV_META, x + 64.0f + 16.0f, head, COL_DOT, T(TXT_COL_SERVER), 1.6f);
-    Draw_Caps(FONT_SV_META, modeX, head, COL_DOT, T(TXT_COL_MODE), 1.6f);
-    Draw_Caps(FONT_SV_META, x + w - 8.0f - Caps_Width(FONT_SV_META, T(TXT_COL_PLAYERS), 1.6f), head, COL_DOT, T(TXT_COL_PLAYERS), 1.6f);
+    fr = (w - 16.0f - 64.0f - 112.0f - bw - 14.0f * 4.0f) / 2.4f;
+    col[0] = x + 8.0f;
+    col[1] = col[0] + 64.0f + 14.0f;
+    col[2] = col[1] + fr * 1.6f + 14.0f;
+    col[3] = col[2] + fr * 0.8f + 14.0f;
+    col[4] = col[3] + 112.0f + 14.0f;
+    col[5] = col[4] + bw;
+    ty = Hub_Card(y, HUB_PAD * 2.0f + 28.0f + (float)serverCount * DEMO_ROW, NULL, NULL);
+    Draw_Caps(FONT_HUB_MONO, col[1], ty + 10.0f, tone.ink2, T(TXT_COL_SERVER), 1.6f);
+    Draw_Caps(FONT_HUB_MONO, col[2], ty + 10.0f, tone.ink2, T(TXT_COL_MODE), 1.6f);
+    Draw_Caps(FONT_HUB_MONO, col[3], ty + 10.0f, tone.ink2, T(TXT_COL_PLAYERS), 1.6f);
     for (i = 0; i < serverCount; i++) {
         const server_t* s = &servers[i];
-        float ry = ty + 28.0f + ROW_STEP * (float)i, mid = ry + ROW_H * 0.5f, nx = x + 8.0f + THUMB_W + 16.0f, cw, hot;
-        char line[64];
+        float ry = ty + 28.0f + DEMO_ROW * (float)i, mid = ry + DEMO_ROW * 0.5f, cw, hot;
+        Uint32 ink;
 
-        if (!Hub_Visible(ry, ROW_H)) {
+        if (!Hub_Visible(ry, DEMO_ROW)) {
             continue;
         }
-        hot = Hub_Hit(HIT_SERVER, i, NULL, x, ry, w, ROW_H);
+        hot = Hub_Hit(HIT_SERVER, i, NULL, x, ry, col[4] - 8.0f - x, DEMO_ROW);
         if (hot > 0.0f) {
-            Draw_Round(x, ry, w, ROW_H, BUTTON_R, Col_Alpha(COL_P3, hot));
+            Draw_Round(x, ry, w, DEMO_ROW, 8.0f, Col_Alpha(tone.p3, hot));
         }
-        Draw_Thumb(s->map, x + 8.0f, mid - THUMB_H * 0.5f, THUMB_W, THUMB_H);
-        Draw_Text(FONT_SV_LIST, nx, Text_Mid(FONT_SV_LIST, mid), COL_WHITE, Text_Fit(FONT_SV_LIST, s->name, modeX - nx - 20.0f), -1);
-        cw = Draw_Count(x + w - 8.0f, mid, s, true, false);
-        SDL_snprintf(line, sizeof(line), "%s - %s", s->mode, s->map);
-        Draw_CapsFit(FONT_SV_META, modeX, mid, COL_W70, line, 1.6f, x + w - 8.0f - cw - 24.0f - modeX);
+        Row_Fill(HIT_SERVER_JOIN, i, false, col[4], mid - 16.0f, bw, 32.0f, &ink);
+        Hub_CapsCenter(FONT_BOXBTN, col[4] + bw * 0.5f, mid, ink, T(TXT_JOIN), TRACK_BUTTON);
+        Draw_Thumb(s->map, col[0], mid - 20.0f, 64.0f, 40.0f);
+        Draw_Text(FONT_SV_LIST, col[1], Text_Mid(FONT_SV_LIST, mid), tone.ink, Text_Fit(FONT_SV_LIST, s->name, col[2] - col[1] - 14.0f), -1);
+        SDL_snprintf(line, sizeof(line), "%s - %s", s->mode, Map_Title(s->map));
+        Draw_CapsFit(FONT_HUB_MAPLINE, col[2], mid, tone.ink2, line, 0.69f, col[3] - col[2] - 14.0f);
+        cw = Draw_Count(0.0f, 0.0f, s, false, true);
+        Draw_Count(col[3] + cw, mid - 6.0f, s, true, true);
+        Draw_Fill(col[3], mid + 10.0f, 96.0f, s);
     }
-    return ty + 28.0f + (float)serverCount * ROW_STEP + HUB_PAD;
+    return ty + 28.0f + (float)serverCount * DEMO_ROW + HUB_PAD;
 }
 
 static void Hub_ManName(const hubMan_t* man, float x, float mid, float width) {
@@ -9824,9 +10845,9 @@ static float Match_Medals(float y, int team) {
 
 static float Hub_MatchView(float y) {
     static const int sumLabels[8] = {TXT_HUB_COL_SCORE, TXT_HUB_COL_PERF, TXT_HUB_COL_FRAGS, TXT_HUB_COL_DEATHS, TXT_HUB_COL_DAMAGE, TXT_HUB_COL_ACC, TXT_HUB_COL_ELO, TXT_HUB_COL_DIFF};
-    static const float sumWidths[8] = {72.0f, 104.0f, 64.0f, 72.0f, 72.0f, 80.0f, 72.0f, 104.0f};
+    static const float sumWidths[8] = {72.0f, 104.0f, 64.0f, 72.0f, 72.0f, 64.0f, 72.0f, 64.0f};
     static const int gunLabels[6] = {TXT_HUB_W_RL, TXT_HUB_W_LG, TXT_HUB_W_RG, TXT_HUB_W_SG, TXT_HUB_W_MG, TXT_HUB_COL_DAMAGE};
-    static const float gunWidths[6] = {104.0f, 104.0f, 104.0f, 104.0f, 104.0f, 80.0f};
+    static const float gunWidths[6] = {96.0f, 96.0f, 96.0f, 96.0f, 96.0f, 80.0f};
     static const int flagLabels[5] = {TXT_HUB_CAPTURED, TXT_HUB_RETURNED, TXT_HUB_TOOK, TXT_HUB_DROPPED, TXT_HUB_CARRIER};
     static const float flagWidths[5] = {96.0f, 96.0f, 96.0f, 96.0f, 144.0f};
     static const char* subs[4];
@@ -9842,8 +10863,7 @@ static float Hub_MatchView(float y) {
     if (!Slot_Ready(&slotMatch) || mt->status != PRO_READY) {
         return Hub_Status(y, &slotMatch, TXT_HUB_FAILED);
     }
-    Draw_CapsFit(FONT_HUB_PAGE, HUB_IN, y + 16.0f, tone.ink, mt->title, 0.52f, HUB_CW);
-    y += 32.0f + 16.0f;
+    y += 8.0f;
     if (!mt->counts) {
         int why = !SDL_strcmp(mt->why, "aborted") ? TXT_HUB_WHY_ABORTED : !SDL_strcmp(mt->why, "few") ? TXT_HUB_WHY_FEW : !SDL_strcmp(mt->why, "short") ? TXT_HUB_WHY_SHORT : TXT_HUB_WHY_RATED;
         float tw = Text_Width(FONT_HUB_GLOBEB, T(TXT_HUB_NOT_RATED), -1);
@@ -9916,58 +10936,105 @@ static float Hub_MatchView(float y) {
 }
 
 static int Hub_View(void) {
-    return hubTab == HUB_MATCHES && hubMatchId[0] ? 4 : hubTab;
+    return hubTab == HUB_MATCHES && hubMatchId[0] ? HUB_MATCH : hubTab;
 }
 
-static void Hub_Head(void) {
-    static const int names[4] = {TXT_HUB_PROFILE, TXT_HUB_MATCHES, TXT_HUB_RANKING, TXT_HUB_SERVERS};
-    float x = HUB_X + 24.0f, mid = HUB_Y + HEAD_H * 0.5f, w = Text_Width(FONT_TEXT, T(TXT_CLOSE), -1);
-    int i;
-
-    for (i = 0; i < 4; i++) {
-        float tw = Caps_Width(FONT_PANEL, T(names[i]), TRACK_TAB);
-        Uint32 c = i == hubTab ? COL_WHITE : Col_Mix(COL_W70, COL_WHITE, hubLive ? heat[BTN_HUB_TAB_0 + i] : 0.0f);
-
-        Draw_Caps(FONT_PANEL, x, mid, c, T(names[i]), TRACK_TAB);
-        if (i == hubTab) {
-            Draw_Rect(x, HUB_Y + HEAD_H - 3.0f, tw, 3.0f, COL_WHITE);
-        }
-        Button_Set(BTN_HUB_TAB_0 + i, x - 10.0f, HUB_Y, tw + 20.0f, HEAD_H, hubLive);
-        x += tw + 34.0f;
+static const char* Demo_Owner(void) {
+    if (!hubDemoWho[0] || (meProfile.status == PRO_READY && !SDL_strcmp(hubDemoWho, meProfile.steamId))) {
+        return NULL;
     }
-    Draw_Link(BTN_HUB_CLOSE, HUB_X + HUB_W - 24.0f - w, mid, T(TXT_CLOSE));
-    if (!hubLive) {
-        buttons[BTN_HUB_CLOSE].visible = false;
+    if (Slot_Ready(&slotDemos) && hubDemos.status == PRO_READY && hubDemos.raw[0]) {
+        return hubDemos.raw;
+    }
+    if (!SDL_strcmp(hubDemoWho, hubWho) && Slot_Ready(&slotPlayer) && hubPlayer.status == PRO_READY) {
+        return hubPlayer.raw;
+    }
+    return NULL;
+}
+
+static void Hub_Head(int v, float shown) {
+    static const int names[HUB_VIEWS] = {TXT_HUB_PROFILE, TXT_HUB_GAMES_OF, TXT_HUB_RANKING, TXT_SERVERS_TITLE, TXT_HUB_MATCHES, TXT_DEMOS};
+    float x = HUB_IN, mid = HUB_Y + HEAD_H * 0.5f, w = 36.0f, room = HUB_CW - w - 24.0f, tw, base = slideFade, bx = HUB_X + HUB_W - 14.0f - w, hot;
+    bool who = Slot_Ready(&slotPlayer) && hubPlayer.status == PRO_READY;
+    const char* owner = v == HUB_DEMOS ? Demo_Owner() : NULL;
+    const char* title = v == HUB_MATCHES && !who ? T(TXT_HUB_MATCHES)
+                        : owner                  ? T(TXT_DEMOS_OF)
+                        : v != HUB_MATCH         ? T(names[v])
+                        : Slot_Ready(&slotMatch) && hubMatch.status == PRO_READY ? hubMatch.title
+                                                                                  : T(TXT_HUB_MATCHES);
+    const char* fit;
+
+    slideFade = base * shown;
+    textTrack = TRACK_HEAD;
+    fit = Text_Fit(FONT_PANEL, Text_Upper(title), room);
+    tw = Text_Width(FONT_PANEL, fit, -1);
+    Draw_Text(FONT_PANEL, x, Text_Mid(FONT_PANEL, mid), COL_WHITE, fit, -1);
+    textTrack = 0.0f;
+    if ((v == HUB_MATCHES && who) || owner) {
+        Draw_NameFit(FONT_PANEL, x + tw + 6.0f, mid, COL_WHITE, owner ? owner : hubPlayer.raw, TRACK_HEAD, room - tw - 6.0f);
+    }
+    slideFade = base;
+    Button_Set(BTN_HUB_CLOSE, bx, mid - w * 0.5f, w, w, hubLive);
+    hot = hubLive ? heat[BTN_HUB_CLOSE] : 0.0f;
+    if (hot > 0.0f) {
+        Draw_Round(bx, mid - w * 0.5f, w, w, ITEM_R, Col_Alpha(COL_HUSH, hot));
+    }
+    Draw_Spin(&iconSlash, bx + (w - CLOSE_ICON) * 0.5f, mid - CLOSE_ICON * 0.5f, 0.0f, Col_Mix(COL_W70, COL_WHITE, hot));
+    Draw_Spin(&iconSlash, bx + (w - CLOSE_ICON) * 0.5f, mid - CLOSE_ICON * 0.5f, 90.0f, Col_Mix(COL_W70, COL_WHITE, hot));
+}
+
+static bool Hub_Ready(int v) {
+    switch (v) {
+        case HUB_PROFILE:
+            return Slot_Ready(&slotPlayer) && hubPlayer.status == PRO_READY;
+        case HUB_MATCHES:
+            return Slot_Ready(&slotGames) && hubGames.status == PRO_READY;
+        case HUB_RANKING:
+            return Slot_Ready(&slotRank) && hubRank.status == PRO_READY;
+        case HUB_SERVERS:
+            return serversLoaded;
+        case HUB_DEMOS:
+            return Slot_Ready(&slotDemos) && hubDemos.status == PRO_READY;
+        default:
+            return Slot_Ready(&slotMatch) && hubMatch.status == PRO_READY;
     }
 }
 
 static void Hub_Draw(void) {
-    float k = hubHeat, e, rise, top, bottom, y, content = 0.0f;
-    int v = Hub_View();
+    float k = hubHeat, e, rise, top, bottom, end, y, content = 0.0f, shown, shift;
+    int v = hubShown >= 0 ? hubShown : Hub_View();
+    bool leaving = v != Hub_View(), hued, ready;
     SDL_Rect clip;
 
     hubHitCount = 0;
     hubLive = false;
     if (k <= 0.4f || !hubFonts) {
+        waveView = -1;
         return;
     }
     e = (k - 0.4f) / 0.6f;
     e = 1.0f - (1.0f - e) * (1.0f - e) * (1.0f - e) * (1.0f - e);
-    rise = (1.0f - e) * (UI_H - HUB_Y + 24.0f);
-    hubLive = k >= 1.0f && hubOpen && !boxOpen && !optsOpen;
+    rise = (1.0f - e) * (PANEL_Y - HUB_Y);
+    end = PANEL_END - rise;
+    hubLive = k >= 1.0f && hubOpen && !boxOpen && !optsOpen && !leaving;
+    shown = 1.0f - (1.0f - hubSwap) * (1.0f - hubSwap);
+    shift = leaving ? (shown - 1.0f) * 10.0f : (1.0f - shown) * 18.0f;
     View_Shift(rise);
-    Hub_Tone(v == HUB_PROFILE && Slot_Ready(&slotPlayer) && hubPlayer.status == PRO_READY ? hubPlayer.hue : -1);
-    Draw_Shadow(HUB_X, HUB_Y, HUB_W, UI_H - HUB_Y + PANEL_R * 2.0f, PANEL_R);
-    Draw_Round(HUB_X, HUB_Y, HUB_W, UI_H - HUB_Y + PANEL_R * 2.0f, PANEL_R, tone.p1);
-    Draw_Round(HUB_X, HUB_Y, HUB_W, HEAD_H + PANEL_R * 2.0f, PANEL_R, COL_P3);
-    Draw_Rect(HUB_X, HUB_BODY, HUB_W, PANEL_R * 2.0f, tone.p1);
-    Draw_Rect(HUB_X, HUB_BODY, HUB_W, 2.0f, COL_LINE);
-    Button_Set(BTN_HUB, HUB_X, HUB_Y, HUB_W, UI_H - HUB_Y, hubLive);
+    hued = v == HUB_PROFILE && Slot_Ready(&slotPlayer) && hubPlayer.status == PRO_READY && hubPlayer.hue >= 0;
+    Hub_Tone(hued ? hubPlayer.hue : -1);
+    if (hued) {
+        hubHueBody = tone.p1;
+        hubHueHead = tone.p3;
+    }
+    Draw_Sheet(HUB_X, HUB_Y, HUB_W, end - HUB_Y, Col_Mix(COL_P1, hubHueBody, hubHue * e), Col_Mix(COL_P3, hubHueHead, hubHue * e));
+    Button_Set(BTN_HUB, HUB_X, HUB_Y, HUB_W, end - HUB_Y, hubLive);
     hubClipTop = 0.0f;
     hubClipBottom = UI_H;
-    Hub_Head();
+    slideFade = e;
+    Hub_Head(v, shown);
+    slideFade = e * shown;
     top = HUB_BODY + 2.0f;
-    bottom = UI_H;
+    bottom = end - 2.0f;
     clip.x = (int)(HUB_X * uiScale);
     clip.y = (int)(top * uiScale);
     clip.w = (int)(HUB_W * uiScale);
@@ -9975,7 +11042,15 @@ static void Hub_Draw(void) {
     SDL_SetRenderClipRect(renderer, &clip);
     hubClipTop = top;
     hubClipBottom = bottom;
-    y = top + 24.0f - hubView[v];
+    y = top + 24.0f - hubView[v] + shift;
+    ready = Hub_Ready(v);
+    if (v != waveView || (ready && !waveReady)) {
+        waveHub.at = Anim_Now();
+    }
+    waveView = v;
+    waveReady = ready;
+    waveHub.top = top;
+    waveNow = &waveHub;
     switch (v) {
         case HUB_PROFILE:
             content = Hub_ProfileView(y) - y;
@@ -9989,19 +11064,24 @@ static void Hub_Draw(void) {
         case HUB_SERVERS:
             content = Hub_ServersView(y) - y;
             break;
+        case HUB_DEMOS:
+            content = Hub_DemosView(y) - y;
+            break;
         default:
             content = Hub_MatchView(y) - y;
             break;
     }
+    waveNow = NULL;
     SDL_SetRenderClipRect(renderer, NULL);
     hubClipTop = 0.0f;
     hubClipBottom = UI_H;
-    hubMost[v] = SDL_max(0.0f, content + 48.0f - (bottom - top));
+    hubMost[v] = SDL_max(0.0f, content + 48.0f - (PANEL_END - 2.0f - top));
     if (hubMost[v] > 0.0f) {
         float track = bottom - top - 16.0f, thumb = SDL_max(40.0f, track * track / (track + hubMost[v]));
 
         Draw_Round(HUB_X + HUB_W - 10.0f, top + 8.0f + (track - thumb) * SDL_clamp(hubView[v] / hubMost[v], 0.0f, 1.0f), 3.0f, thumb, 1.5f, COL_DOT);
     }
+    slideFade = 1.0f;
     View_Shift(0.0f);
 }
 
@@ -10032,21 +11112,36 @@ static void Hub_Pics(void) {
         }
     }
     if (Hub_View() == HUB_RANKING && Slot_Ready(&slotRank) && hubRank.status == PRO_READY) {
-        float first = hubView[HUB_RANKING] - 260.0f;
-        int start = SDL_max(0, (int)(first / 44.0f));
+        float first = hubView[HUB_RANKING] - 200.0f;
+        int start = SDL_max(0, (int)(first / RANK_ROW));
 
         for (i = 0; i < 8; i++) {
             Pic_Want("i:", hubTierImage[i]);
         }
-        for (i = start; i < SDL_min(hubRank.count, start + 16); i++) {
+        for (i = start; i < SDL_min(hubRank.count, start + 20); i++) {
             const hubRank_t* r = &hubRank.rows[i];
 
             Pic_Want("a:", r->avatar);
             Pic_Want("f:", r->country);
             Pic_Want("c:", r->clan ? (r->clanPic[0] ? r->clanPic : CLAN_DEFAULT) : "");
+            Pic_Want("R:", r->banner);
         }
     }
-    if (Hub_View() == 4 && Slot_Ready(&slotMatch) && hubMatch.status == PRO_READY) {
+    if (Hub_View() == HUB_DEMOS || Hub_View() == HUB_PROFILE) {
+        const slot_t* s = Hub_View() == HUB_DEMOS ? &slotDemos : &slotProDemos;
+        const hubDemos_t* ds = Hub_View() == HUB_DEMOS ? &hubDemos : &hubProDemos;
+        int start = Hub_View() == HUB_DEMOS ? SDL_max(0, (int)((hubView[HUB_DEMOS] - 240.0f) / (DEMO_ROW + 12.0f))) : 0;
+        int stop = SDL_min(ds->count, Hub_View() == HUB_DEMOS ? start + 16 : HUB_DEMO_MINI);
+
+        for (i = start; Slot_Ready(s) && ds->status == PRO_READY && i < stop; i++) {
+            const hubDemo_t* d = &ds->demos[i];
+
+            Pic_Want("a:", d->avatar);
+            Pic_Want("f:", d->country);
+            Pic_Want("c:", d->clan ? (d->clanPic[0] ? d->clanPic : CLAN_DEFAULT) : "");
+        }
+    }
+    if (Hub_View() == HUB_MATCH && Slot_Ready(&slotMatch) && hubMatch.status == PRO_READY) {
         for (i = 0; i < hubMatch.count; i++) {
             const hubMan_t* man = &hubMatch.men[i];
 
@@ -10085,7 +11180,15 @@ static void Hub_Shots(void) {
             Hub_WantShot(hubGames.games[i].map);
         }
     }
-    if (Hub_View() == 4 && Slot_Ready(&slotMatch) && hubMatch.status == PRO_READY) {
+    if (Hub_View() == HUB_DEMOS || Hub_View() == HUB_PROFILE) {
+        const slot_t* s = Hub_View() == HUB_DEMOS ? &slotDemos : &slotProDemos;
+        const hubDemos_t* ds = Hub_View() == HUB_DEMOS ? &hubDemos : &hubProDemos;
+
+        for (i = 0; Slot_Ready(s) && ds->status == PRO_READY && i < SDL_min(ds->count, Hub_View() == HUB_DEMOS ? HUB_DEMO_PAGE : HUB_DEMO_MINI); i++) {
+            Hub_WantShot(ds->demos[i].map);
+        }
+    }
+    if (Hub_View() == HUB_MATCH && Slot_Ready(&slotMatch) && hubMatch.status == PRO_READY) {
         Hub_WantShot(hubMatch.map);
     }
 }
@@ -10097,20 +11200,15 @@ static void Hub_Close(void) {
 static bool Hub_Press(int index) {
     int v = Hub_View();
 
-    if (index >= BTN_HUB_TAB_0 && index < BTN_HUB_TAB_0 + 4) {
-        int tab = index - BTN_HUB_TAB_0;
-
-        if (tab == HUB_MATCHES && hubTab == HUB_MATCHES && hubMatchId[0]) {
-            hubMatchId[0] = '\0';
-        }
-        Hub_Open(tab, NULL);
-        return true;
-    }
     if (index >= BTN_HUB_MODE_0 && index < BTN_HUB_MODE_0 + HUB_MODES + 1) {
         int i = index - BTN_HUB_MODE_0;
 
         if (v == HUB_PROFILE && i < HUB_MODES) {
             hubMode = i;
+        } else if (v == HUB_DEMOS && i <= HUB_DEMO_MODES) {
+            hubDemoMode = i;
+            hubDemoPage = 1;
+            hubGoal[HUB_DEMOS] = 0.0f;
         } else if (v == HUB_MATCHES) {
             hubGamesMode = i;
             hubPage = 1;
@@ -10124,6 +11222,10 @@ static bool Hub_Press(int index) {
     }
     if (index >= BTN_HUB_SEASON_0 && index < BTN_HUB_SEASON_0 + HUB_SEASONS) {
         hubSeason = index - BTN_HUB_SEASON_0;
+        return true;
+    }
+    if (index >= BTN_HUB_SUB_0 && index < BTN_HUB_SUB_0 + 4 && v == HUB_DEMOS) {
+        Hub_Demos(index == BTN_HUB_SUB_0 + 1 && meProfile.status == PRO_READY ? meProfile.steamId : "");
         return true;
     }
     if (index >= BTN_HUB_SUB_0 && index < BTN_HUB_SUB_0 + 4) {
@@ -10144,6 +11246,15 @@ static bool Hub_Press(int index) {
             hubGoal[HUB_PROFILE] = hubView[HUB_PROFILE] = 0.0f;
         } else if (hit->kind == HIT_SERVER && hit->index < serverCount) {
             Box_Open(&servers[hit->index]);
+        } else if (hit->kind == HIT_SERVER_JOIN && hit->index < serverCount && Play_Ready()) {
+            SDL_strlcpy(joinNow, servers[hit->index].addr, sizeof(joinNow));
+        } else if (hit->kind == HIT_DEMO_PLAY || hit->kind == HIT_DEMO_GET) {
+            const slot_t* s = hit->id[0] == 'p' ? &slotProDemos : &slotDemos;
+            const hubDemos_t* ds = hit->id[0] == 'p' ? &hubProDemos : &hubDemos;
+
+            if (Slot_Ready(s) && ds->status == PRO_READY && hit->index < ds->count) {
+                Demo_Begin(&ds->demos[hit->index], hit->kind == HIT_DEMO_PLAY);
+            }
         }
         return true;
     }
@@ -10178,9 +11289,17 @@ static bool Hub_Press(int index) {
             hubTab = HUB_RANKING;
             return true;
         }
+        case BTN_HUB_DEMOS_ALL:
+            hubDemoMode = 0;
+            Hub_Demos(hubWho);
+            hubTab = HUB_DEMOS;
+            return true;
         case BTN_HUB_PREV:
         case BTN_HUB_NEXT:
-            if (v == HUB_MATCHES) {
+            if (v == HUB_DEMOS) {
+                hubDemoPage = SDL_max(1, hubDemoPage + (index == BTN_HUB_NEXT ? 1 : -1));
+                hubGoal[HUB_DEMOS] = hubView[HUB_DEMOS] = 0.0f;
+            } else if (v == HUB_MATCHES) {
                 hubPage = SDL_max(1, hubPage + (index == BTN_HUB_NEXT ? 1 : -1));
                 hubGoal[HUB_MATCHES] = hubView[HUB_MATCHES] = 0.0f;
             } else if (v == HUB_RANKING) {
@@ -10203,7 +11322,7 @@ static void Hub_Key(SDL_Keycode key) {
     int v = Hub_View();
 
     if (key == SDLK_ESCAPE) {
-        if (v == 4) {
+        if (v == HUB_MATCH) {
             hubMatchId[0] = '\0';
             hubTab = hubFrom;
         } else {
@@ -10220,10 +11339,28 @@ static void Hub_Key(SDL_Keycode key) {
     }
 }
 
+static float Scroll_Edge(float want, float most, float* pull) {
+    float got = SDL_clamp(want, 0.0f, SDL_max(most, 0.0f));
+
+    if (most > 0.0f && want != got) {
+        *pull = SDL_clamp(*pull + (want - got) * 0.5f, -PULL_MAX, PULL_MAX);
+    }
+    return got;
+}
+
+static bool Pull_Decay(float* pull, float dt) {
+    if (SDL_fabsf(*pull) < 0.3f) {
+        *pull = 0.0f;
+        return false;
+    }
+    *pull *= SDL_expf(-dt * 8.0f);
+    return true;
+}
+
 static void Hub_Wheel(float amount) {
     int v = Hub_View();
 
-    hubGoal[v] = SDL_clamp(hubGoal[v] - amount * 72.0f, 0.0f, SDL_max(hubMost[v], 0.0f));
+    hubGoal[v] = Scroll_Edge(hubGoal[v] - amount * 72.0f, hubMost[v], &hubPull[v]);
 }
 
 static void Draw_Content(void) {
@@ -10232,15 +11369,71 @@ static void Draw_Content(void) {
     Draw_Card();
 }
 
+static void Draw_Flashes(void) {
+    int i;
+
+    for (i = 0; i < animCount; i++) {
+        int index = animIndex[i];
+        const button_t* b = &buttons[index];
+        float t = Anim_Since(pressAt[index]), k, grow, s, w, h, r;
+
+        if (t >= 0.35f || !b->visible) {
+            continue;
+        }
+        k = 1.0f - t / 0.35f;
+        grow = 7.0f * (1.0f - k * k * k);
+        s = Press_Scale(index);
+        w = b->w * s;
+        h = b->h * s;
+        r = SDL_min(BUTTON_R, h * 0.5f);
+        Draw_Round(b->x, b->y, b->w, b->h, r, Col_Alpha(COL_WHITE, 0.14f * k * k));
+        Draw_RoundLine(b->x + (b->w - w) * 0.5f - grow, b->y + (b->h - h) * 0.5f - grow, w + grow * 2.0f, h + grow * 2.0f, r + grow,
+                       Col_Alpha(COL_WHITE, 0.4f * k));
+    }
+}
+
+static void Draw_Toasts(void) {
+    float keep = slideFade;
+    int i;
+
+    for (i = 0; i < TOAST_MAX; i++) {
+        float t, v, e, w, x, y;
+
+        if (!toasts[i].at || toasts[i].y < 0.0f) {
+            continue;
+        }
+        t = Anim_Since(toasts[i].at);
+        v = SDL_clamp(SDL_min(t / 0.3f, (TOAST_LIFE - t) / 0.35f), 0.0f, 1.0f);
+        e = 1.0f - (1.0f - v) * (1.0f - v) * (1.0f - v);
+        w = Text_Width(FONT_BODY, toasts[i].text, -1) + 44.0f;
+        x = (UI_W - w) * 0.5f;
+        y = toasts[i].y - (1.0f - e) * 24.0f;
+        slideFade = e;
+        Draw_Round(x, y + 4.0f, w, TOAST_H, TOAST_H * 0.5f, Col_Alpha(COL_BLACK, 0.35f));
+        Draw_Round(x, y, w, TOAST_H, TOAST_H * 0.5f, COL_P4);
+        Draw_RoundLine(x, y, w, TOAST_H, TOAST_H * 0.5f, Col_Alpha(COL_WHITE, 0.08f));
+        Draw_Text(FONT_BODY, x + 22.0f, Text_Mid(FONT_BODY, y + TOAST_H * 0.5f), COL_WHITE, toasts[i].text, -1);
+    }
+    slideFade = keep;
+}
+
 static void Draw_Frame(void) {
-    float veil = (1.0f - introHeat) * (1.0f - introHeat), drop = SDL_min(1.0f, hubHeat / 0.45f);
+    float veil = (1.0f - introHeat) * (1.0f - introHeat), fade = SDL_clamp(1.0f - hubHeat / 0.4f, 0.0f, 1.0f);
 
     Draw_Page();
     Draw_Art();
+    if (heroSoft.tex && SDL_max(hubHeat, boxHeat) > 0.0f) {
+        float soft = SDL_max(hubHeat, boxHeat);
+
+        Draw_Hero(&heroSoft, soft * (2.0f - soft));
+        Draw_Image(&shade, 0.0f, 0.0f, UI_W, UI_H, soft * (2.0f - soft));
+    }
+    if (hubHeat > 0.0f) {
+        Draw_Rect(0.0f, 0.0f, UI_W, UI_H, Col_Alpha(COL_BLACK, 0.68f * hubHeat * (2.0f - hubHeat)));
+    }
     Buttons_Hide(BTN_SIDE_0, BTN_COUNT - 1);
     buttons[BTN_SERVERS].visible = false;
-    if (drop < 1.0f) {
-        View_Shift(drop * drop * (UI_H - PANEL_LOW + 30.0f));
+    if (hubHeat <= 0.4f || !hubFonts) {
         Draw_Panel();
         if (install.active || setup.step != STEP_NONE) {
             notesHeight = notesView = 0.0f;
@@ -10250,9 +11443,10 @@ static void Draw_Frame(void) {
                 Draw_Setup();
             }
         } else {
+            slideFade = fade;
             Draw_Content();
+            slideFade = 1.0f;
         }
-        View_Shift(0.0f);
     }
     if (hubHeat > 0.0f) {
         Buttons_Hide(BTN_PLAY, BTN_OPT_B);
@@ -10268,6 +11462,8 @@ static void Draw_Frame(void) {
         Buttons_Hide(BTN_MENU_0, BTN_SIDE_LAST);
     }
     Draw_Box();
+    Draw_Flashes();
+    Draw_Toasts();
     if (veil > 0.0f) {
         Draw_Rect(0.0f, 0.0f, UI_W, UI_H, Col_Alpha(COL_BLACK, veil));
     }
@@ -10284,17 +11480,55 @@ static bool Ease(float* value, float goal, float step) {
     return true;
 }
 
-static bool Hub_Update(float dt) {
-    bool moving = Ease(&hubHeat, hubOpen ? 1.0f : 0.0f, dt * 1.7f);
-    int i;
+static bool Art_Follow(float dt) {
+    float mx = 0.0f, my = 0.0f, k = 1.0f - SDL_expf(-dt * 7.0f);
 
-    for (i = 0; i < 5; i++) {
+    if (SDL_GetMouseFocus() == window) {
+        SDL_GetMouseState(&mx, &my);
+        artGoalX = SDL_clamp(mx / uiScale / UI_W - 0.5f, -0.5f, 0.5f) * -16.0f;
+        artGoalY = SDL_clamp(my / uiScale / UI_H - 0.5f, -0.5f, 0.5f) * -12.0f;
+    }
+    artMidX += (artGoalX - artMidX) * k;
+    artMidY += (artGoalY - artMidY) * k;
+    artX += (artMidX - artX) * k;
+    artY += (artMidY - artY) * k;
+    if (SDL_fabsf(artGoalX - artMidX) + SDL_fabsf(artGoalY - artMidY) + SDL_fabsf(artGoalX - artX) + SDL_fabsf(artGoalY - artY) < 0.01f) {
+        artX = artMidX = artGoalX;
+        artY = artMidY = artGoalY;
+        return false;
+    }
+    return true;
+}
+
+static bool Hub_Update(float dt) {
+    bool moving = Ease(&hubHeat, hubOpen ? 1.0f : 0.0f, dt * 1.7f), hued;
+    int i, v = Hub_View();
+
+    if (hubHeat < 1.0f || hubShown < 0) {
+        hubShown = v;
+        hubSwap = 1.0f;
+    } else if (v != hubShown) {
+        hubSwap -= dt * 9.0f;
+        if (hubSwap <= 0.0f) {
+            hubSwap = 0.0f;
+            hubShown = v;
+        }
+        moving = true;
+    } else if (hubSwap < 1.0f) {
+        hubSwap = SDL_min(1.0f, hubSwap + dt * 5.0f);
+        moving = true;
+    }
+    hued = hubShown == HUB_PROFILE && Slot_Ready(&slotPlayer) && hubPlayer.status == PRO_READY && hubPlayer.hue >= 0;
+    moving |= Ease(&hubHue, hued ? 1.0f : 0.0f, dt * 4.0f);
+
+    for (i = 0; i < HUB_VIEWS; i++) {
         float d;
 
         hubGoal[i] = SDL_clamp(hubGoal[i], 0.0f, SDL_max(hubMost[i], 0.0f));
-        d = hubGoal[i] - hubView[i];
+        moving |= Pull_Decay(&hubPull[i], dt);
+        d = hubGoal[i] + hubPull[i] - hubView[i];
         if (SDL_fabsf(d) < 0.5f) {
-            hubView[i] = hubGoal[i];
+            hubView[i] = hubGoal[i] + hubPull[i];
         } else {
             hubView[i] += d * SDL_min(1.0f, dt * 16.0f);
             moving = true;
@@ -10314,18 +11548,22 @@ static bool Heat_Update(float dt, bool notes) {
     for (i = 0; i < BTN_COUNT; i++) {
         moving |= Ease(&heat[i], hotButton == i ? 1.0f : 0.0f, dt * 9.0f);
     }
-    if (navReady && (SDL_fabsf(navGoalX - navX) > 0.25f || SDL_fabsf(navGoalW - navW) > 0.25f)) {
-        float k = SDL_min(1.0f, dt * 14.0f);
-
-        navX += (navGoalX - navX) * k;
-        navW += (navGoalW - navW) * k;
-        moving = true;
-    } else {
-        navX = navGoalX;
-        navW = navGoalW;
+    for (i = 0; i < NAV_ITEMS; i++) {
+        moving |= Ease(&navLit[i], i == Nav_Active() ? 1.0f : 0.0f, dt * 9.0f);
+    }
+    if (navW[Nav_Active()] > 0.0f) {
+        if (pillX < 0.0f) {
+            pillX = navX[Nav_Active()];
+            pillW = navW[Nav_Active()];
+        }
+        moving |= Glide(&pillX, navX[Nav_Active()], dt * 14.0f, 0.05f);
+        moving |= Glide(&pillW, navW[Nav_Active()], dt * 14.0f, 0.05f);
     }
     moving |= Ease(&optsHeat, optsOpen ? 1.0f : 0.0f, dt * 7.0f);
     moving |= Hub_Update(dt);
+    moving |= Anim_Update();
+    moving |= Art_Follow(dt);
+    moving |= Toast_Update(dt);
     for (i = 0; i < shotCount; i++) {
         moving |= Ease(&shots[i].heat, 1.0f, dt * 4.0f);
     }
@@ -10335,9 +11573,11 @@ static bool Heat_Update(float dt, bool notes) {
         }
     }
     moving |= Ease(&boxHeat, boxOpen ? 1.0f : 0.0f, dt * 6.0f);
-    d = boxGoal - boxView;
+    moving |= Pull_Decay(&boxPull, dt);
+    moving |= Pull_Decay(&notesPull, dt);
+    d = boxGoal + boxPull - boxView;
     if (SDL_fabsf(d) < 0.5f) {
-        boxView = boxGoal;
+        boxView = boxGoal + boxPull;
     } else {
         boxView += d * SDL_min(1.0f, dt * 16.0f);
         moving = true;
@@ -10348,9 +11588,9 @@ static bool Heat_Update(float dt, bool notes) {
         stepHeat = SDL_min(1.0f, (float)(SDL_GetTicksNS() - stepStart) / 500000000.0f);
         moving = true;
     }
-    d = notesGoal - notesScroll;
+    d = notesGoal + notesPull - notesScroll;
     if (SDL_fabsf(d) < 0.5f) {
-        notesScroll = notesGoal;
+        notesScroll = notesGoal + notesPull;
     } else {
         notesScroll += d * SDL_min(1.0f, dt * 16.0f);
         moving = true;
@@ -10414,15 +11654,7 @@ static SDL_HitTestResult SDLCALL Window_HitTest(SDL_Window* win, const SDL_Point
 }
 
 static void Notes_Scroll(float amount) {
-    float max = notesHeight - notesView;
-
-    notesGoal += amount;
-    if (notesGoal > max) {
-        notesGoal = max;
-    }
-    if (notesGoal < 0.0f) {
-        notesGoal = 0.0f;
-    }
+    notesGoal = Scroll_Edge(notesGoal + amount, notesHeight - notesView, &notesPull);
 }
 
 static bool Feed_Grab(float x, float y) {
@@ -10464,6 +11696,7 @@ static void Option_Pick(int i) {
             Repair_Start();
             break;
         case 3:
+            checkAsked = SDL_GetAtomicInt(&checkState) != CHECK_RUNNING;
             Check_Again();
             break;
         case 4:
@@ -10513,6 +11746,13 @@ static void Box_See(void) {
     SDL_OpenURL(url);
 }
 
+static bool Play_Refused(float x, float y) {
+    const button_t* b = &buttons[BTN_PLAY];
+
+    return !b->visible && hubHeat <= 0.0f && !boxOpen && gameFound && !install.active && setup.step == STEP_NONE && !Update_Busy() &&
+           !steamLaunch && x >= b->x && x < b->x + b->w && y >= b->y && y < b->y + b->h;
+}
+
 static bool Button_Press(int index) {
     bool wasOpts = optsOpen;
 
@@ -10523,7 +11763,7 @@ static bool Button_Press(int index) {
         }
         return false;
     }
-    if (index >= BTN_HUB_TAB_0 && index <= BTN_HUB) {
+    if (index >= BTN_HUB_CLOSE && index <= BTN_HUB) {
         Hub_Press(index);
         return false;
     }
@@ -10532,6 +11772,11 @@ static bool Button_Press(int index) {
 
         if (tab < 0) {
             Hub_Close();
+        } else if (tab == HUB_DEMOS) {
+            if (hubDemoWho[0] && SDL_strcmp(hubDemoWho, meProfile.steamId)) {
+                Hub_Demos("");
+            }
+            Hub_Open(tab, NULL);
         } else if (tab == HUB_PROFILE || tab == HUB_MATCHES) {
             if (tab == HUB_MATCHES && hubTab == HUB_MATCHES) {
                 hubMatchId[0] = '\0';
@@ -10578,16 +11823,24 @@ static bool Button_Press(int index) {
             Hub_Open(HUB_SERVERS, NULL);
             break;
         case BTN_PLAY:
-            if (Play_Ready()) {
-                return Game_Start();
+            if (Play_Ready() && steamMissing) {
+                SDL_OpenURL("steam://open/main");
+                steamLaunch = SDL_GetTicks();
+                steamReady = 0;
+                steamChecked = 0;
+            } else if (Play_Ready()) {
+                if (Game_Start()) {
+                    return true;
+                }
+                shakeAt[BTN_PLAY] = Anim_Now();
+                Toast(T(TXT_TOAST_START));
             }
             break;
         case BTN_UPDATE:
             Update_Start();
             break;
-        case BTN_STEAM:
-            SDL_OpenURL("steam://open/main");
-            steamOpening = SDL_GetTicks();
+        case BTN_DISCORD:
+            SDL_OpenURL(SITE "/discord");
             break;
         case BTN_NEXT:
             if (install.active) {
@@ -10784,6 +12037,9 @@ static void Hub_Shot_Open(void) {
         hubFrom = HUB_MATCHES;
         Hub_Match(id);
     }
+    if (option && !SDL_strcmp(option, "demos_mias") && Steam_IdValid(who)) {
+        Hub_Demos(who);
+    }
     option = SDL_getenv("LAUNCHER_HUB_MODE");
     if (option && option[0]) {
         hubMode = SDL_clamp(SDL_atoi(option), 0, HUB_MODES - 1);
@@ -10838,9 +12094,15 @@ int main(int argc, char** argv) {
         hubShotTab = !SDL_strcmp(option, "partidas") || !SDL_strcmp(option, "partida") ? HUB_MATCHES
                      : !SDL_strcmp(option, "ranking")                                    ? HUB_RANKING
                      : !SDL_strcmp(option, "servidores")                                 ? HUB_SERVERS
+                     : !SDL_strncmp(option, "demos", 5)                                  ? HUB_DEMOS
                                                                                          : HUB_PROFILE;
     }
     notesGoal = option && option[0] == '3' ? 260.0f : 0.0f;
+    option = SDL_getenv("LAUNCHER_TOAST");
+    if (option && option[0]) {
+        Toast(option);
+        Toast(T(TXT_TOAST_DEMO_OK));
+    }
     option = SDL_getenv("LAUNCHER_STEPS");
     autoSteps = option ? atoi(option) : 0;
     option = SDL_getenv("LAUNCHER_PRESS");
@@ -10970,8 +12232,11 @@ int main(int argc, char** argv) {
     Fonts_Load();
     Hub_FontsStart();
     Image_FromPng(&logo, launcherLogo, launcherLogoSize, LOGO);
+    Image_FromPng(&iconSteam, launcherSteam, launcherSteamSize, STEAM_ICON);
+    Image_FromPng(&iconDiscord, launcherDiscord, launcherDiscordSize, DISCORD_ICON);
     Icons_Load();
     Image_LoadHero();
+    Art_Blur();
     Image_Vignette();
     Settings_Load();
     startupOn = Autostart_On();
@@ -11040,10 +12305,20 @@ int main(int argc, char** argv) {
                     break;
                 case SDL_EVENT_MOUSE_BUTTON_DOWN:
                     if (event.button.button == SDL_BUTTON_LEFT) {
-                        int hit = Button_At(event.button.x / uiScale, event.button.y / uiScale);
+                        float mx = event.button.x / uiScale, my = event.button.y / uiScale;
+                        int hit = Button_At(mx, my);
+                        bool boxWas = boxOpen, hubWas = hubOpen;
 
-                        if ((hit >= 0 || !Feed_Grab(event.button.x / uiScale, event.button.y / uiScale)) && Button_Press(hit)) {
+                        if (hit >= 0 && hit != BTN_VEIL && buttons[hit].w * buttons[hit].h < 200000.0f) {
+                            pressAt[hit] = Anim_Now();
+                        } else if (hit < 0 && Play_Refused(mx, my)) {
+                            shakeAt[BTN_PLAY] = Anim_Now();
+                        }
+                        if ((hit >= 0 || !Feed_Grab(mx, my)) && Button_Press(hit)) {
                             running = false;
+                        }
+                        if (hit >= 0 && ((boxOpen && !boxWas) || (hubOpen && !hubWas && buttons[hit].y > TOP_MID * 2.0f))) {
+                            pressAt[hit] = 0;
                         }
                     } else if (event.button.button == SDL_BUTTON_X1) {
                         Setup_Back();
@@ -11062,7 +12337,7 @@ int main(int argc, char** argv) {
                     break;
                 case SDL_EVENT_MOUSE_WHEEL:
                     if (boxOpen) {
-                        boxGoal = SDL_max(0.0f, boxGoal - event.wheel.y * 48.0f);
+                        boxGoal = Scroll_Edge(boxGoal - event.wheel.y * 48.0f, boxMost, &boxPull);
                     } else if (hubOpen) {
                         Hub_Wheel(event.wheel.y);
                     } else if (setup.step == STEP_NONE && !install.active) {
@@ -11091,9 +12366,17 @@ int main(int argc, char** argv) {
             running = false;
         }
         trayAction = 0;
+        if (checkAsked && lastState == CHECK_RUNNING && SDL_GetAtomicInt(&checkState) != CHECK_RUNNING) {
+            checkAsked = false;
+            if (SDL_GetAtomicInt(&checkState) == CHECK_FAILED) {
+                Toast(T(TXT_CHECK_FAILED));
+            } else if (!updateAvailable) {
+                Toast(T(TXT_UPTODATE));
+            }
+        }
         lastState = SDL_GetAtomicInt(&checkState);
         Pick_Poll();
-        if (Job_Poll()) {
+        if (Job_Poll() || Launch_Poll()) {
             running = false;
         }
         Taskbar_Update();
@@ -11170,7 +12453,7 @@ int main(int argc, char** argv) {
             if (hubShotY >= 0.0f) {
                 hubGoal[Hub_View()] = SDL_min(hubShotY, hubMost[Hub_View()]);
             }
-            for (k = 0; k < 5; k++) {
+            for (k = 0; k < HUB_VIEWS; k++) {
                 hubView[k] = hubGoal[k];
             }
 #ifdef LAUNCHER_SHOT
