@@ -1433,6 +1433,7 @@ void CL_PlayDemo_f(void) {
     seekRestart = demoSeekRestart;
     if (!demoSeekRestart) {
         demoSeekTarget = -1;
+        Cvar_Set("cg_drawDemoHUD", "1");
     }
     demoSeekRestart = qfalse;
     demoStretch = 0;
