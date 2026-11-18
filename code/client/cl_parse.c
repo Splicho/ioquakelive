@@ -225,6 +225,10 @@ void CL_ParseSnapshot(msg_t* msg) {
         cl.snapshots[oldMessageNum & PACKET_MASK].valid = qfalse;
     }
 
+    if (cl.snap.valid && ((newSnap.snapFlags ^ cl.snap.snapFlags) & SNAPFLAG_SERVERCOUNT)) {
+        cl.serverRestarted = qtrue;
+    }
+
     cl.snap = newSnap;
     cl.snap.ping = 999;
     for (i = 0; i < PACKET_BACKUP; i++) {
@@ -504,6 +508,39 @@ void CL_ParseDownload(msg_t* msg) {
     }
 }
 
+static void CL_PeekServerId(const char* s) {
+    const char* p;
+    const char* end;
+    int skip;
+
+    if (clc.demoplaying) {
+        return;
+    }
+    if (!strncmp(s, "cs ", 3)) {
+        skip = 3;
+    } else if (!strncmp(s, "bcs0 ", 5)) {
+        skip = 5;
+    } else {
+        return;
+    }
+    if (atoi(s + skip) != CS_SYSTEMINFO || s[skip] < '0' || s[skip] > '9') {
+        return;
+    }
+    p = strstr(s + skip, "\\sv_serverid\\");
+    if (!p) {
+        return;
+    }
+    p += 13;
+    end = p;
+    while (*end >= '0' && *end <= '9') {
+        end++;
+    }
+    if (end == p || (*end != '\\' && *end != '"')) {
+        return;
+    }
+    cl.serverId = atoi(p);
+}
+
 void CL_ParseCommandString(msg_t* msg) {
     char* s;
     int seq;
@@ -519,6 +556,7 @@ void CL_ParseCommandString(msg_t* msg) {
 
     index = seq & (MAX_RELIABLE_COMMANDS - 1);
     Q_strncpyz(clc.serverCommands[index], s, sizeof(clc.serverCommands[index]));
+    CL_PeekServerId(clc.serverCommands[index]);
     CL_CgamePrefetchCommand(clc.serverCommands[index]);
 }
 

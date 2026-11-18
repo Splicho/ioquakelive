@@ -77,8 +77,10 @@ typedef struct {
     int serverTimeDelta;
     qboolean extrapolatedSnapshot;
     qboolean newSnapshots;
+    qboolean serverRestarted;
 
     qboolean smoothActive;
+    qboolean smoothRestarted;
     double smoothDelta;
     double smoothTarget;
     double smoothLastMs;

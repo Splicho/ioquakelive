@@ -919,18 +919,32 @@ static double CL_SmoothLowSample(void) {
     return sorted[(cl.smoothSampleCount - 1) / 4];
 }
 
-static void CL_SmoothTimeSnapshot(void) {
+static void CL_SmoothTimeSnapshot(qboolean restarted) {
     double sample;
     double offset;
+    double jump = 0.0;
     int gap;
 
     gap = cl.snap.serverTime - cl.smoothLastSnapTime;
+    if (restarted && cl.smoothLastSnapTime && cl.smoothInterval && gap > cl.smoothInterval) {
+        jump = gap - cl.smoothInterval;
+    }
     if (cl.smoothLastSnapTime && gap > 0 && (!cl.smoothInterval || gap < cl.smoothInterval)) {
         cl.smoothInterval = gap;
     }
     cl.smoothLastSnapTime = cl.snap.serverTime;
 
     sample = cl.snap.serverTime - cl.smoothLastMs;
+    if (restarted) {
+        cl.smoothSampleCount = 0;
+        cl.smoothSampleNext = 0;
+        if (jump > 0.0) {
+            cl.smoothDelta += jump;
+            cl.smoothTarget = cl.smoothDelta;
+            cl.smoothRestarted = qtrue;
+            return;
+        }
+    }
     cl.smoothSamples[cl.smoothSampleNext] = sample;
     cl.smoothSampleNext = (cl.smoothSampleNext + 1) % CL_SMOOTH_SAMPLES;
     if (cl.smoothSampleCount < CL_SMOOTH_SAMPLES) {
@@ -944,7 +958,14 @@ static void CL_SmoothTimeSnapshot(void) {
     cl.smoothTarget = CL_SmoothLowSample() - cl.smoothInterval - SMOOTH_MARGIN;
     offset = fabs(cl.smoothTarget - cl.smoothDelta);
 
-    if (cl.smoothSampleCount < 4 && offset <= RESET_TIME) {
+    if (cl.smoothRestarted && cl.smoothSampleCount >= 4) {
+        cl.smoothRestarted = qfalse;
+    }
+    if (cl.smoothRestarted && offset <= RESET_TIME) {
+        if (cl.smoothTarget > cl.smoothDelta) {
+            cl.smoothDelta = cl.smoothTarget;
+        }
+    } else if (restarted || (cl.smoothSampleCount < 4 && offset <= RESET_TIME)) {
         cl.smoothDelta = cl.smoothTarget;
     } else if (offset > RESET_TIME) {
         cl.smoothSamples[0] = sample;
@@ -996,15 +1017,17 @@ static qboolean CL_SmoothTimeAllowed(void) {
 void CL_AdjustTimeDelta(void) {
     int newDelta;
     int deltaDelta;
+    qboolean restarted = cl.serverRestarted;
 
     cl.newSnapshots = qfalse;
+    cl.serverRestarted = qfalse;
 
     if (clc.demoplaying) {
         return;
     }
 
     if (cl.smoothActive) {
-        CL_SmoothTimeSnapshot();
+        CL_SmoothTimeSnapshot(restarted);
         if (cl_showTimeDelta->integer) {
             Com_Printf("%i ", cl.serverTimeDelta);
         }
@@ -1014,7 +1037,7 @@ void CL_AdjustTimeDelta(void) {
     newDelta = cl.snap.serverTime - cls.realtime;
     deltaDelta = abs(newDelta - cl.serverTimeDelta);
 
-    if (deltaDelta > RESET_TIME) {
+    if (deltaDelta > RESET_TIME || restarted) {
         cl.serverTimeDelta = newDelta;
         cl.oldServerTime = cl.snap.serverTime;
         cl.serverTime = cl.snap.serverTime;
@@ -1146,6 +1169,7 @@ void CL_SetCGameTime(void) {
                 cl.smoothLastMs = nowMs;
                 cl.smoothSampleCount = 0;
                 cl.smoothSampleNext = 0;
+                cl.smoothRestarted = qfalse;
                 cl.extrapolatedSnapshot = qfalse;
             }
             CL_SmoothTimeAdvance(nowMs);
