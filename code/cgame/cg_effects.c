@@ -523,7 +523,7 @@ void CG_UpdateFloatingEffects(void) {
         if (!fx->active) {
             continue;
         }
-        if (cg.time >= fx->spawnTime + fx->lifeRate) {
+        if (cg.time < fx->spawnTime || cg.time >= fx->spawnTime + fx->lifeRate) {
             fx->active = 0;
             continue;
         }
