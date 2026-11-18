@@ -685,6 +685,7 @@ typedef struct {
     sfxHandle_t soundBuffer[MAX_SOUNDBUFFER];
     int soundBufferDelay[MAX_SOUNDBUFFER];
     qboolean soundBufferLocked;
+    qboolean seeking;
     int joinMenuCloseTime;
 
     int voiceChatTime;
@@ -2023,6 +2024,7 @@ void CG_ReloadOtherClients(void);
 void CG_SetEndScoreboardMenu(void);
 
 void CG_CheckEvents(centity_t* cent);
+qboolean CG_EventIsStale(void);
 const char* CG_PlaceString(int rank);
 void CG_EntityEvent(centity_t* cent, vec3_t position);
 void CG_PainEvent(centity_t* cent, int health);

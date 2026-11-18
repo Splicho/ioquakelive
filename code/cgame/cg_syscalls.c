@@ -179,10 +179,16 @@ int trap_CM_MarkFragments(int numPoints, const vec3_t* points, const vec3_t proj
 }
 
 void trap_S_StartSound(vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx) {
+    if (cg.seeking) {
+        return;
+    }
     syscall(CG_S_STARTSOUND, origin, entityNum, entchannel, sfx);
 }
 
 void trap_S_StartLocalSound(sfxHandle_t sfx, int channelNum) {
+    if (cg.seeking) {
+        return;
+    }
     syscall(CG_S_STARTLOCALSOUND, sfx, channelNum);
 }
 
@@ -279,6 +285,9 @@ int trap_R_Font_Register(const char* name) {
 }
 
 void trap_S_StartLocalSoundVolume(sfxHandle_t sfx, int channelNum, float volume) {
+    if (cg.seeking) {
+        return;
+    }
     syscall(CG_S_STARTLOCALSOUNDVOLUME, sfx, channelNum, PASSFLOAT(volume));
 }
 

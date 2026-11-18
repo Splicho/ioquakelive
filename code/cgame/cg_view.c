@@ -929,7 +929,7 @@ static void CG_PowerupTimerSounds(void) {
 }
 
 void CG_AddBufferedSound(sfxHandle_t sfx) {
-    if (!sfx || cg.soundBufferLocked) {
+    if (!sfx || cg.soundBufferLocked || cg.seeking) {
         return;
     }
     cg.soundBuffer[cg.soundBufferIn] = sfx;
@@ -1113,6 +1113,7 @@ static void CG_AutoAction(void) {
 }
 
 void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoPlayback) {
+    cg.seeking = demoPlayback && (serverTime < cg.time || serverTime - cg.time > 1000);
     cg.time = serverTime;
     cg.demoPlayback = demoPlayback;
 

@@ -1847,6 +1847,10 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
     }
 }
 
+qboolean CG_EventIsStale(void) {
+    return cg.seeking && cg.time - cg.snap->serverTime > 100;
+}
+
 void CG_CheckEvents(centity_t* cent) {
     if (cent->currentState.eType > ET_EVENTS) {
         if (cent->previousEvent) {
@@ -1867,6 +1871,9 @@ void CG_CheckEvents(centity_t* cent) {
         if ((cent->currentState.event & ~EV_EVENT_BITS) == 0) {
             return;
         }
+    }
+    if (CG_EventIsStale()) {
+        return;
     }
 
     BG_EvaluateTrajectory(&cent->currentState.pos, cg.snap->serverTime, cent->lerpOrigin);
