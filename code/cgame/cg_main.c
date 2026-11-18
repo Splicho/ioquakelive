@@ -3373,7 +3373,6 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum) {
     cgs.media.qlLogoShader = trap_R_RegisterShaderNoMip("ui/assets/main_menu/ql_logo.png");
     cgs.media.logoBackgroundShader = trap_R_RegisterShaderNoMip("ui/assets/main_menu/logo_background.png");
     cgs.media.backscreenSmokeShader = trap_R_RegisterShaderNoMip("ui/assets/backscreen_smoke.jpg");
-    cgs.media.backscreenClassicShader = trap_R_RegisterShaderNoMip("ui/assets/backscreen_classic.jpg");
 
     cg.speedBarColor1[0] = 0.0f; cg.speedBarColor1[1] = 1.0f;
     cg.speedBarColor1[2] = 0.0f; cg.speedBarColor1[3] = 1.0f;

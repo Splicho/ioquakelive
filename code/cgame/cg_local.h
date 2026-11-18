@@ -869,7 +869,6 @@ typedef struct {
     qhandle_t qlLogoShader;
     qhandle_t logoBackgroundShader;
     qhandle_t backscreenSmokeShader;
-    qhandle_t backscreenClassicShader;
 
     qhandle_t redCubeModel;
     qhandle_t blueCubeModel;

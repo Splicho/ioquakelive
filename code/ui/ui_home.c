@@ -796,30 +796,6 @@ static qhandle_t UI_Home_OwnBackground(void) {
     return pic;
 }
 
-qboolean UI_Home_ClassicBackdrop(void) {
-    float w = (float)uiInfo.uiDC.glconfig.vidWidth;
-    float h = (float)uiInfo.uiDC.glconfig.vidHeight;
-    float crop;
-    qhandle_t pic;
-
-    if (!Q_stricmp(ui_background.string, "retail") || h <= 0.0f) {
-        return qfalse;
-    }
-    pic = UI_Home_OwnBackground();
-    if (!pic) {
-        return qfalse;
-    }
-    trap_R_SetColor(NULL);
-    if (w * 9.0f > h * 16.0f) {
-        crop = (1.0f - (h * 16.0f) / (w * 9.0f)) * 0.5f;
-        trap_R_DrawStretchPic(0.0f, 0.0f, w, h, 0.0f, crop, 1.0f, 1.0f - crop, pic);
-    } else {
-        crop = (1.0f - (w * 9.0f) / (h * 16.0f)) * 0.5f;
-        trap_R_DrawStretchPic(0.0f, 0.0f, w, h, crop, 0.0f, 1.0f - crop, 1.0f, pic);
-    }
-    return qtrue;
-}
-
 static qhandle_t UI_Home_CustomBackground(void) {
     static char name[MAX_QPATH];
     static qhandle_t pic;

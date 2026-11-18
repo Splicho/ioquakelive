@@ -5454,13 +5454,7 @@ void UI_DrawConnectScreen(qboolean overlay) {
     menuDef_t* menu = Menus_FindByName("Connect");
 
     if (!overlay && menu) {
-        qhandle_t retail = menu->window.background;
-
-        if (UI_Home_ClassicBackdrop()) {
-            menu->window.background = 0;
-        }
         Menu_Paint(menu, qtrue);
-        menu->window.background = retail;
     }
 
     if (!overlay) {
