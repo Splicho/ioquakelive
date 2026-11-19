@@ -798,7 +798,9 @@ void CG_RegisterWeapon(int weaponNum) {
             for (i = 0; i < NUM_LIGHTNING_STYLES; i++) {
                 cgs.media.lightningShader[i] = trap_R_RegisterShader(va("lightningBolt%i", i + 1));
             }
-            cgs.media.lightningFadedShader = trap_R_RegisterShader("lightningBolt5Faded");
+            for (i = 0; i < NUM_LIGHTNING_STYLES; i++) {
+                cgs.media.lightningFadedShader[i] = trap_R_RegisterShader(va("lightningBolt%iFaded", i + 1));
+            }
 
             cgs.media.lightningExplosionModel = trap_R_RegisterModel("models/weaphits/crackle.md3");
             cgs.media.sfx_lghit1 = trap_S_RegisterSound("sound/weapons/lightning/lg_hit.ogg", qfalse);
@@ -1039,7 +1041,7 @@ static void CG_CalculateWeaponPosition(vec3_t origin, vec3_t angles) {
     }
 }
 
-#define LIGHTNING_OPACITY_MIN 0.2f
+#define LIGHTNING_OPACITY_MIN 0.0f
 
 static float CG_LightningOpacity(int clientNum) {
     int viewer = cg.predictedPlayerState.clientNum;
@@ -1067,7 +1069,8 @@ static void CG_LightningBolt(centity_t* cent, vec3_t origin) {
     refEntity_t beam;
     vec3_t forward;
     vec3_t muzzlePoint, endPoint;
-    int anim;
+    int anim, style;
+    float opacity;
 
     if (cent->currentState.weapon != WP_LIGHTNING) {
         return;
@@ -1136,25 +1139,23 @@ static void CG_LightningBolt(centity_t* cent, vec3_t origin) {
     beam.reType = RT_LIGHTNING;
     beam.radius = 256;
 
-    if (cg_lightningStyle.integer >= 2 && cg_lightningStyle.integer <= NUM_LIGHTNING_STYLES) {
-        beam.customShader = cgs.media.lightningShader[cg_lightningStyle.integer - 1];
-    } else {
-        beam.customShader = cgs.media.lightningShader[0];
+    style = (cg_lightningStyle.integer >= 2 && cg_lightningStyle.integer <= NUM_LIGHTNING_STYLES)
+                ? cg_lightningStyle.integer - 1
+                : 0;
+    beam.customShader = cgs.media.lightningShader[style];
+
+    opacity = CG_LightningOpacity(cent->currentState.number);
+    if (opacity < 1.0f && cgs.media.lightningFadedShader[style]) {
+        beam.customShader = cgs.media.lightningFadedShader[style];
+        beam.shaderRGBA[0] = 255;
+        beam.shaderRGBA[1] = 255;
+        beam.shaderRGBA[2] = 255;
+        beam.shaderRGBA[3] = (byte)(opacity * 255.0f);
     }
 
-    if (cg_lightningStyle.integer == NUM_LIGHTNING_STYLES && cgs.media.lightningFadedShader) {
-        float opacity = CG_LightningOpacity(cent->currentState.number);
-
-        if (opacity < 1.0f) {
-            beam.customShader = cgs.media.lightningFadedShader;
-            beam.shaderRGBA[0] = 255;
-            beam.shaderRGBA[1] = 255;
-            beam.shaderRGBA[2] = 255;
-            beam.shaderRGBA[3] = (byte)(opacity * 255.0f);
-        }
+    if (opacity > 0.0f) {
+        trap_R_AddRefEntityToScene(&beam);
     }
-
-    trap_R_AddRefEntityToScene(&beam);
 
     if (cg_lightningImpact.integer && trace.fraction != 1.0f && !(trace.surfaceFlags & SURF_NOIMPACT)) {
         vec3_t angles;
