@@ -2272,13 +2272,6 @@ static qboolean ST_EditKey(int key) {
     }
     switch (key) {
         case K_BACKSPACE:
-            if (ST_EditMarked()) {
-                ST_EditDeleteMarked();
-            } else if (st.editCursor > 0) {
-                memmove(buffer + st.editCursor - 1, buffer + st.editCursor, len - st.editCursor + 1);
-                st.editCursor--;
-                st.editAnchor = st.editCursor;
-            }
             return qtrue;
         case K_DEL:
             if (ST_EditMarked()) {
