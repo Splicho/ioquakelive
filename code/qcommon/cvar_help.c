@@ -959,8 +959,8 @@ static const cvarHelp_t cvarHelp[] = {
                          HV("1") "24 hours\n"
                          HV("2") "12 hours, with am and pm"},
     {"ch_recordMessage", "while a demo is being recorded, its name on the screen"},
-    {"cg_lightningOpacity", "with " HC("cg_lightningStyle") " 5, how visible your own lightning beam is, from 0.2 to 1"},
-    {"cg_enemyLightningOpacity", "with " HC("cg_lightningStyle") " 5, how visible the lightning beam of your enemies is, from 0.2 to 1"},
+    {"cg_lightningOpacity", "how visible your own lightning beam is, from 0 (invisible) to 1"},
+    {"cg_enemyLightningOpacity", "how visible the lightning beam of your enemies is, from 0 (invisible) to 1"},
     {"cg_demoSkipPauses", "in a demo, jumps over the timeouts and pauses of the match"},
     {"ch_drawSpectators", "how many players are watching you, next to the fps counter; the server has to send it"},
     {"ch_autoStats", "when a match ends, writes the console, with the scores in it, to a file "
