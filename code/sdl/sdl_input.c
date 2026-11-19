@@ -1346,6 +1346,8 @@ void IN_Init(void* windowData) {
 
     Com_DPrintf("\n------- Input Initialization -------\n");
 
+    Key_ClearStates();
+
     in_keyboardDebug = Cvar_Get("in_keyboardDebug", "0", CVAR_ARCHIVE);
 
     in_mouse = Cvar_Get("in_mouse", "2", CVAR_ARCHIVE | CVAR_LATCH | CVAR_USERSAVE);

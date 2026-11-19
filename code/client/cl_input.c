@@ -117,6 +117,35 @@ void IN_KeyUp(kbutton_t* b) {
     b->active = qfalse;
 }
 
+static void IN_ReleaseStaleKeys(kbutton_t* b) {
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        int k = b->down[i];
+        if (k > 0 && k < MAX_KEYS && !keys[k].down) {
+            b->down[i] = 0;
+        }
+    }
+    if (b->active && !b->down[0] && !b->down[1]) {
+        b->active = qfalse;
+    }
+}
+
+static void IN_ReleaseStaleButtons(void) {
+    static kbutton_t* const named[] = {
+        &in_left, &in_right, &in_forward, &in_back, &in_lookup, &in_lookdown,
+        &in_moveleft, &in_moveright, &in_strafe, &in_speed, &in_up, &in_down,
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_LEN(named); i++) {
+        IN_ReleaseStaleKeys(named[i]);
+    }
+    for (i = 0; i < ARRAY_LEN(in_buttons); i++) {
+        IN_ReleaseStaleKeys(&in_buttons[i]);
+    }
+}
+
 float CL_KeyState(kbutton_t* key) {
     float val;
     int msec;
@@ -695,6 +724,8 @@ usercmd_t CL_CreateCmd(void) {
     vec3_t oldAngles;
 
     VectorCopy(cl.viewangles, oldAngles);
+
+    IN_ReleaseStaleButtons();
 
     CL_AdjustAngles();
 
