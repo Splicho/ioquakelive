@@ -2183,18 +2183,30 @@ void MP_PauseThink(void) {
             continue;
         }
         cl = ent->client;
-        if (cl->sess.sessionTeam == TEAM_SPECTATOR) {
+        if (cl->pers.connected != CON_CONNECTED) {
             continue;
         }
-        cl->pers.enterTime += pauseDuration;
+        cl->ps.pm_flags &= ~PMF_PAUSED;
         cl->respawnTime += pauseDuration;
+        cl->pers.enterTime += pauseDuration;
+        cl->airOutTime += pauseDuration;
         for (j = 0; j < MAX_POWERUPS; j++) {
             if (cl->ps.powerups[j] != 0 && cl->ps.powerups[j] != INT_MAX) {
                 cl->ps.powerups[j] += pauseDuration;
             }
         }
-        if (cl->ps.weaponTime != 0) {
-            cl->ps.weaponTime += pauseDuration;
+        if (cl->ps.freezetime != 0) {
+            cl->ps.freezetime += pauseDuration;
+        }
+    }
+
+    if (g_itemTimers.integer || g_droppedPowerupsDecay.integer) {
+        for (i = 0; i < MAX_GENTITIES; i++) {
+            gentity_t* ent = &g_entities[i];
+            if ((g_itemTimers.integer && (ent->flags & FL_ITEM_TIMER)) ||
+                (g_droppedPowerupsDecay.integer && (ent->flags & FL_DROPPED_ITEM_TIMED))) {
+                ent->s.time += pauseDuration;
+            }
         }
     }
 
@@ -2203,6 +2215,9 @@ void MP_PauseThink(void) {
     trap_SetConfigstring(CS_PAUSE_START_TIME, "0");
     trap_SetConfigstring(CS_PAUSE_END_TIME, "0");
     trap_SetConfigstring(CS_LEVEL_START_TIME, va("%i", level.startTime));
+    if (BG_IsRoundBasedGameType(g_gametype.integer)) {
+        trap_SetConfigstring(CS_ROUND_START_TIME, va("%i", level.roundState.startTime));
+    }
 }
 
 static void Cmd_Timeout_f(gentity_t* ent) {
