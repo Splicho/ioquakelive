@@ -2832,6 +2832,10 @@ static void CG_DrawWarmup(void) {
 		return;
 	}
 
+	if (cgs.pauseEnd && cg.warmup > 0 && BG_IsRoundBasedGameType(cgs.gametype)) {
+		return;
+	}
+
 	if (cg.warmup == -1) {
 		cg.warmupCount = -1;
 	} else if (cg.warmup != 0 || cg.warmupCount != -1) {

@@ -2210,6 +2210,11 @@ void MP_PauseThink(void) {
         }
     }
 
+    if (BG_IsRoundBasedGameType(g_gametype.integer) && level.roundState.eCurrent == RS_COUNTDOWN &&
+        level.roundState.tNext != 0) {
+        level.roundState.tNext = level.time;
+    }
+
     level.timePauseBegin = 0;
     level.mp_unpauseTime = 0;
     trap_SetConfigstring(CS_PAUSE_START_TIME, "0");
