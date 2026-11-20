@@ -1574,6 +1574,8 @@ void CL_Disconnect(qboolean showMainMenu) {
 
     Cvar_Set("r_uiFullScreen", "1");
 
+    CL_ReplayDisconnect();
+
     if (clc.demorecording) {
         CL_StopRecord_f();
     }
@@ -3171,6 +3173,7 @@ void CL_Frame(int msec) {
         }
         CL_DemoWindowFrame();
         CL_StreamerFrame();
+        CL_ReplayFrame();
 
         CL_MatchReportFrame();
         CL_VoiceFrame();
@@ -3879,6 +3882,7 @@ void CL_Init(void) {
     CL_VideoInit();
     CL_DemoWindowInit();
     CL_StreamerInit();
+    CL_ReplayInit();
     Cmd_AddCommand("demowindow", CL_DemoWindow_f);
     Cmd_SetCommandCompletionFunc("demowindow", CL_CompleteDemoName);
     Cmd_AddCommand("video", CL_Video_f);
@@ -3943,6 +3947,7 @@ void CL_Init(void) {
 void CL_Shutdown(char* finalmsg, qboolean disconnect, qboolean quit) {
     CL_DemoWindowShutdown();
     CL_StreamerShutdown();
+    CL_ReplayShutdown();
     static qboolean recursive = qfalse;
 
     if (!(com_cl_running && com_cl_running->integer))

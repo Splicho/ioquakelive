@@ -3810,6 +3810,9 @@ static void CG_Draw2D(stereoFrame_t stereoFrame) {
 		}
 	}
 
+	if (cg.showJoinMenu && cg.demoPlayback && cg_videoRecording.integer) {
+		CG_CloseMenus();
+	}
 	if (cg.showJoinMenu && !cg.scoreBoardShowing) {
 		CG_UpdateJoinMenu();
 	}

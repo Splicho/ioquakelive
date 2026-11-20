@@ -332,6 +332,8 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_STREAMING, "Streamer Mode", "cl_streamermode", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Share live match data with OBS and other tools, and keep the last seconds of gameplay available for replay.", 0},
     {ST_TAB_STREAMING, "Data Port", "cl_streamerport", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "Live data is served at http://127.0.0.1:port/events. Change the port if another program is using it.", 0},
     {ST_TAB_STREAMING, "Data Rate", "cl_streamerrate", ST_RANGE, 1.0f, 60.0f, 1.0f, NULL, 0, "How many times per second live data is sent.", 0},
+    {ST_TAB_STREAMING, "Replay Length", "cl_replayseconds", ST_RANGE, 5.0f, 60.0f, 5.0f, NULL, 0, "Number of seconds of gameplay kept for replay.", 0},
+    {ST_TAB_STREAMING, "Replay", "replay", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, "Save the last seconds of gameplay as a video. Replays are saved in videos/replays, and videos/replay.mp4 always contains the latest one, ready to use in OBS.", 1},
 };
 
 static const char* const stTabNames[] = {"INPUT", "GAMEPAD", "BASIC", "GAME", "HUD", "TEAM", "WEAPONS", "VIDEO", "SOUND", "SPECTATING", "STREAMING"};

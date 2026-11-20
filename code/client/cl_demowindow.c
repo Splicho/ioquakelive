@@ -551,6 +551,10 @@ static void CL_DemoWindowChildOpen(void) {
 void CL_DemoWindowWait(void) {
     int start;
 
+    if (CL_ReplayRendering()) {
+        CL_ReplayRenderWait();
+        return;
+    }
     if (!com_demoWindowParent) {
         if (dwProcess) {
             dw->heartbeat++;
@@ -594,6 +598,9 @@ void CL_DemoWindowFrame(void) {
                 CL_DemoWindowFinish();
             }
         }
+        return;
+    }
+    if (CL_ReplayRendering()) {
         return;
     }
 
@@ -645,7 +652,7 @@ qboolean CL_DemoWindowTakeFrame(const byte* image, int size) {
     int slot, y, line;
     byte* out;
 
-    if (!com_demoWindowParent) {
+    if (!com_demoWindowParent || CL_ReplayRendering()) {
         return qfalse;
     }
     if (!dw) {

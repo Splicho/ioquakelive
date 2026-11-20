@@ -555,6 +555,18 @@ void CL_StreamerInit(void);
 void CL_StreamerShutdown(void);
 void CL_StreamerFrame(void);
 void CL_StreamerPublish(const char* type, const char* json);
+
+void CL_ReplayInit(void);
+void CL_ReplayShutdown(void);
+void CL_ReplayGamestate(void);
+void CL_ReplayCommand(int seq, const char* text);
+void CL_ReplaySnapshot(void);
+void CL_ReplayDisconnect(void);
+void CL_ReplayFrame(void);
+qboolean CL_ReplayRendering(void);
+void CL_ReplayRenderWait(void);
+qboolean CL_VideoRecordTo(const char* file);
+qboolean CL_VideoLastOk(void);
 void CL_Video_f(void);
 void CL_StopVideo_f(void);
 

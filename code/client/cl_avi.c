@@ -559,7 +559,20 @@ void CL_TakeVideoFrame(void) {
                       afd.cBuffer, afd.eBuffer, afd.motionJpeg);
 }
 
+static qboolean CL_CloseAVIFile(void);
+
+static qboolean afdLastOk;
+
 qboolean CL_CloseAVI(void) {
+    afdLastOk = CL_CloseAVIFile();
+    return afdLastOk;
+}
+
+qboolean CL_VideoLastOk(void) {
+    return afdLastOk;
+}
+
+static qboolean CL_CloseAVIFile(void) {
     int indexRemainder;
     int indexSize = afd.numIndices * 16;
     const char* idxFileName = va("%s" INDEX_FILE_EXTENSION, afd.fileName);
@@ -821,6 +834,27 @@ void CL_Video_f(void) {
         return;
     }
     Com_Printf("Recording %s at %i fps. stopvideo ends it, and so does the end of the demo.\n", file, afd.frameRate);
+}
+
+qboolean CL_VideoRecordTo(const char* file) {
+    void* pipe;
+
+    if (!clc.demoplaying || afd.fileOpen) {
+        return qfalse;
+    }
+    afdLastOk = qfalse;
+    if (CL_VideoOpenEncoder(file)) {
+        return qtrue;
+    }
+    pipe = CL_VideoOpenFfmpeg(file);
+    if (!pipe) {
+        return qfalse;
+    }
+    if (!CL_OpenAVIForWriting(file, pipe)) {
+        Sys_PipeClose(pipe);
+        return qfalse;
+    }
+    return qtrue;
 }
 
 void CL_StopVideo_f(void) {

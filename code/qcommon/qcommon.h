@@ -903,6 +903,7 @@ qboolean Sys_LowPhysicalMemory(void);
 void Sys_Beep(void);
 
 void Sys_SetEnv(const char* name, const char* value);
+void Sys_BackgroundPriority(void);
 
 typedef enum {
     DR_YES = 0,

@@ -246,6 +246,8 @@ void CL_ParseSnapshot(msg_t* msg) {
     }
 
     cl.newSnapshots = qtrue;
+
+    CL_ReplaySnapshot();
 }
 
 int cl_connectedToPureServer;
@@ -408,6 +410,8 @@ void CL_ParseGamestate(msg_t* msg) {
         Q_strncpyz(cl_oldGame, oldGame, sizeof(cl_oldGame));
     }
 
+    CL_ReplayGamestate();
+
     workshop = CL_InitDownloads();
 
     demoPos = CL_DemoSuspend();
@@ -558,6 +562,7 @@ void CL_ParseCommandString(msg_t* msg) {
     Q_strncpyz(clc.serverCommands[index], s, sizeof(clc.serverCommands[index]));
     CL_PeekServerId(clc.serverCommands[index]);
     CL_CgamePrefetchCommand(clc.serverCommands[index]);
+    CL_ReplayCommand(seq, clc.serverCommands[index]);
 }
 
 void CL_ParseServerMessage(msg_t* msg) {

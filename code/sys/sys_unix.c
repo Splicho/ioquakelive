@@ -1088,6 +1088,12 @@ void Sys_SetEnv(const char* name, const char* value) {
         unsetenv(name);
 }
 
+void Sys_BackgroundPriority(void) {
+    int niceness = nice(10);
+
+    (void)niceness;
+}
+
 int Sys_PID(void) {
     return getpid();
 }

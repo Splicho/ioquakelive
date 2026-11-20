@@ -1216,6 +1216,10 @@ void Sys_SetEnv(const char* name, const char* value) {
         _putenv(va("%s=", name));
 }
 
+void Sys_BackgroundPriority(void) {
+    SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+}
+
 int Sys_PID(void) {
     return GetCurrentProcessId();
 }

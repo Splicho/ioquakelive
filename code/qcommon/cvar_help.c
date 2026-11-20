@@ -719,6 +719,7 @@ static const cvarHelp_t cvarHelp[] = {
     {"cl_streamerPort", "local port used by " HC("cl_streamerMode") " to serve live data"},
     {"cl_streamerRate", "number of times per second " HC("cl_streamerMode") " sends live data"},
     {"cl_streamerClients", "programs currently reading " HC("cl_streamerMode") " live data"},
+    {"cl_replaySeconds", "seconds of gameplay kept for " S_COLOR_CVAR "replay" S_COLOR_HELP},
     {"sensitivity", "mouse sensitivity"},
     {"cl_mouseAccel", "mouse acceleration: how much the sensitivity grows with speed; negative lowers it"},
     {"cl_mouseAccelOffset", "speed at which the acceleration starts"},
