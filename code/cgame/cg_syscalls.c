@@ -391,6 +391,10 @@ void trap_MatchAlert(qboolean start) {
     syscall(CG_MATCH_ALERT, start);
 }
 
+void trap_StreamerPublish(const char* type, const char* json) {
+    syscall(CG_STREAMER_PUBLISH, type, json);
+}
+
 qboolean trap_GetUserCmd(int cmdNumber, usercmd_t* ucmd) {
     return syscall(CG_GETUSERCMD, cmdNumber, ucmd);
 }

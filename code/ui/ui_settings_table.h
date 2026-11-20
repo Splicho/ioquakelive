@@ -328,7 +328,11 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_SPECTATING, "Draw Input", "cg_drawinputcmds", ST_SELECT, 0.0f, 2.0f, 0.0f, stOpts_cg_drawinputcmds, 3, "Display the player's movement input commands.", 0},
     {ST_TAB_SPECTATING, "Target Status", "ch_drawtargetstatus", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Show the health and armor of any player under the crosshair, not only teammates.", 0},
     {ST_TAB_SPECTATING, "Follow Frags", "ch_followkiller", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Switch to whoever gets a frag, at most once every two seconds.", 0},
+    {ST_TAB_STREAMING, "Streaming", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
+    {ST_TAB_STREAMING, "Streamer Mode", "cl_streamermode", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Share live match data with OBS and other tools, and keep the last seconds of gameplay available for replay.", 0},
+    {ST_TAB_STREAMING, "Data Port", "cl_streamerport", ST_INPUT, 0.0f, 0.0f, 0.0f, NULL, 0, "Live data is served at http://127.0.0.1:port/events. Change the port if another program is using it.", 0},
+    {ST_TAB_STREAMING, "Data Rate", "cl_streamerrate", ST_RANGE, 1.0f, 60.0f, 1.0f, NULL, 0, "How many times per second live data is sent.", 0},
 };
 
-static const char* const stTabNames[] = {"INPUT", "GAMEPAD", "BASIC", "GAME", "HUD", "TEAM", "WEAPONS", "VIDEO", "SOUND", "SPECTATING"};
+static const char* const stTabNames[] = {"INPUT", "GAMEPAD", "BASIC", "GAME", "HUD", "TEAM", "WEAPONS", "VIDEO", "SOUND", "SPECTATING", "STREAMING"};
 

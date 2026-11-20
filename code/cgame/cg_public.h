@@ -182,7 +182,8 @@ typedef enum {
     CG_CLUB_FLAG,
     CG_R_SHADERIMAGESIZE,
     CG_MATCH_ALERT,
-    CG_R_PREFETCHSKIN
+    CG_R_PREFETCHSKIN,
+    CG_STREAMER_PUBLISH
 } cgameImport_t;
 
 typedef enum {
@@ -222,6 +223,8 @@ typedef enum {
 
     CG_DEMO_REWIND,
 
-    CG_PREFETCH_CLIENT
+    CG_PREFETCH_CLIENT,
+
+    CG_STREAMER_STATE
 } cgameExport_t;
 

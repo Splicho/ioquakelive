@@ -1307,6 +1307,7 @@ Q3OBJ = \
   $(B)/client/cl_ui.o \
   $(B)/client/cl_avi.o \
   $(B)/client/cl_demowindow.o \
+  $(B)/client/cl_streamer.o \
   \
   $(B)/client/cm_load.o \
   $(B)/client/cm_patch.o \
@@ -1935,6 +1936,7 @@ Q3CGOBJ_ = \
   $(B)/$(BASEGAME)/cgame/cg_scoreboard.o \
   $(B)/$(BASEGAME)/cgame/cg_servercmds.o \
   $(B)/$(BASEGAME)/cgame/cg_snapshot.o \
+  $(B)/$(BASEGAME)/cgame/cg_streamer.o \
   $(B)/$(BASEGAME)/cgame/cg_view.o \
   $(B)/$(BASEGAME)/cgame/cg_weapons.o \
   $(B)/$(BASEGAME)/ui/ui_shared.o \

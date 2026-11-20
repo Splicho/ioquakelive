@@ -1650,6 +1650,7 @@ static void CG_ServerCommand(void) {
         CG_RemoveChatEscapeChar(text);
         CG_ChatConsoleAvatar(CG_ChatSender(CG_Argv(1)));
         CG_Printf("%s\n", text);
+        CG_StreamerChat(CG_ChatSender(CG_Argv(1)), qfalse, text);
         CG_AddChatFrom(text, 0, 0, CG_ChatSender(CG_Argv(1)));
         return;
     }
@@ -1710,6 +1711,7 @@ static void CG_ServerCommand(void) {
         CG_RemoveChatEscapeChar(text);
         CG_ChatConsoleAvatar(CG_ChatSender(CG_Argv(1)));
         CG_Printf("%s\n", text);
+        CG_StreamerChat(CG_ChatSender(CG_Argv(1)), qtrue, text);
         CG_AddToTeamChat(text);
         CG_AddChatFrom(text, 1, 0, CG_ChatSender(CG_Argv(1)));
         return;

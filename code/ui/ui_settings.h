@@ -33,6 +33,7 @@ typedef enum {
     ST_TAB_VIDEO,
     ST_TAB_SOUND,
     ST_TAB_SPECTATING,
+    ST_TAB_STREAMING,
     ST_NUM_TABS
 } stTab_t;
 

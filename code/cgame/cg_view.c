@@ -1237,6 +1237,8 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 
     CG_DemoCursorFrame();
 
+    CG_StreamerFrame();
+
     if (cg_stats.integer) {
         CG_Printf("cg.clientFrame:%i\n", cg.clientFrame);
     }

@@ -1291,6 +1291,7 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
             int team = cgs.clientinfo[cg.clientNum].team;
 
             DEBUGNAME("EV_GLOBAL_TEAM_SOUND");
+            CG_StreamerTeamSound(es->eventParm);
             switch (es->eventParm) {
                 case GTS_RED_CAPTURE:
                     trap_S_StartLocalSound(team == TEAM_RED ? cgs.media.captureYourTeamSound : cgs.media.captureOpponentSound,
@@ -1606,6 +1607,7 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
 
         case EV_OBITUARY:
             DEBUGNAME("EV_OBITUARY");
+            CG_StreamerFrag(es);
             CG_Obituary(es);
             break;
 

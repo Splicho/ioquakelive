@@ -107,6 +107,9 @@ Q_EXPORT intptr_t vmMain(int command, intptr_t arg0, intptr_t arg1, intptr_t arg
         case CG_PREFETCH_CLIENT:
             CG_PrefetchClient(arg0, (const char*)arg1);
             return 0;
+        case CG_STREAMER_STATE:
+            CG_StreamerState();
+            return 0;
         default:
             CG_Error("vmMain: unknown command %i", command);
             break;

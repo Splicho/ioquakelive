@@ -2311,6 +2311,13 @@ int trap_GetCurrentCmdNumber(void);
 
 qboolean trap_GetPendingCmd(usercmd_t* ucmd);
 void trap_MatchAlert(qboolean start);
+void trap_StreamerPublish(const char* type, const char* json);
+
+void CG_StreamerState(void);
+void CG_StreamerFrame(void);
+void CG_StreamerFrag(const entityState_t* es);
+void CG_StreamerTeamSound(int sound);
+void CG_StreamerChat(int sender, qboolean team, const char* text);
 qboolean trap_GetUserCmd(int cmdNumber, usercmd_t* ucmd);
 
 void trap_SetUserCmdValue(int stateValue, int weaponPrimary, float sensitivityScale, int fov);

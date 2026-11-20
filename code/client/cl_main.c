@@ -3170,6 +3170,7 @@ void CL_Frame(int msec) {
             CL_UpdateFrame();
         }
         CL_DemoWindowFrame();
+        CL_StreamerFrame();
 
         CL_MatchReportFrame();
         CL_VoiceFrame();
@@ -3877,6 +3878,7 @@ void CL_Init(void) {
     Cmd_AddCommand("record", CL_Record_f);
     CL_VideoInit();
     CL_DemoWindowInit();
+    CL_StreamerInit();
     Cmd_AddCommand("demowindow", CL_DemoWindow_f);
     Cmd_SetCommandCompletionFunc("demowindow", CL_CompleteDemoName);
     Cmd_AddCommand("video", CL_Video_f);
@@ -3940,6 +3942,7 @@ void CL_Init(void) {
 
 void CL_Shutdown(char* finalmsg, qboolean disconnect, qboolean quit) {
     CL_DemoWindowShutdown();
+    CL_StreamerShutdown();
     static qboolean recursive = qfalse;
 
     if (!(com_cl_running && com_cl_running->integer))

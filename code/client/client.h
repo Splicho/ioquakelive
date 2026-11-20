@@ -550,6 +550,11 @@ void CL_DemoWindowDraw(void);
 void CL_DemoWindowFrame(void);
 qboolean CL_DemoWindowRoute(const char* name);
 qboolean CL_DemoWindowTakeFrame(const byte* image, int size);
+
+void CL_StreamerInit(void);
+void CL_StreamerShutdown(void);
+void CL_StreamerFrame(void);
+void CL_StreamerPublish(const char* type, const char* json);
 void CL_Video_f(void);
 void CL_StopVideo_f(void);
 

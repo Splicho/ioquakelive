@@ -719,6 +719,9 @@ static intptr_t CL_CgameSystemCallsInner(intptr_t* args) {
                 re.PrefetchSkin(VMA(1));
             }
             return 0;
+        case CG_STREAMER_PUBLISH:
+            CL_StreamerPublish(VMA(1), VMA(2));
+            return 0;
         case CG_GETUSERCMD:
             return CL_GetUserCmd(args[1], VMA(2));
         case CG_SETUSERCMDVALUE:
