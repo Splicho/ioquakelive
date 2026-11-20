@@ -639,9 +639,6 @@ static const hmItem_t hmMenus[HM_NUM_MENUS][HM_MAX_ITEMS] = {
 #define HM_GRADIENT_SIDE 256
 #define HM_GRADIENT_CACHE 16
 #define HM_OWN_BACKGROUND "ui/assets/backscreen_classic.jpg"
-#define HM_CLASSIC_LOGO_RIGHT 0.898f
-#define HM_CLASSIC_LOGO_AT 0.74f
-#define HM_CLASSIC_EDGE 0.99f
 
 static struct {
     qboolean loaded;
@@ -807,20 +804,6 @@ static qhandle_t UI_Home_CustomBackground(void) {
     return name[0] ? pic : UI_Home_OwnBackground();
 }
 
-static void UI_Home_ClassicMenuBackdrop(qhandle_t pic, float top, float w, float h) {
-    static const vec4_t black = {0, 0, 0, 1};
-    float imgW = w / h > 16.0f / 9.0f ? w : h * (16.0f / 9.0f);
-    float imgH = imgW * (9.0f / 16.0f);
-    float crop = (1.0f - h / imgH) * 0.5f;
-    float x = w * HM_CLASSIC_LOGO_AT - imgW * HM_CLASSIC_LOGO_RIGHT;
-    float end = x + imgW * HM_CLASSIC_EDGE;
-
-    SM_PicPart(0, top, end, h, -x / imgW, crop, HM_CLASSIC_EDGE, 1.0f - crop, pic);
-    if (end < w) {
-        SM_Fill(end, top, w - end, h, black, NULL);
-    }
-}
-
 void UI_Home_RetailBackdrop(void) {
     static const vec4_t ingame = {19 / 255.0f, 68 / 255.0f, 92 / 255.0f, 0.7f};
     float top = -smTop / smScale;
@@ -837,10 +820,6 @@ void UI_Home_RetailBackdrop(void) {
     if (custom) {
         w = smVW;
         h = smBottom - top;
-        if (!ui_background.string[0]) {
-            UI_Home_ClassicMenuBackdrop(custom, top, w, h);
-            return;
-        }
         if (w / h > 16.0f / 9.0f) {
             crop = (1.0f - (16.0f / 9.0f) / (w / h)) * 0.5f;
             SM_PicPart(0, top, w, h, 0, crop, 1, 1.0f - crop, custom);
