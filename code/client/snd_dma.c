@@ -860,10 +860,35 @@ void S_Base_Update(void) {
     S_Update_();
 }
 
+static void S_VideoResync(int shift) {
+    channel_t* ch = s_channels;
+    int i;
+
+    for (i = 0; i < MAX_CHANNELS; i++, ch++) {
+        if (ch->thesfx && ch->startSample != START_SAMPLE_IMMEDIATE) {
+            ch->startSample += shift;
+        }
+    }
+    for (i = 0; i < MAX_VOICE_CHANNELS; i++) {
+        s_voiceChannels[i].end += shift;
+        s_voiceChannels[i].start = s_voiceChannels[i].end;
+    }
+    Com_Memset(s_rawend, 0, sizeof(s_rawend));
+    clc.aviSoundFrameRemainder = 0;
+
+    SNDDMA_BeginPainting();
+    if (dma.buffer) {
+        Com_Memset(dma.buffer, dma.samplebits == 8 ? 0x80 : 0, dma.samples * dma.samplebits / 8);
+    }
+    SNDDMA_Submit();
+}
+
 void S_GetSoundtime(void) {
     int samplepos;
+    int videoPainted = s_paintedtime;
     static int buffers;
     static int oldsamplepos;
+    static qboolean recorded;
 
     if (CL_VideoRecording()) {
         float fps = MIN(cl_videoFrameRate->value, 1000.0f);
@@ -872,6 +897,7 @@ void S_GetSoundtime(void) {
         int msec = (int)frameDuration;
         s_soundtime += msec;
         clc.aviSoundFrameRemainder = frameDuration - msec;
+        recorded = qtrue;
 
         return;
     }
@@ -902,6 +928,10 @@ void S_GetSoundtime(void) {
         s_paintedtime = s_soundtime + s_mixPreStep->value * dma.speed;
     } else {
         s_paintedtime = s_soundtime + dma.submission_chunk;
+    }
+    if (recorded) {
+        recorded = qfalse;
+        S_VideoResync(s_paintedtime - videoPainted);
     }
 }
 

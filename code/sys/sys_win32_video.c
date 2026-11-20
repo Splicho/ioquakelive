@@ -38,8 +38,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 
 #define VIDEO_TICKS 10000000LL
-#define VIDEO_QUALITY 80
-#define VIDEO_PIXELS_PER_BIT 12
+#define VIDEO_QUALITY 90
+#define VIDEO_SPEED 100
+#define VIDEO_PIXELS_PER_BIT 2
 #define VIDEO_AAC_BYTES 24000
 
 #define LUMA_R 11966
@@ -78,6 +79,7 @@ typedef struct {
 
 static const GUID videoRateControl = {STATIC_CODECAPI_AVEncCommonRateControlMode};
 static const GUID videoQuality = {STATIC_CODECAPI_AVEncCommonQuality};
+static const GUID videoSpeed = {STATIC_CODECAPI_AVEncCommonQualityVsSpeed};
 
 static HMODULE mfPlat;
 static HMODULE mfReadWrite;
@@ -179,9 +181,9 @@ static void Sys_VideoRelease(IMFMediaType** type) {
     }
 }
 
-static HRESULT Sys_VideoInput(sysVideo_t* v, IMFMediaType* type) {
+static HRESULT Sys_VideoQuality(sysVideo_t* v, IMFMediaType* type, BOOL speed) {
     IMFAttributes* params = NULL;
-    HRESULT hr = pMFCreateAttributes(&params, 2);
+    HRESULT hr = pMFCreateAttributes(&params, 3);
 
     if (SUCCEEDED(hr)) {
         hr = IMFAttributes_SetUINT32(params, &videoRateControl, eAVEncCommonRateControlMode_Quality);
@@ -189,11 +191,23 @@ static HRESULT Sys_VideoInput(sysVideo_t* v, IMFMediaType* type) {
     if (SUCCEEDED(hr)) {
         hr = IMFAttributes_SetUINT32(params, &videoQuality, VIDEO_QUALITY);
     }
+    if (SUCCEEDED(hr) && speed) {
+        hr = IMFAttributes_SetUINT32(params, &videoSpeed, VIDEO_SPEED);
+    }
     if (SUCCEEDED(hr)) {
         hr = IMFSinkWriter_SetInputMediaType(v->writer, v->videoStream, type, params);
     }
     if (params) {
         IMFAttributes_Release(params);
+    }
+    return hr;
+}
+
+static HRESULT Sys_VideoInput(sysVideo_t* v, IMFMediaType* type, BOOL hardware) {
+    HRESULT hr = hardware ? Sys_VideoQuality(v, type, TRUE) : E_FAIL;
+
+    if (FAILED(hr)) {
+        hr = Sys_VideoQuality(v, type, FALSE);
     }
     if (FAILED(hr)) {
         hr = IMFSinkWriter_SetInputMediaType(v->writer, v->videoStream, type, NULL);
@@ -201,7 +215,7 @@ static HRESULT Sys_VideoInput(sysVideo_t* v, IMFMediaType* type) {
     return hr;
 }
 
-static HRESULT Sys_VideoStreams(sysVideo_t* v) {
+static HRESULT Sys_VideoStreams(sysVideo_t* v, BOOL hardware) {
     IMFMediaType* type = NULL;
     UINT64 bitrate = (UINT64)v->width * v->height * v->fps / VIDEO_PIXELS_PER_BIT;
     HRESULT hr = Sys_VideoMediaType(&type, &MFMediaType_Video, &MFVideoFormat_H264);
@@ -229,7 +243,7 @@ static HRESULT Sys_VideoStreams(sysVideo_t* v) {
         hr = IMFMediaType_SetUINT32(type, &MF_MT_DEFAULT_STRIDE, v->width);
     }
     if (SUCCEEDED(hr)) {
-        hr = Sys_VideoInput(v, type);
+        hr = Sys_VideoInput(v, type, hardware);
     }
     Sys_VideoRelease(&type);
     if (SUCCEEDED(hr) && v->rate) {
@@ -281,7 +295,7 @@ static HRESULT Sys_VideoCreate(sysVideo_t* v, BOOL hardware) {
         IMFAttributes_Release(attributes);
     }
     if (SUCCEEDED(hr)) {
-        hr = Sys_VideoStreams(v);
+        hr = Sys_VideoStreams(v, hardware);
     }
     if (FAILED(hr)) {
         if (v->writer) {

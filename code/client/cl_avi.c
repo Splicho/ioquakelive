@@ -54,7 +54,7 @@ typedef struct aviFileData_s {
     qboolean encoderFailed;
     int encoderRate;
     double resamplePos;
-    short resampleLast[2];
+    int resampleCount;
 
     int frameRate;
     int framePeriod;
@@ -445,6 +445,66 @@ void CL_WriteAVIVideoFrame(const byte* imageBuffer, int size) {
 
 #define PCM_BUFFER_SIZE 44100
 #define RESAMPLE_BLOCK 2048
+#define RESAMPLE_HALF 32
+#define RESAMPLE_PHASES 512
+#define RESAMPLE_FIFO 8192
+#define RESAMPLE_CUTOFF 0.9
+#define RESAMPLE_BETA 8.6
+
+static float resampleTable[RESAMPLE_PHASES + 1][RESAMPLE_HALF * 2];
+static short resampleFifo[(RESAMPLE_FIFO + RESAMPLE_HALF * 2) * 2];
+static double resampleBuilt;
+
+static double CL_VideoBessel(double x) {
+    double sum = 1.0, term = 1.0;
+    int k;
+
+    for (k = 1; k < 32; k++) {
+        term *= (x / (2.0 * k)) * (x / (2.0 * k));
+        sum += term;
+    }
+    return sum;
+}
+
+static void CL_VideoResampleTable(double cutoff) {
+    int p, k;
+
+    for (p = 0; p <= RESAMPLE_PHASES; p++) {
+        double sum = 0.0;
+
+        for (k = 0; k < RESAMPLE_HALF * 2; k++) {
+            double d = (k - (RESAMPLE_HALF - 1)) - (double)p / RESAMPLE_PHASES;
+            double u = d / RESAMPLE_HALF;
+            double x = M_PI * cutoff * d;
+            double h = fabs(x) < 1e-9 ? cutoff : cutoff * sin(x) / x;
+
+            h *= fabs(u) < 1.0 ? CL_VideoBessel(RESAMPLE_BETA * sqrt(1.0 - u * u)) / CL_VideoBessel(RESAMPLE_BETA) : 0.0;
+            resampleTable[p][k] = (float)h;
+            sum += h;
+        }
+        for (k = 0; k < RESAMPLE_HALF * 2; k++) {
+            resampleTable[p][k] = (float)(resampleTable[p][k] / sum);
+        }
+    }
+    resampleBuilt = cutoff;
+}
+
+static void CL_VideoResampleStart(void) {
+    double cutoff = RESAMPLE_CUTOFF * MIN(1.0, (double)afd.encoderRate / afd.a.rate);
+
+    if (resampleBuilt != cutoff) {
+        CL_VideoResampleTable(cutoff);
+    }
+    Com_Memset(resampleFifo, 0, sizeof(resampleFifo));
+    afd.resampleCount = RESAMPLE_HALF - 1;
+    afd.resamplePos = RESAMPLE_HALF - 1;
+}
+
+static short CL_VideoClampSample(float v) {
+    int s = (int)floorf(v + 0.5f);
+
+    return (short)(s > 32767 ? 32767 : s < -32768 ? -32768 : s);
+}
 
 static void CL_VideoAudioOut(const short* pcm, int count) {
     if (!afd.encoderFailed && !Sys_VideoAudio(afd.encoder, pcm, count)) {
@@ -458,29 +518,47 @@ static void CL_VideoResample(const short* in, int count) {
     double step = (double)afd.a.rate / afd.encoderRate;
     int n = 0;
 
-    while (afd.resamplePos < count) {
-        int i = (int)afd.resamplePos;
-        float t = (float)(afd.resamplePos - i);
-        int c;
+    if (afd.a.rate == afd.encoderRate) {
+        CL_VideoAudioOut(in, count);
+        afd.numAudioFrames++;
+        return;
+    }
+    while (count > 0) {
+        int take = MIN(count, RESAMPLE_FIFO + RESAMPLE_HALF * 2 - afd.resampleCount);
+        int drop;
 
-        for (c = 0; c < 2; c++) {
-            float a = i ? in[(i - 1) * 2 + c] : afd.resampleLast[c];
+        Com_Memcpy(resampleFifo + afd.resampleCount * 2, in, take * 4);
+        afd.resampleCount += take;
+        in += take * 2;
+        count -= take;
+        while (afd.resamplePos + RESAMPLE_HALF < afd.resampleCount) {
+            int i = (int)afd.resamplePos;
+            const float* h = resampleTable[(int)((afd.resamplePos - i) * RESAMPLE_PHASES + 0.5)];
+            const short* s = resampleFifo + (i - (RESAMPLE_HALF - 1)) * 2;
+            float l = 0.0f, r = 0.0f;
+            int k;
 
-            out[n * 2 + c] = (short)(a + (in[i * 2 + c] - a) * t);
+            for (k = 0; k < RESAMPLE_HALF * 2; k++) {
+                l += h[k] * s[k * 2];
+                r += h[k] * s[k * 2 + 1];
+            }
+            out[n * 2] = CL_VideoClampSample(l);
+            out[n * 2 + 1] = CL_VideoClampSample(r);
+            afd.resamplePos += step;
+            if (++n == RESAMPLE_BLOCK) {
+                CL_VideoAudioOut(out, n);
+                n = 0;
+            }
         }
-        afd.resamplePos += step;
-        if (++n == RESAMPLE_BLOCK) {
-            CL_VideoAudioOut(out, n);
-            n = 0;
+        drop = (int)afd.resamplePos - (RESAMPLE_HALF - 1);
+        if (drop > 0) {
+            memmove(resampleFifo, resampleFifo + drop * 2, (afd.resampleCount - drop) * 4);
+            afd.resampleCount -= drop;
+            afd.resamplePos -= drop;
         }
     }
     if (n) {
         CL_VideoAudioOut(out, n);
-    }
-    if (count > 0) {
-        afd.resampleLast[0] = in[(count - 1) * 2];
-        afd.resampleLast[1] = in[(count - 1) * 2 + 1];
-        afd.resamplePos -= count;
     }
     afd.numAudioFrames++;
 }
@@ -789,7 +867,9 @@ static qboolean CL_VideoOpenEncoder(const char* file) {
     Q_strncpyz(afd.fileName, file, MAX_QPATH);
     afd.encoder = encoder;
     afd.encoderRate = rate;
-    afd.resamplePos = 1.0;
+    if (rate) {
+        CL_VideoResampleStart();
+    }
     afd.framePeriod = (int)(1000000.0f / afd.frameRate);
     afd.cBuffer = Z_Malloc((afd.width * 4 + MAX_PACK_LEN - 1) * afd.height + MAX_PACK_LEN - 1);
     afd.eBuffer = Z_Malloc(PAD(afd.width * 3, AVI_LINE_PADDING) * afd.height);
