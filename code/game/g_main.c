@@ -1758,17 +1758,20 @@ void RemoveTournamentWinner(void) {
 }
 
 void AdjustTournamentScores(void) {
+    int i;
     int clientNum;
 
-    clientNum = level.sortedClients[0];
-    if (level.clients[clientNum].pers.connected == CON_CONNECTED) {
-        level.clients[clientNum].sess.wins++;
-        ClientUserinfoChanged(clientNum);
-    }
-
-    clientNum = level.sortedClients[1];
-    if (level.clients[clientNum].pers.connected == CON_CONNECTED) {
-        level.clients[clientNum].sess.losses++;
+    for (i = 0; i < level.numPlayingClients; i++) {
+        clientNum = level.sortedClients[i];
+        if (level.clients[clientNum].pers.connected != CON_CONNECTED ||
+            level.clients[clientNum].sess.sessionTeam != TEAM_FREE) {
+            continue;
+        }
+        if (i == 0) {
+            level.clients[clientNum].sess.wins++;
+        } else {
+            level.clients[clientNum].sess.losses++;
+        }
         ClientUserinfoChanged(clientNum);
     }
 }
@@ -1965,6 +1968,10 @@ void CalculateRanks(void) {
                 }
             }
         }
+    }
+
+    if (CheckForfeitConditions(NULL, 0)) {
+        ForfeitMatch();
     }
 
     qsort(level.sortedClients, level.numConnectedClients,
@@ -2559,6 +2566,10 @@ void CheckExitRules(void) {
 
     if (level.warmupTime != 0) {
         return;
+    }
+
+    if (CheckForfeitConditions(NULL, 0)) {
+        ForfeitMatch();
     }
 
     switch ( g_gametype.integer ) {
