@@ -1173,6 +1173,8 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 
     CG_CalcViewValues();
 
+    CG_SplitBeginFrame();
+
     if (!cg.renderingThirdPerson) {
         CG_DamageBlendBlob();
     }

@@ -433,6 +433,7 @@ vmCvar_t cg_specItemTimersX;
 vmCvar_t cg_specItemTimersY;
 vmCvar_t cg_specNames;
 vmCvar_t cg_specTeamVitals;
+vmCvar_t cg_splitClient;
 vmCvar_t cg_specTeamVitalsHealthColor;
 vmCvar_t cg_specTeamVitalsWidth;
 vmCvar_t cg_specTeamVitalsY;
@@ -725,6 +726,7 @@ static cvarTable_t cvarTable[] = {
     {&ch_chatLines, "ch_chatLines", "3", CVAR_ARCHIVE},
     {&ch_drawLocalTime, "ch_drawLocalTime", "0", CVAR_ARCHIVE},
     {&ch_drawSpectators, "ch_drawSpectators", "1", CVAR_ARCHIVE | CVAR_USERINFO},
+    {&cg_splitClient, "cg_splitClient", "", CVAR_USERINFO | CVAR_TEMP},
     {&ch_drawTargetStatus, "ch_drawTargetStatus", "1", CVAR_ARCHIVE},
     {&ch_autoStats, "ch_autoStats", "0", CVAR_ARCHIVE},
     {&cg_demoKeys, "cg_demoKeys", "0", CVAR_ARCHIVE},

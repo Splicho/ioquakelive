@@ -925,6 +925,9 @@ void SV_UserinfoChanged(client_t* cl) {
 
     Q_strncpyz(cl->name, Info_ValueForKey(cl->userinfo, "name"), sizeof(cl->name));
 
+    val = Info_ValueForKey(cl->userinfo, "cg_splitClient");
+    cl->splitView = val[0] ? atoi(val) + 1 : 0;
+
     val = Info_ValueForKey(cl->userinfo, "rate");
     if (strlen(val)) {
         i = atoi(val);

@@ -334,6 +334,8 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_STREAMING, "Data Rate", "cl_streamerrate", ST_RANGE, 1.0f, 60.0f, 1.0f, NULL, 0, "How many times per second live data is sent.", 0},
     {ST_TAB_STREAMING, "Replay Length", "cl_replayseconds", ST_RANGE, 5.0f, 60.0f, 5.0f, NULL, 0, "Number of seconds of gameplay kept for replay.", 0},
     {ST_TAB_STREAMING, "Replay", "replay", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, "Save the last seconds of gameplay as a video. Replays are saved in videos/replays, and videos/replay.mp4 always contains the latest one, ready to use in OBS.", 1},
+    {ST_TAB_STREAMING, "Split Screen", "split", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, "While spectating, show the followed player and another player side by side. Press again to return to the normal view.", 1},
+    {ST_TAB_STREAMING, "Next Split Player", "splitnext", ST_BIND, 0.0f, 0.0f, 0.0f, NULL, 0, "Change the player shown on the right side of the split screen.", 1},
 };
 
 static const char* const stTabNames[] = {"INPUT", "GAMEPAD", "BASIC", "GAME", "HUD", "TEAM", "WEAPONS", "VIDEO", "SOUND", "SPECTATING", "STREAMING"};

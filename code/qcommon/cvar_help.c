@@ -720,6 +720,7 @@ static const cvarHelp_t cvarHelp[] = {
     {"cl_streamerRate", "number of times per second " HC("cl_streamerMode") " sends live data"},
     {"cl_streamerClients", "programs currently reading " HC("cl_streamerMode") " live data"},
     {"cl_replaySeconds", "seconds of gameplay kept for " S_COLOR_CVAR "replay" S_COLOR_HELP},
+    {"cg_splitClient", "player shown on the right side of the split screen; set by " S_COLOR_CVAR "split" S_COLOR_HELP " and " S_COLOR_CVAR "splitnext" S_COLOR_HELP},
     {"sensitivity", "mouse sensitivity"},
     {"cl_mouseAccel", "mouse acceleration: how much the sensitivity grows with speed; negative lowers it"},
     {"cl_mouseAccelOffset", "speed at which the acceleration starts"},

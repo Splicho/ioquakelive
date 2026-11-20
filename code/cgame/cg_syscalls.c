@@ -296,14 +296,17 @@ void trap_R_ClearScene(void) {
 }
 
 void trap_R_AddRefEntityToScene(const refEntity_t* re) {
+    CG_SplitRecordEntity(re);
     syscall(CG_R_ADDREFENTITYTOSCENE, re);
 }
 
 void trap_R_AddPolyToScene(qhandle_t hShader, int numVerts, const polyVert_t* verts) {
+    CG_SplitRecordPolys(hShader, numVerts, verts, 1);
     syscall(CG_R_ADDPOLYTOSCENE, hShader, numVerts, verts);
 }
 
 void trap_R_AddPolysToScene(qhandle_t hShader, int numVerts, const polyVert_t* verts, int num) {
+    CG_SplitRecordPolys(hShader, numVerts, verts, num);
     syscall(CG_R_ADDPOLYSTOSCENE, hShader, numVerts, verts, num);
 }
 
@@ -312,14 +315,17 @@ int trap_R_LightForPoint(vec3_t point, vec3_t ambientLight, vec3_t directedLight
 }
 
 void trap_R_AddLightToScene(const vec3_t org, float intensity, float r, float g, float b) {
+    CG_SplitRecordLight(org, intensity, r, g, b, qfalse);
     syscall(CG_R_ADDLIGHTTOSCENE, org, PASSFLOAT(intensity), PASSFLOAT(r), PASSFLOAT(g), PASSFLOAT(b));
 }
 
 void trap_R_AddAdditiveLightToScene(const vec3_t org, float intensity, float r, float g, float b) {
+    CG_SplitRecordLight(org, intensity, r, g, b, qtrue);
     syscall(CG_R_ADDADDITIVELIGHTTOSCENE, org, PASSFLOAT(intensity), PASSFLOAT(r), PASSFLOAT(g), PASSFLOAT(b));
 }
 
 void trap_R_RenderScene(const refdef_t* fd) {
+    CG_SplitStopRecording();
     syscall(CG_R_RENDERSCENE, fd);
 }
 

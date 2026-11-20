@@ -121,6 +121,7 @@ typedef struct client_s {
     char lastClientCommandString[MAX_STRING_CHARS];
     sharedEntity_t* gentity;
     char name[MAX_NAME_LENGTH];
+    int splitView;
 
     char downloadName[MAX_QPATH];
     fileHandle_t download;

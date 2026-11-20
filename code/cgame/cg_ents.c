@@ -1399,7 +1399,9 @@ static void CG_AddCEntity(centity_t* cent) {
             CG_General(cent);
             break;
         case ET_PLAYER:
+            CG_SplitOwner(cent->currentState.number);
             CG_Player(cent);
+            CG_SplitOwner(-1);
             break;
         case ET_ITEM:
             CG_Item(cent);

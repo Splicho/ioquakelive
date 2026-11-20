@@ -2318,6 +2318,19 @@ void CG_StreamerFrame(void);
 void CG_StreamerFrag(const entityState_t* es);
 void CG_StreamerTeamSound(int sound);
 void CG_StreamerChat(int sender, qboolean team, const char* text);
+
+void CG_Split_f(void);
+void CG_SplitNext_f(void);
+qboolean CG_SplitActive(void);
+void CG_SplitBeginFrame(void);
+void CG_SplitOwner(int owner);
+void CG_SplitRecordEntity(const refEntity_t* re);
+void CG_SplitRecordPolys(qhandle_t shader, int numVerts, const polyVert_t* verts, int num);
+void CG_SplitRecordLight(const vec3_t org, float intensity, float r, float g, float b, qboolean additive);
+void CG_SplitStopRecording(void);
+qboolean CG_SplitRender(void);
+void CG_SplitDraw2D(void);
+void CG_DrawSplitCrosshairs(qboolean second);
 qboolean trap_GetUserCmd(int cmdNumber, usercmd_t* ucmd);
 
 void trap_SetUserCmdValue(int stateValue, int weaponPrimary, float sensitivityScale, int fov);

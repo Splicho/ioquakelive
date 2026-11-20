@@ -1905,6 +1905,20 @@ static void CG_DrawCrosshair(void) {
 	trap_R_SetColor(NULL);
 }
 
+void CG_DrawSplitCrosshairs(qboolean second) {
+	refdef_t full = cg.refdef;
+	int half = full.width / 2;
+
+	cg.refdef.width = half;
+	CG_DrawCrosshair();
+	if (second) {
+		cg.refdef.x = full.x + half;
+		cg.refdef.width = full.width - half;
+		CG_DrawCrosshair();
+	}
+	cg.refdef = full;
+}
+
 static void CG_DrawCrosshair3D(void) {
 	float w;
 	qhandle_t hShader;
@@ -3778,10 +3792,12 @@ static void CG_Draw2D(stereoFrame_t stereoFrame) {
 	}
 
 	CG_SetWidescreen(WIDESCREEN_STRETCH);
-	if (!cg.demoPlayback || !(int)trap_Cvar_VariableValue("cl_freezeDemo")) {
-		CG_DrawFloatingEffects();
+	if (!CG_SplitActive()) {
+		if (!cg.demoPlayback || !(int)trap_Cvar_VariableValue("cl_freezeDemo")) {
+			CG_DrawFloatingEffects();
+		}
+		CG_DrawTeammateNames();
 	}
-	CG_DrawTeammateNames();
 
 	if (g_training.integer) {
 		CG_DrawLetterbox();
@@ -3815,6 +3831,11 @@ static void CG_Draw2D(stereoFrame_t stereoFrame) {
 	}
 	if (cg.showJoinMenu && !cg.scoreBoardShowing) {
 		CG_UpdateJoinMenu();
+	}
+	else if (CG_SplitActive()) {
+		if (!cg.scoreBoardShowing) {
+			CG_SplitDraw2D();
+		}
 	}
 	else if ((cg.predictedPlayerState.eFlags & EF_SPECTATOR) ||
 		cg.predictedPlayerState.pm_type == PM_SPECTATOR) {
@@ -3941,7 +3962,9 @@ void CG_DrawActive(stereoFrame_t stereoView) {
 		CG_DrawCrosshair3D();
 
 	trap_R_BeginBloomScene();
-	trap_R_RenderScene(&cg.refdef);
+	if (!CG_SplitRender()) {
+		trap_R_RenderScene(&cg.refdef);
+	}
 	trap_R_ApplyBloom();
 
 	CG_Draw2D(stereoView);

@@ -335,6 +335,43 @@ static void SV_AddEntitiesVisibleFromPoint(vec3_t origin, clientSnapshot_t* fram
     }
 }
 
+#define SV_SPLIT_CS_PLAYERS 529
+#define SV_SPLIT_SPECTATOR 3
+
+static void SV_AddSplitView(client_t* client, const playerState_t* ps, clientSnapshot_t* frame,
+                            snapshotEntityNumbers_t* eNums, int viewerNum) {
+    byte areabits[MAX_MAP_AREA_BYTES];
+    playerState_t* other;
+    const char* info;
+    vec3_t org;
+    int target = client->splitView - 1;
+    int i, areabytes;
+
+    if (target < 0 || target >= sv_maxclients->integer || target == (int)(client - svs.clients) ||
+        target == ps->clientNum) {
+        return;
+    }
+    info = sv.configstrings[SV_SPLIT_CS_PLAYERS + (int)(client - svs.clients)];
+    if (!info || atoi(Info_ValueForKey(info, "t")) != SV_SPLIT_SPECTATOR) {
+        return;
+    }
+    if (svs.clients[target].state != CS_ACTIVE) {
+        return;
+    }
+    other = SV_GameClientNum(target);
+    VectorCopy(other->origin, org);
+    org[2] += other->viewheight;
+    Com_Memcpy(areabits, frame->areabits, sizeof(areabits));
+    areabytes = frame->areabytes;
+    SV_AddEntitiesVisibleFromPoint(org, frame, eNums, qfalse, viewerNum);
+    for (i = 0; i < MAX_MAP_AREA_BYTES; i++) {
+        frame->areabits[i] |= areabits[i];
+    }
+    if (areabytes > frame->areabytes) {
+        frame->areabytes = areabytes;
+    }
+}
+
 static void SV_BuildClientSnapshot(client_t* client) {
     vec3_t org;
     clientSnapshot_t* frame;
@@ -376,6 +413,7 @@ static void SV_BuildClientSnapshot(client_t* client) {
     org[2] += ps->viewheight;
 
     SV_AddEntitiesVisibleFromPoint(org, frame, &entityNumbers, qfalse, clent->s.number);
+    SV_AddSplitView(client, ps, frame, &entityNumbers, clent->s.number);
 
     qsort(entityNumbers.snapshotEntities, entityNumbers.numSnapshotEntities,
           sizeof(entityNumbers.snapshotEntities[0]), SV_QsortEntityNumbers);

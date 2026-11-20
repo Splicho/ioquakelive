@@ -1037,6 +1037,8 @@ static consoleCommand_t commands[] = {
     {"print", CG_Print_f},
     {"kill", CG_Kill_f},
     {"clientmute", CG_ClientMute_f},
+    {"split", CG_Split_f},
+    {"splitnext", CG_SplitNext_f},
 };
 
 qboolean CG_ConsoleCommand(void) {
