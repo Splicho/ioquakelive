@@ -34,11 +34,10 @@ q3bloodTrail
 
 railCoreBlack
 {
-    nopicmip
     sort nearest
     cull none
     {
-        map gfx/misc/railcorethin_mono.tga
+        map gfx/misc/railcoreblack.tga
         blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
         rgbGen vertex
         tcMod scroll -1 0
@@ -47,12 +46,11 @@ railCoreBlack
 
 railDiscBlack
 {
-    nopicmip
     sort nearest
     cull none
     deformVertexes wave 100 sin 0 .5 0 2.4
     {
-        clampmap gfx/misc/raildisc_mono2.tga
+        clampmap gfx/misc/raildiscblack.tga
         blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
         rgbGen vertex
         tcMod rotate -30

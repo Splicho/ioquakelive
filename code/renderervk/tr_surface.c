@@ -593,6 +593,7 @@ static void DoRailCore( const vec3_t start, const vec3_t end, const vec3_t up, f
 	tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shaderRGBA[0] * 0.25;
 	tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shaderRGBA[1] * 0.25;
 	tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shaderRGBA[2] * 0.25;
+	tess.vertexColors[tess.numVertexes].rgba[3] = 255;
 	tess.numVertexes++;
 
 	VectorMA( start, spanWidth2, up, tess.xyz[tess.numVertexes] );
@@ -601,6 +602,7 @@ static void DoRailCore( const vec3_t start, const vec3_t end, const vec3_t up, f
 	tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shaderRGBA[0];
 	tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shaderRGBA[1];
 	tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shaderRGBA[2];
+	tess.vertexColors[tess.numVertexes].rgba[3] = 255;
 	tess.numVertexes++;
 
 	VectorMA( end, spanWidth, up, tess.xyz[tess.numVertexes] );
@@ -610,6 +612,7 @@ static void DoRailCore( const vec3_t start, const vec3_t end, const vec3_t up, f
 	tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shaderRGBA[0];
 	tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shaderRGBA[1];
 	tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shaderRGBA[2];
+	tess.vertexColors[tess.numVertexes].rgba[3] = 255;
 	tess.numVertexes++;
 
 	VectorMA( end, spanWidth2, up, tess.xyz[tess.numVertexes] );
@@ -618,6 +621,7 @@ static void DoRailCore( const vec3_t start, const vec3_t end, const vec3_t up, f
 	tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shaderRGBA[0];
 	tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shaderRGBA[1];
 	tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shaderRGBA[2];
+	tess.vertexColors[tess.numVertexes].rgba[3] = 255;
 	tess.numVertexes++;
 
 	tess.indexes[tess.numIndexes++] = vbase;
