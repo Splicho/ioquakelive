@@ -1217,17 +1217,8 @@ static void CL_UpdateExeDir(void) {
     }
 }
 
-static qboolean CL_UpdateByLauncher(void) {
-    if (CL_UpdateGet(&clDownloadState) != CLD_IDLE || Q_stricmp(Cvar_VariableString("cl_updateStatus"), "available") ||
-        !Sys_OpenLauncher()) {
-        return qfalse;
-    }
-    Cbuf_ExecuteText(EXEC_APPEND, "quit\n");
-    return qtrue;
-}
-
 static void CL_OpenUpdate_f(void) {
-    if (!CL_UpdateByLauncher() && clUpdateURL[0]) {
+    if (clUpdateURL[0]) {
         CL_OpenURL(clUpdateURL);
     }
 }
@@ -1239,7 +1230,7 @@ static void CL_UpdateDownload_f(void) {
         CL_OpenUpdate_f();
         return;
     }
-    if (state != CLD_IDLE || CL_UpdateByLauncher()) {
+    if (state != CLD_IDLE) {
         return;
     }
     clUpdateAutoRestart = qtrue;
@@ -1281,7 +1272,7 @@ void CL_UpdateApplyOnExit(void) {
 #ifdef _WIN32
     RemoveDirectoryA(CL_UpdatePath(va("%s%cbaseq3", CL_UPDATE_STAGE, PATH_SEP)));
     RemoveDirectoryA(CL_UpdatePath(CL_UPDATE_STAGE));
-    if (clUpdateRestart && !Sys_OpenLauncher()) {
+    if (clUpdateRestart) {
         STARTUPINFOA si;
         PROCESS_INFORMATION pi;
         static char line[8192];
@@ -1297,7 +1288,7 @@ void CL_UpdateApplyOnExit(void) {
 #else
     rmdir(CL_UpdatePath(va("%s%cbaseq3", CL_UPDATE_STAGE, PATH_SEP)));
     rmdir(CL_UpdatePath(CL_UPDATE_STAGE));
-    if (clUpdateRestart && !Sys_OpenLauncher()) {
+    if (clUpdateRestart) {
         char* args[2];
 
         args[0] = clUpdateExe;

@@ -505,10 +505,6 @@ int main(int argc, char** argv) {
     char* protocolCommand = NULL;
 #endif
 
-    if (Sys_LauncherHandoff(argc, argv)) {
-        return 0;
-    }
-
     extern void Sys_LaunchAutoupdater(int argc, char** argv);
     Sys_LaunchAutoupdater(argc, argv);
 

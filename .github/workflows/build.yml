@@ -454,18 +454,10 @@ jobs:
         path: staging/engine/
         retention-days: 2
 
-  launcher:
-    name: Launcher
-    if: (github.event_name == 'workflow_dispatch' && !inputs.windows_only) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release:')) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'prerelease:'))
-    uses: ./.github/workflows/launcher.yml
-    with:
-      sign: ${{ github.event_name == 'push' }}
-    secrets: inherit
-
   package:
     name: Package release artifacts
     if: (github.event_name == 'workflow_dispatch' && !inputs.windows_only) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release:')) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'prerelease:'))
-    needs: [linux, macos-bundle, windows, launcher]
+    needs: [linux, macos-bundle, windows]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -504,20 +496,6 @@ jobs:
         path: shared/baseq3/
     - name: Verify shared artifact hashes
       run: sha256sum shared/baseq3/iobin.pk3 shared/baseq3/pak01.pk3
-    - name: Download launcher artifacts
-      uses: actions/download-artifact@v4
-      with:
-        pattern: launcher-*
-        path: launchers
-    - name: Place the launcher
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        python code/tools/place_launcher.py \
-          --launchers launchers \
-          --engines engines \
-          --output release \
-          --repo ${{ github.repository }}
     - name: Build per-platform release zips
       run: |
         VERSION=$(sed -n 's/^#define PRODUCT_VERSION "\(.*\)"/\1/p' code/qcommon/q_shared.h)

@@ -346,7 +346,6 @@ void Com_Quit_f(void) {
         Com_Shutdown();
         FS_Shutdown(qtrue);
         CL_UpdateApplyOnExit();
-        Sys_ReturnToLauncher();
     }
     Sys_Quit();
 }

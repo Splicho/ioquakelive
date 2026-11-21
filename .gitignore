@@ -54,8 +54,6 @@ profile
 !/code/tools/build_release_zips.py
 !/code/tools/make_git_version_header.py
 !/code/tools/gen_fb_skins.py
-!/code/tools/place_launcher.py
-!/code/tools/test_launcher.py
 /code/qcommon/git_version.h
 *.lib
 *.obj

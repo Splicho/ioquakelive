@@ -55,7 +55,7 @@ def main():
     ap.add_argument('--shared', required=True, help='dir to inline into every zip (contains baseq3/)')
     ap.add_argument('--engines', required=True, help='parent dir containing engine-<platform>/ subdirs')
     ap.add_argument('--output', required=True, help='dir to write release zips into')
-    ap.add_argument('--version', default='', help='written as the zip comment, read by the launcher')
+    ap.add_argument('--version', default='', help='written as the zip comment')
     args = ap.parse_args()
 
     if not os.path.isdir(args.shared):
