@@ -76,7 +76,7 @@ void CG_BloodTrail(localEntity_t* le) {
     vec3_t newOrigin;
     localEntity_t* blood;
 
-    if (!cgs.media.bloodSprayShaders[0]) {
+    if (!CG_Q3BloodEnabled() || !cgs.media.bloodSprayShaders[0]) {
         return;
     }
 
@@ -169,7 +169,7 @@ void CG_FragmentBounceMark(localEntity_t* le, trace_t* trace) {
 
 void CG_FragmentBounceSound(localEntity_t* le, trace_t* trace) {
     if (le->leBounceSoundType == LEBS_BLOOD) {
-        if (cgs.media.gibSkull && (rand() & 1)) {
+        if (CG_Q3GibsEnabled() && (rand() & 1)) {
             int r = rand() & 3;
             sfxHandle_t s;
 

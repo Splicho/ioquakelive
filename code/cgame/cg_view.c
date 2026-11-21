@@ -624,7 +624,7 @@ static void CG_DamageBlendBlob(void) {
     VectorMA(ent.origin, cg.damageY * 8, cg.refdef.viewaxis[2], ent.origin);
 
     ent.radius = cg.damageValue * 3;
-    ent.customShader = cgs.media.bloodSprayShaders[0] ? cgs.media.viewBloodShader : cgs.media.viewDamageShader;
+    ent.customShader = CG_Q3BloodEnabled() ? cgs.media.viewBloodShader : cgs.media.viewDamageShader;
 
     {
         int color = CG_ScreenDamageColor();

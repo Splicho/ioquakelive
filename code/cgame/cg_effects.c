@@ -727,10 +727,18 @@ localEntity_t* CG_MakeExplosion(vec3_t origin, vec3_t dir, qhandle_t hModel, qha
     return ex;
 }
 
+qboolean CG_Q3GibsEnabled(void) {
+    return (qboolean)(cg_useQ3gibs.integer && cgs.media.gibSkull);
+}
+
+qboolean CG_Q3BloodEnabled(void) {
+    return (qboolean)(cg_useQ3gibs.integer && cgs.media.bloodSprayShaders[0]);
+}
+
 void CG_Bleed(vec3_t origin, int entityNum) {
     localEntity_t* blood;
 
-    if (!cg_blood.integer) {
+    if (!cg_blood.integer || !CG_Q3BloodEnabled()) {
         return;
     }
 
@@ -1009,7 +1017,7 @@ void CG_GibPlayer(vec3_t playerOrigin, vec3_t dir) {
     float gibVelocity, gibJump, mix;
     int count, i;
 
-    if (cgs.media.gibSkull) {
+    if (CG_Q3GibsEnabled()) {
         CG_GibPlayerBodyParts(playerOrigin);
         return;
     }
@@ -1113,7 +1121,7 @@ void CG_LaunchExplode(vec3_t origin, vec3_t velocity, qhandle_t hModel) {
 void CG_BigExplode(vec3_t playerOrigin) {
     vec3_t origin, velocity;
 
-    if (!cg_blood.integer) {
+    if (!cg_blood.integer || !CG_Q3BloodEnabled()) {
         return;
     }
 

@@ -1615,6 +1615,7 @@ extern vmCvar_t cg_teamChatHeight;
 extern vmCvar_t cg_stats;
 extern vmCvar_t cg_paused;
 extern vmCvar_t cg_blood;
+extern vmCvar_t cg_useQ3gibs;
 
 extern vmCvar_t cg_gibCount;
 extern vmCvar_t cg_gibColor;
@@ -2138,6 +2139,8 @@ void CG_BloodSplat(vec3_t origin);
 void CG_PlayBloodSound(vec3_t origin);
 
 void CG_GibPlayer(vec3_t playerOrigin, vec3_t dir);
+qboolean CG_Q3GibsEnabled(void);
+qboolean CG_Q3BloodEnabled(void);
 qhandle_t CG_ElectroGibSparkShader(vec4_t color);
 void CG_BigExplode(vec3_t playerOrigin);
 

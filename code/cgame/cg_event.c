@@ -1196,7 +1196,7 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
             break;
         case EV_JUICED:
             DEBUGNAME("EV_JUICED");
-            if (cgs.media.gibSkull) {
+            if (CG_Q3GibsEnabled()) {
                 CG_InvulnerabilityJuiced(cent->lerpOrigin);
             } else {
                 CG_GibPlayer(cent->lerpOrigin, NULL);
@@ -1647,7 +1647,7 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
         case EV_GIB_PLAYER:
             DEBUGNAME("EV_GIB_PLAYER");
             if (!(es->eFlags & EF_KAMIKAZE)) {
-                if (cgs.media.gibSkull) {
+                if (CG_Q3GibsEnabled()) {
                     trap_S_StartSound(NULL, es->number, CHAN_BODY,
                                       cgs.media.gibSound);
                 } else {

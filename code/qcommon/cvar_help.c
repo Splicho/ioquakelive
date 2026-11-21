@@ -331,6 +331,7 @@ static const cvarHelp_t cvarHelp[] = {
     {"cg_shadows", "players' shadows"},
     {"cg_deferPlayers", "puts off loading a new player's model until a quiet moment"},
     {"cg_blood", "blood effects"},
+    {"cg_useQ3gibs", "1 uses Quake 3 body-part gibs and blood when the optional gore pack is installed; 0 uses Quake Live impact sparks instead"},
     {"cg_screenDamage", "colour of the flash when an enemy hurts you, as 0xRRGGBBAA"},
     {"cg_screenDamage_Self", "colour of the flash when you hurt yourself, as 0xRRGGBBAA"},
     {"cg_screenDamage_Team", "colour of the flash when a teammate hurts you, as 0xRRGGBBAA"},

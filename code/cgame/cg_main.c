@@ -213,6 +213,7 @@ vmCvar_t cg_teamChatHeight;
 vmCvar_t cg_stats;
 vmCvar_t cg_paused;
 vmCvar_t cg_blood;
+vmCvar_t cg_useQ3gibs;
 
 vmCvar_t cg_gibCount;
 vmCvar_t cg_gibColor;
@@ -571,6 +572,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_fov, "cg_fov", "100", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "10", "130"},
     {&cg_viewsize, "cg_viewsize", "100", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "30", "100"},
     {&cg_shadows, "cg_shadows", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
+    {&cg_useQ3gibs, "cg_useQ3gibs", "1", CVAR_ARCHIVE},
     {&cg_gibCount, "cg_gibCount", "15", CVAR_ARCHIVE},
     {&cg_gibColor, "cg_gibColor", "", CVAR_ARCHIVE},
     {&cg_gibJump, "cg_gibJump", "0", CVAR_ARCHIVE},
