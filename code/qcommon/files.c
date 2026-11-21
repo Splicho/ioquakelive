@@ -805,6 +805,12 @@ qboolean FS_IsDemoExt(const char* filename, int namelen) {
 
 extern qboolean com_fullyInitialized;
 
+static qboolean FS_IsLocalFxScript(const char* filename) {
+    int len = strlen(filename);
+
+    return !Q_stricmpn(filename, "scripts/", 8) && FS_IsExt(filename, ".fx", len);
+}
+
 long FS_FOpenFileReadDir(const char* filename, searchpath_t* search, fileHandle_t* file, qboolean uniqueFILE, qboolean unpure) {
 	long hash;
 	pack_t* pak;
@@ -876,7 +882,7 @@ long FS_FOpenFileReadDir(const char* filename, searchpath_t* search, fileHandle_
 		hash = FS_HashFileName(filename, search->pack->hashSize);
 
 		if (search->pack->hashTable[hash]) {
-			if (!unpure && !FS_PakIsPure(search->pack)) {
+			if (!unpure && !FS_PakIsPure(search->pack) && !FS_IsLocalFxScript(filename)) {
 				*file = 0;
 				return -1;
 			}
@@ -945,7 +951,8 @@ long FS_FOpenFileReadDir(const char* filename, searchpath_t* search, fileHandle_
 		}
 		len = strlen(filename);
 		if (!unpure && fs_numServerPaks) {
-			if (!FS_IsExt(filename, ".cfg", len) &&
+			if (!FS_IsLocalFxScript(filename) &&
+				!FS_IsExt(filename, ".cfg", len) &&
 				!FS_IsExt(filename, ".menu", len) &&
 				!FS_IsExt(filename, ".game", len) &&
 				!FS_IsExt(filename, ".dat", len) &&
