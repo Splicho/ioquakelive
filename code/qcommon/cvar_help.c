@@ -297,7 +297,8 @@ static const cvarHelp_t cvarHelp[] = {
                     HV("12") "Tonal G\n"
                     HV("13") "Cork pop\n"
                     HV("14") "Cash register\n"
-                    HV("15") "Grapple"},
+                    HV("15") "Grapple\n"
+                    HV("16") "Impact QC"},
     {"cg_raceBeep", "race: sound at each checkpoint, one of the " HC("cg_killBeep") " sounds"},
     {"cg_buzzerSound", "plays the buzzer when the time runs out"},
     {"cg_allowTaunt", "plays other players' taunts"},

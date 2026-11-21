@@ -731,7 +731,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_impactSparksVelocity, "cg_impactSparksVelocity", "128", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "-128", "128"},
     {&cg_itemFx, "cg_itemFx", "7", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "7"},
     {&cg_itemTimers, "cg_itemTimers", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
-    {&cg_killBeep, "cg_killBeep", "7", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "15"},
+    {&cg_killBeep, "cg_killBeep", "7", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "16"},
     {&cg_levelTimerDirection, "cg_levelTimerDirection", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_lightningImpact, "cg_lightningImpact", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_lowAmmoWarningPercentile, "cg_lowAmmoWarningPercentile", "0.20", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0.01", "1.00"},
@@ -1587,6 +1587,7 @@ static void CG_RegisterSounds(void) {
     cgs.media.killBeepSounds[12] = trap_S_RegisterSound("sound/feedback/cork_pop.wav", qfalse);
     cgs.media.killBeepSounds[13] = trap_S_RegisterSound("sound/feedback/cash_register.wav", qfalse);
     cgs.media.killBeepSounds[14] = trap_S_RegisterSound("sound/pure3/grapple/dink.wav", qfalse);
+    cgs.media.killBeepSounds[15] = trap_S_RegisterSound("sound/feedback/impact_qc.ogg", qfalse);
 
     cgs.media.watrInSound = trap_S_RegisterSound("sound/player/watr_in.ogg", qfalse);
     cgs.media.watrOutSound = trap_S_RegisterSound("sound/player/watr_out.ogg", qfalse);

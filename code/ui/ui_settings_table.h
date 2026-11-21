@@ -43,7 +43,7 @@ static const stOption_t stOpts_r_picmip[] = {{"Low", "8"}, {"Medium", "2"}, {"Hi
 static const stOption_t stOpts_r_enablebloom[] = {{"Off", "0"}, {"On (One Pass)", "1"}, {"On (Two Passes)", "2"}};
 static const stOption_t stOpts_cg_announcer[] = {{"Default", "1"}, {"Vadrigar", "2"}, {"Daemia", "3"}, {"Classic", "4"}};
 static const stOption_t stOpts_cg_hitbeep[] = {{"None", "0"}, {"Single Pitch", "1"}, {"Ascending Streak", "2"}, {"Descending Streak", "3"}, {"Waterfall", "4"}};
-static const stOption_t stOpts_cg_killbeep[] = {{"None", "0"}, {"Ting", "1"}, {"Tink", "2"}, {"Dramatic", "3"}, {"Voosh", "4"}, {"Drum", "5"}, {"Bang", "6"}, {"Ding", "7"}, {"Cha-Ching!", "8"}, {"Tonal D", "9"}, {"Tonal E", "10"}, {"Tonal F#", "11"}, {"Tonal G", "12"}, {"Cork Pop", "13"}, {"Cash Register", "14"}, {"Grapple", "15"}};
+static const stOption_t stOpts_cg_killbeep[] = {{"None", "0"}, {"Ting", "1"}, {"Tink", "2"}, {"Dramatic", "3"}, {"Voosh", "4"}, {"Drum", "5"}, {"Bang", "6"}, {"Ding", "7"}, {"Cha-Ching!", "8"}, {"Tonal D", "9"}, {"Tonal E", "10"}, {"Tonal F#", "11"}, {"Tonal G", "12"}, {"Cork Pop", "13"}, {"Cash Register", "14"}, {"Grapple", "15"}, {"Impact QC", "16"}};
 static const stOption_t stOpts_cg_voicechatindicator[] = {{"Off", "0"}, {"Right", "1"}, {"Left", "2"}};
 static const stOption_t stOpts_cg_specnames[] = {{"None", "0"}, {"Targeted", "1"}, {"Always On", "2"}};
 static const stOption_t stOpts_cg_specteamvitals[] = {{"None", "0"}, {"On", "1"}, {"On With HP", "2"}};
@@ -311,7 +311,7 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_SOUND, "Announcer Voice", "cg_announcer", ST_SELECT, 1.0f, 4.0f, 0.0f, stOpts_cg_announcer, 4, NULL, 1},
     {ST_TAB_SOUND, "Ambient Sound", "s_ambient", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Play ambient map sounds.", 1},
     {ST_TAB_SOUND, "Hit Beep Style", "cg_hitbeep", ST_SELECT, 0.0f, 4.0f, 0.0f, stOpts_cg_hitbeep, 5, "Sound played when obtaining a hit on an enemy player.", 1},
-    {ST_TAB_SOUND, "Kill Beep Style", "cg_killbeep", ST_SELECT, 0.0f, 15.0f, 0.0f, stOpts_cg_killbeep, 16, "Sound played when obtaining a frag on an enemy player.", 1},
+    {ST_TAB_SOUND, "Kill Beep Style", "cg_killbeep", ST_SELECT, 0.0f, 16.0f, 0.0f, stOpts_cg_killbeep, 17, "Sound played when obtaining a frag on an enemy player.", 1},
     {ST_TAB_SOUND, "Chat Beep", "cg_chatbeep", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Play a chat beep sound when a chat message is received.", 1},
     {ST_TAB_SOUND, "Team Chat Beep", "cg_teamchatbeep", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Play a chat beep sound when a teamchat message is received.", 1},
     {ST_TAB_SOUND, "Doppler Sound", "s_doppler", ST_BOOL, 0.0f, 0.0f, 0.0f, NULL, 0, "Use doppler sound effects.", 1},

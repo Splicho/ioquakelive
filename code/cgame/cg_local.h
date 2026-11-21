@@ -1239,7 +1239,7 @@ typedef struct {
     sfxHandle_t landSound;
     sfxHandle_t hitSounds[4];
     sfxHandle_t hitBeepSounds[3];
-    sfxHandle_t killBeepSounds[15];
+    sfxHandle_t killBeepSounds[16];
     sfxHandle_t watrInSound;
     sfxHandle_t watrOutSound;
     sfxHandle_t watrUnSound;
