@@ -724,7 +724,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_flagStyle, "cg_flagStyle", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "1", "2"},
     {&cg_forceEnemyModel, "cg_forceEnemyModel", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
     {&cg_forceTeamModel, "cg_forceTeamModel", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
-    {&cg_hitBeep, "cg_hitBeep", "2", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "3"},
+    {&cg_hitBeep, "cg_hitBeep", "5", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "5"},
     {&cg_impactSparks, "cg_impactSparks", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_impactSparksLifetime, "cg_impactSparksLifetime", "250", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1000"},
     {&cg_impactSparksSize, "cg_impactSparksSize", "8", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "2", "16"},
@@ -1569,6 +1569,9 @@ static void CG_RegisterSounds(void) {
     cgs.media.hitSounds[1] = trap_S_RegisterSound("sound/feedback/hit1.ogg", qfalse);
     cgs.media.hitSounds[2] = trap_S_RegisterSound("sound/feedback/hit2.ogg", qfalse);
     cgs.media.hitSounds[3] = trap_S_RegisterSound("sound/feedback/hit3.ogg", qfalse);
+    cgs.media.hitBeepSounds[0] = trap_S_RegisterSound("sound/feedback/hitbeep3.wav", qfalse);
+    cgs.media.hitBeepSounds[1] = trap_S_RegisterSound("sound/feedback/hitbeep4.wav", qfalse);
+    cgs.media.hitBeepSounds[2] = trap_S_RegisterSound("sound/feedback/hitbeep5.wav", qfalse);
     cgs.media.killBeepSounds[0] = trap_S_RegisterSound("sound/feedback/impact1.ogg", qfalse);
     cgs.media.killBeepSounds[1] = trap_S_RegisterSound("sound/feedback/impact2.ogg", qfalse);
     cgs.media.killBeepSounds[2] = trap_S_RegisterSound("sound/feedback/impact3.ogg", qfalse);

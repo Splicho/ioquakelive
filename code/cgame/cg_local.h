@@ -777,6 +777,8 @@ typedef struct {
     int itemPickupBlendTime;
     int crosshairHitTime;
     int crosshairHitType;
+    int hitBeepCombo;
+    int hitBeepLastTime;
 
     int obitSlideStart;
     int obitSlideKey;
@@ -1237,6 +1239,7 @@ typedef struct {
     sfxHandle_t talkSound;
     sfxHandle_t landSound;
     sfxHandle_t hitSounds[4];
+    sfxHandle_t hitBeepSounds[3];
     sfxHandle_t killBeepSounds[15];
     sfxHandle_t watrInSound;
     sfxHandle_t watrOutSound;

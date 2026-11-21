@@ -254,6 +254,30 @@ void CG_PushReward(sfxHandle_t sfx, qhandle_t shader, int rewardCount) {
     }
 }
 
+#define HITBEEP_COMBO_RESET 1000
+
+static sfxHandle_t CG_ComboHitBeepSound(void) {
+    if (cg.hitBeepCombo <= 4) {
+        return cgs.media.hitBeepSounds[0];
+    }
+    if (cg.hitBeepCombo <= 7) {
+        return cgs.media.hitBeepSounds[1];
+    }
+    return cgs.media.hitBeepSounds[2];
+}
+
+static sfxHandle_t CG_DamageHitBeepSound(const playerState_t* ps) {
+    int tier = ps->generic1 >> 6;
+
+    if (tier <= 1) {
+        return cgs.media.hitBeepSounds[0];  // hit3: high pitch, low damage
+    }
+    if (tier == 2) {
+        return cgs.media.hitBeepSounds[1];  // hit4: middle
+    }
+    return cgs.media.hitBeepSounds[2];      // hit5: low pitch, high damage
+}
+
 static sfxHandle_t CG_HitBeepSound(const playerState_t* ps) {
     int tier = ps->generic1 >> 6;
 
@@ -282,9 +306,21 @@ static void CG_CheckHitSounds(const playerState_t* ps, const playerState_t* ops)
             trap_S_StartLocalSoundVolume(cgs.media.killBeepSounds[cg_killBeep.integer - 1],
                                          CHAN_LOCAL_SOUND, s_killBeepVolume.value);
         } else if (cg_hitBeep.integer) {
-            trap_S_StartLocalSound(CG_HitBeepSound(ps), CHAN_LOCAL_SOUND);
+            if (cg_hitBeep.integer == 4) {
+                if (cg.time - cg.hitBeepLastTime > HITBEEP_COMBO_RESET) {
+                    cg.hitBeepCombo = 0;
+                }
+                cg.hitBeepCombo++;
+                cg.hitBeepLastTime = cg.time;
+                trap_S_StartLocalSound(CG_ComboHitBeepSound(), CHAN_LOCAL_SOUND);
+            } else if (cg_hitBeep.integer == 5) {
+                trap_S_StartLocalSound(CG_DamageHitBeepSound(ps), CHAN_LOCAL_SOUND);
+            } else {
+                trap_S_StartLocalSound(CG_HitBeepSound(ps), CHAN_LOCAL_SOUND);
+            }
         }
     } else if (ps->persistant[PERS_HITS] < ops->persistant[PERS_HITS] && cg_hitBeep.integer) {
+        cg.hitBeepCombo = 0;
         trap_S_StartLocalSound(cgs.media.hitTeamSound, CHAN_LOCAL_SOUND);
     }
 }
@@ -294,6 +330,8 @@ void CG_CheckLocalSounds(playerState_t* ps, playerState_t* ops) {
     sfxHandle_t sfx;
 
     if (ps->persistant[PERS_SPAWN_COUNT] != ops->persistant[PERS_SPAWN_COUNT]) {
+        cg.hitBeepCombo = 0;
+        cg.hitBeepLastTime = 0;
         return;
     }
 
