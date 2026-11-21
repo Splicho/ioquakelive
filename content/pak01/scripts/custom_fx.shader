@@ -34,6 +34,7 @@ q3bloodTrail
 
 railCoreBlack
 {
+    nopicmip
     sort nearest
     cull none
     {
@@ -46,6 +47,7 @@ railCoreBlack
 
 railDiscBlack
 {
+    nopicmip
     sort nearest
     cull none
     deformVertexes wave 100 sin 0 .5 0 2.4
