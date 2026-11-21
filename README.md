@@ -5,9 +5,9 @@
 <h1 align="center">ioquakelive</h1>
 
 <p align="center">
-  <a href="https://github.com/foressssst/ioquakelive/releases/latest"><img src="https://img.shields.io/github/v/release/foressssst/ioquakelive?label=version&color=4073FF" alt="Latest version"></a>
-  <a href="https://github.com/foressssst/ioquakelive/releases"><img src="https://img.shields.io/github/downloads/foressssst/ioquakelive/total?label=downloads&color=4073FF" alt="Downloads"></a>
-  <a href="https://github.com/foressssst/ioquakelive/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/foressssst/ioquakelive/build.yml?branch=main&label=build" alt="Build"></a>
+  <a href="https://github.com/Splicho/ioquakelive/releases/latest"><img src="https://img.shields.io/github/v/release/Splicho/ioquakelive?label=version&color=4073FF" alt="Latest version"></a>
+  <a href="https://github.com/Splicho/ioquakelive/releases"><img src="https://img.shields.io/github/downloads/Splicho/ioquakelive/total?label=downloads&color=4073FF" alt="Downloads"></a>
+  <a href="https://github.com/Splicho/ioquakelive/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/Splicho/ioquakelive/build.yml?branch=main&label=build" alt="Build"></a>
   <a href="COPYING.txt"><img src="https://img.shields.io/badge/license-GPL--2.0-4073FF" alt="License"></a>
 </p>
 
@@ -19,7 +19,7 @@ The project builds on the work of [Thomas Jones](https://github.com/tjone270/ioq
 
 You will need a legitimate copy of [Quake Live](https://store.steampowered.com/app/282440/Quake_Live/). ioquakelive does not include the original game files, so it uses the ones from your own installation.
 
-1. Download the latest version from [Releases](https://github.com/foressssst/ioquakelive/releases).
+1. Download the latest version from [Releases](https://github.com/Splicho/ioquakelive/releases).
 2. Extract the files wherever you prefer.
 3. Run `ioquakelive.x86_64.exe` for the OpenGL renderer, or `ioquakelive-vulkan.x86_64.exe` if you prefer Vulkan.
 
@@ -116,7 +116,7 @@ The exact commands used by CI, including packaging, are in [`.github/workflows/b
 
 ## If your antivirus blocks it
 
-ioquakelive is a new project and does not have a digital signature yet, so its reputation on Windows is low and your browser or Microsoft Defender may flag it as suspicious. This tends to happen with every new version until more people download it. It is not a virus: the game is open source and every release is built on GitHub from this repository, so always download it from [Releases](https://github.com/foressssst/ioquakelive/releases).
+ioquakelive is a new project and does not have a digital signature yet, so its reputation on Windows is low and your browser or Microsoft Defender may flag it as suspicious. This tends to happen with every new version until more people download it. It is not a virus: the game is open source and every release is built on GitHub from this repository, so always download it from [Releases](https://github.com/Splicho/ioquakelive/releases).
 
 1. If your browser blocks the download, choose "Keep".
 2. If Windows shows "Windows protected your PC" when you open it, click "More info" and then "Run anyway".
