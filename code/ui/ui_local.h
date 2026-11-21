@@ -882,7 +882,6 @@ void trap_SteamShowProfile(const char* steamId);
 qhandle_t trap_SteamAvatar(const char* steamId);
 int trap_MatchFile(const char* name, char* buf, int size);
 int trap_UpdateNotes(char* buf, int size);
-int trap_ClubNews(char* buf, int size);
 int trap_FS_FileTime(const char* qpath);
 void trap_FS_PakOnly(qboolean on);
 void trap_SetClipboardData(const char* text);

@@ -771,7 +771,7 @@ static qboolean FS_IsSiteImageName(const char* filename) {
 	const char* p;
 	int i;
 
-	if (Q_stricmpn(filename, "club/", 5) && Q_stricmpn(filename, "news/", 5)) {
+	if (Q_stricmpn(filename, "club/", 5)) {
 		return qfalse;
 	}
 	p = filename + 5;

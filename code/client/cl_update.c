@@ -20,10 +20,7 @@
 #define CL_UPDATE_RELEASE_TAG "https://github.com/foressssst/ioquakelive/releases/tag/"
 #define CL_UPDATE_DOWNLOAD "https://github.com/foressssst/ioquakelive/releases/download/"
 #define CL_UPDATE_TIMEOUT_MS 5000
-#define CL_NEWS_API "https://quakeclub.com/api/news"
-#define CL_NEWS_MAX 6
 #define CL_CLUB_SITE "https://quakeclub.com"
-#define CL_NEWS_IMAGE_MAX 0x100000
 #define CL_CLUB_IDENTITY "/api/ioql/identidad?steamIds="
 #define CL_CLUB_IMAGES "/api/ioql/imagen/"
 #define CL_CLUB_MAX 256
@@ -59,12 +56,6 @@ enum { CLD_IDLE, CLD_RUNNING, CLD_DOWNLOADED, CLD_EXTRACT, CLD_READY, CLD_FAILED
 static char clUpdateText[0x40000];
 static char clUpdateURL[512];
 static char clUpdateNotes[8192];
-static char clNewsRaw[0x10000];
-static char clNewsText[4096];
-static volatile long clNewsState;
-static char clNewsDir[MAX_OSPATH];
-static byte clNewsImage[CL_NEWS_IMAGE_MAX];
-static cvar_t* cl_clubNews;
 
 enum { CLC_NEW, CLC_ASKED, CLC_READY, CLC_FAILED };
 
@@ -549,7 +540,7 @@ int CL_UpdateNotes(char* buf, int size) {
     return (int)strlen(buf);
 }
 
-static int CL_NewsImageKind(const byte* d, int n, int* w, int* h) {
+static int CL_SiteImageKind(const byte* d, int n, int* w, int* h) {
     int i = 2;
 
     if (n >= 24 && !memcmp(d, "\x89PNG\r\n\x1a\n", 8)) {
@@ -615,7 +606,7 @@ static qboolean CL_SiteImage(const char* url, const char* prefix, const char* di
         if (f) {
             n = (int)fread(buf, 1, (size_t)bufSize, f);
             fclose(f);
-            if (n > 0 && CL_NewsImageKind(buf, n, w, h) == i + 1) {
+            if (n > 0 && CL_SiteImageKind(buf, n, w, h) == i + 1) {
                 kind = i + 1;
             }
         }
@@ -629,7 +620,7 @@ static qboolean CL_SiteImage(const char* url, const char* prefix, const char* di
             return qfalse;
         }
         n = sink.used;
-        kind = CL_NewsImageKind(buf, n, w, h);
+        kind = CL_SiteImageKind(buf, n, w, h);
         if (!kind) {
             return qfalse;
         }
@@ -663,76 +654,6 @@ static void CL_SiteImageDir(char* dir, int size, const char* name) {
     Com_sprintf(dir, size, "%s%c%s%cx", base, PATH_SEP, name, PATH_SEP);
     FS_CreatePath(dir);
     dir[strlen(dir) - 2] = '\0';
-}
-
-static void CL_NewsImage(const char* url, char* pic, int size, int* aspect) {
-    int w, h;
-
-    *aspect = 0;
-    if (CL_SiteImage(url, "/api/news/", clNewsDir, "news", clNewsImage, sizeof(clNewsImage), pic, size, &w, &h)) {
-        *aspect = (int)(1000.0f * w / h);
-    }
-}
-
-static qboolean CL_NewsLoad(void) {
-    const char* end;
-    const char* list;
-    const char* item;
-    int count = 0;
-    int n = 0;
-
-    if (!CL_UpdateFetch(CL_NEWS_API, clNewsRaw, sizeof(clNewsRaw))) {
-        return qfalse;
-    }
-    end = clNewsRaw + strlen(clNewsRaw);
-    list = JSON_ObjectGetNamedValue(clNewsRaw, end, "news");
-    for (item = list ? JSON_ArrayGetFirstValue(list, end) : NULL; item && count < CL_NEWS_MAX;
-         item = JSON_ArrayGetNextValue(item, end)) {
-        char title[256];
-        char date[16];
-        char slug[128];
-        char image[256];
-        char pic[MAX_QPATH];
-        char* c;
-        int len, aspect;
-
-        CL_UpdateJsonText(JSON_ObjectGetNamedValue(item, end, "title"), end, title, sizeof(title));
-        CL_UpdateJsonText(JSON_ObjectGetNamedValue(item, end, "date"), end, date, sizeof(date));
-        CL_UpdateJsonText(JSON_ObjectGetNamedValue(item, end, "slug"), end, slug, sizeof(slug));
-        for (c = title; *c; c++) {
-            if (*c == '\t' || *c == '\n') {
-                *c = ' ';
-            }
-        }
-        for (c = slug; *c && ((*c >= 'a' && *c <= 'z') || (*c >= '0' && *c <= '9') || *c == '-'); c++) {
-        }
-        if (!title[0] || !slug[0] || *c || strlen(date) != 10 || date[4] != '-' || date[7] != '-') {
-            continue;
-        }
-        CL_UpdateJsonText(JSON_ObjectGetNamedValue(item, end, "imageUrl"), end, image, sizeof(image));
-        CL_NewsImage(image, pic, sizeof(pic), &aspect);
-        Com_sprintf(image, sizeof(image), "\t%s\t%i\n", pic, aspect);
-        len = (int)(strlen(date) + strlen(title) + strlen(slug) + 2 + strlen(image));
-        if (n + len >= (int)sizeof(clNewsText)) {
-            break;
-        }
-        Com_sprintf(clNewsText + n, sizeof(clNewsText) - n, "%s\t%s\t%s%s", date, title, slug, image);
-        n += len;
-        count++;
-    }
-    return (qboolean)(count > 0);
-}
-
-int CL_ClubNews(char* buf, int size) {
-    if (size <= 0) {
-        return 0;
-    }
-    buf[0] = '\0';
-    if (CL_UpdateGet(&clNewsState) != CLU_DONE) {
-        return 0;
-    }
-    Q_strncpyz(buf, clNewsText, size);
-    return (int)strlen(buf);
 }
 
 static qboolean CL_UpdateFromGitHub(void) {
@@ -1009,9 +930,6 @@ static void CL_UpdateThread(void* unused) {
         }
     }
     CL_UpdateSet(&clVerifiedState, CL_VerifiedLoad() ? CLU_DONE : CLU_FAILED);
-    if (CL_UpdateGet(&clNewsState) == CLU_RUNNING) {
-        CL_UpdateSet(&clNewsState, CL_NewsLoad() ? CLU_DONE : CLU_FAILED);
-    }
 }
 
 static void CL_UpdateParts(const char* s, int parts[4]) {
@@ -1302,7 +1220,6 @@ void CL_UpdateApplyOnExit(void) {
 
 void CL_UpdateInit(void) {
     cl_checkUpdates = Cvar_Get("cl_checkUpdates", "1", CVAR_ARCHIVE);
-    cl_clubNews = Cvar_Get("cl_clubNews", "1", CVAR_ARCHIVE);
     Cvar_Get("cl_updateVersion", "", CVAR_ROM);
     Cvar_Get("cl_updateStatus", "", CVAR_ROM);
     Cvar_Get("cl_updateProgress", "0", CVAR_ROM);
@@ -1327,16 +1244,11 @@ void CL_UpdateInit(void) {
     if (cl_checkUpdates->integer && CL_UpdateGet(&clUpdateState) == CLU_IDLE) {
         CL_UpdateSet(&clUpdateState, CLU_RUNNING);
     }
-    if (cl_clubNews->integer) {
-        CL_SiteImageDir(clNewsDir, sizeof(clNewsDir), "news");
-        CL_UpdateSet(&clNewsState, CLU_RUNNING);
-    }
     if (!Sys_ThreadCreate(CL_UpdateThread, NULL)) {
         if (CL_UpdateGet(&clUpdateState) == CLU_RUNNING) {
             CL_UpdateSet(&clUpdateState, CLU_FAILED);
         }
         CL_UpdateSet(&clVerifiedState, CLU_FAILED);
-        CL_UpdateSet(&clNewsState, CLU_FAILED);
     }
 }
 

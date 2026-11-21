@@ -221,10 +221,6 @@ void trap_SetClipboardData(const char* text) {
     syscall(UI_SET_CLIPBOARD, text);
 }
 
-int trap_ClubNews(char* buf, int size) {
-    return syscall(UI_CLUB_NEWS, buf, size);
-}
-
 int trap_MatchFile(const char* name, char* buf, int size) {
     return syscall(UI_MATCH_FILE, name, buf, size);
 }

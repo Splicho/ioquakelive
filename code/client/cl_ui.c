@@ -793,9 +793,6 @@ intptr_t CL_UISystemCalls(intptr_t* args) {
         case UI_UPDATE_NOTES:
             return CL_UpdateNotes(VMA(1), (int)args[2]);
 
-        case UI_CLUB_NEWS:
-            return CL_ClubNews(VMA(1), (int)args[2]);
-
         case UI_FS_FILETIME:
             return FS_FileTime(VMA(1));
 
