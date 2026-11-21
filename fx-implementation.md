@@ -28,6 +28,8 @@ A later round of changes (by ChatGPT, then reviewed/staged here) supersedes part
   - both interpreted and `--compiled` cache paths pass
   - reported CPU check: roughly 23.7 ms/update interpreted vs 7.3 ms/update compiled for 10,240 rings (mock renderer)
 - Rail and gib rendering issues were reported fixed after these changes.
+- Gore was merged into `pak01.pk3` with explicit redistribution permission; the
+  separate `pak-gore.pk3` was removed.
 - Latest staged cgame: **1,483,776 bytes**. Verify staging again before testing.
 - FX logging was reduced:
   - `cg_fxDebug 0` is the default
@@ -320,15 +322,16 @@ Loading summary in `fxdebug.log` is the fastest way to confirm what the parser a
 - `misc/msvc/cgame.vcxproj`
 - `Makefile`
 
-### Runtime content (local build only, not for redistribution)
+### Runtime content
 
 - `build/ioquakelive-windows-x64/baseq3/scripts/*.fx`
 - `build/ioquakelive-windows-x64/baseq3/pak-fx.pk3`
 - `build/ioquakelive-windows-x64/baseq3/pak-fx-assets.pk3`
-- `build/ioquakelive-windows-x64/baseq3/sound/player/*.wav`
+- `build/ioquakelive-windows-x64/baseq3/pak01.pk3` (now includes `dlc_gibs/` gore)
 - `build/Release/x64/baseq3/` equivalents
 
-`pak-fx-assets.pk3` contains Quake Live/`dlc_gibs` assets. **Do not commit or redistribute it.**
+`pak-gore.pk3` was removed from both trees; the gore assets now ship inside `pak01.pk3`.
+`pak-fx-assets.pk3` remains a local/private q3mme compatibility pack.
 
 ---
 
@@ -665,21 +668,28 @@ or `%APPDATA%\quakelive\baseq3\fxdebug.log`.
 
 ## 12. Assets and licensing
 
-`pak-fx-assets.pk3` contains:
+### Gore in pak01
 
-- `models/gibsq3/*.md3` (copied/renamed from `content/optional/gore/dlc_gibs`)
-- `dlc_gibs/gibs.jpg`
-- `dlc_gibs/blood_stain.png`
-- `dlc_gibs/bloodspray1.png`
-- `scripts/custom_fx.shader`
-- `sound/player/gibsplt1.wav`
-- `sound/player/gibimp1.wav`
-- `sound/player/gibimp2.wav`
-- `sound/player/gibimp3.wav`
+The repository owner explicitly confirmed redistribution rights for the gore
+assets. `content/optional/gore/dlc_gibs` and its shader were moved into:
 
-Quake Live and Steam Workshop content is **not** GPL. Do not commit these assets, do not add them to release packages, and do not redistribute without permission.
+- `content/pak01/dlc_gibs/`
+- `content/pak01/scripts/custom_fx.shader`
 
-`madir.fx` is a user script and is not part of the repository. It references Wolfcam paths:
+`pak01.pk3` is now the single shipped pak containing the gore assets. The
+separate `pak-gore.pk3` was removed. `cg_useQ3gibs 1` remains the default, and
+the cgame detects the pack via `dlc_gibs/skull.md3`.
+
+### q3mme compatibility pack
+
+`pak-fx-assets.pk3` is separate and remains local/private. It contains:
+
+- `models/gibsq3/*.md3` aliases for q3mme scripts
+- `q3gibs`, `q3bloodMark`, `q3bloodTrail` shaders
+- extra textures and `sound/player` files used by the tested `.fx` scripts
+
+`madir.fx` is a user script and is not part of the repository. It references
+Wolfcam paths:
 
 - `models/gibsq3/*.md3`
 - `q3bloodMark`
@@ -687,7 +697,8 @@ Quake Live and Steam Workshop content is **not** GPL. Do not commit these assets
 - `sound/player/gibsplt1.wav`
 - `sound/player/gibimp*.wav`
 
-The asset pak provides aliases/shaders, but the visual result is still not Wolfcam-identical.
+The asset pak provides aliases/shaders, but the visual result is still not
+Wolfcam-identical.
 
 ---
 
