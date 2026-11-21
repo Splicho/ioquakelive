@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "cg_local.h"
+#include "cg_fx_compat.h"
 
 char* cg_customSoundNames[MAX_CUSTOM_SOUNDS] = {
     "*death1.wav",
@@ -1592,6 +1593,7 @@ static void CG_PlayerPowerups(centity_t* cent, refEntity_t* torso) {
 
     if (powerups & (1 << PW_QUAD)) {
         CG_CarrierLight(cent, 0.2f, 0.2f, 1);
+        CG_FX_RunPlayerScript(EffectScripts.playerQuad, cent, cent->lerpOrigin, 0);
     }
 
     if (powerups & (1 << PW_FLIGHT)) {
@@ -2396,6 +2398,13 @@ void CG_Player(centity_t* cent) {
         return;
     }
 
+    if (cent->currentState.powerups & (1 << PW_FLIGHT)) {
+        CG_FX_RunPlayerScript(EffectScripts.playerFlight, cent, cent->lerpOrigin, 0);
+    }
+    if (cent->currentState.powerups & (1 << PW_HASTE)) {
+        CG_FX_RunPlayerScript(EffectScripts.playerHaste, cent, cent->lerpOrigin, 0);
+    }
+
     renderfx = 0;
     if (cent->currentState.number == cg.snap->ps.clientNum) {
         if (!cg.renderingThirdPerson) {
@@ -2455,6 +2464,8 @@ void CG_Player(centity_t* cent) {
     }
     VectorCopy(legs.origin, legs.oldorigin);
 
+    CG_FX_RunPlayerScript(EffectScripts.playerLegsTrail, cent, legs.origin, legs.frame);
+
     CG_AddRefEntityWithPowerups(&legs, &cent->currentState, ci->team);
     CG_AddEnemyOutline(&legs, cent, enemy);
 
@@ -2475,6 +2486,8 @@ void CG_Player(centity_t* cent) {
 
     torso.shadowPlane = shadowPlane;
     torso.renderfx = renderfx;
+
+    CG_FX_RunPlayerScript(EffectScripts.playerTorsoTrail, cent, torso.origin, torso.frame);
 
     CG_AddRefEntityWithPowerups(&torso, &cent->currentState, ci->team);
     CG_AddEnemyOutline(&torso, cent, enemy);
@@ -2668,6 +2681,8 @@ void CG_Player(centity_t* cent) {
 
     head.shadowPlane = shadowPlane;
     head.renderfx = renderfx;
+
+    CG_FX_RunPlayerScript(EffectScripts.playerHeadTrail, cent, head.origin, head.frame);
 
     CG_AddRefEntityWithPowerups(&head, &cent->currentState, ci->team);
     CG_AddEnemyOutline(&head, cent, enemy);

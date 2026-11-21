@@ -51,10 +51,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 typedef uint32_t glIndex_t;
 
-#define	REFENTITYNUM_BITS	12
-#define	REFENTITYNUM_MASK	((1<<REFENTITYNUM_BITS) - 1)
-#define	MAX_REFENTITIES		((1<<REFENTITYNUM_BITS) - 1)
-#define	REFENTITYNUM_WORLD	((1<<REFENTITYNUM_BITS) - 1)
 #define SHADERNUM_BITS	14
 #define MAX_SHADERS		(1<<SHADERNUM_BITS)
 #define SHADERNUM_MASK	(MAX_SHADERS-1)
@@ -556,13 +552,13 @@ typedef enum {
 } surfaceType_t;
 
 typedef struct drawSurf_s {
-	unsigned int		sort;
+	uint64_t		sort;
 	surfaceType_t		*surface;
 } drawSurf_t;
 
 #ifdef USE_PMLIGHT
 typedef struct litSurf_s {
-	unsigned int		sort;
+	uint64_t		sort;
 	surfaceType_t		*surface;
 	struct litSurf_s	*next;
 } litSurf_t;
@@ -841,10 +837,10 @@ void		R_Modellist_f (void);
 #define	QSORT_FOGNUM_SHIFT	DLIGHT_BITS
 #define	QSORT_REFENTITYNUM_SHIFT (QSORT_FOGNUM_SHIFT + FOGNUM_BITS)
 #define	QSORT_SHADERNUM_SHIFT	(QSORT_REFENTITYNUM_SHIFT+REFENTITYNUM_BITS)
-#if (QSORT_SHADERNUM_SHIFT+SHADERNUM_BITS) > 32
+#if (QSORT_SHADERNUM_SHIFT+SHADERNUM_BITS) > 64
 	#error "Need to update sorting, too many bits."
 #endif
-#define QSORT_REFENTITYNUM_MASK (REFENTITYNUM_MASK << QSORT_REFENTITYNUM_SHIFT)
+#define QSORT_REFENTITYNUM_MASK ((uint64_t)REFENTITYNUM_MASK << QSORT_REFENTITYNUM_SHIFT)
 
 extern	int			gl_filter_min, gl_filter_max;
 
@@ -1245,12 +1241,12 @@ void R_AddLightningBoltSurfaces( trRefEntity_t *e );
 
 void R_AddPolygonSurfaces( void );
 
-void R_DecomposeSort( unsigned sort, int *entityNum, shader_t **shader, 
+void R_DecomposeSort( uint64_t sort, int *entityNum, shader_t **shader,
 					 int *fogNum, int *dlightMap );
 
 void R_AddDrawSurf( surfaceType_t *surface, shader_t *shader, int fogIndex, int dlightMap );
 #ifdef USE_PMLIGHT
-void R_DecomposeLitSort( unsigned sort, int *entityNum, shader_t **shader, int *fogNum );
+void R_DecomposeLitSort( uint64_t sort, int *entityNum, shader_t **shader, int *fogNum );
 void R_AddLitSurf( surfaceType_t *surface, shader_t *shader, int fogIndex );
 #endif
 

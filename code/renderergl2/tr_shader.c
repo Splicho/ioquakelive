@@ -2027,7 +2027,7 @@ static void FixRenderCommandList(int newShader) {
                     for (i = 0; i < ds_cmd->numDrawSurfs; i++) {
                         sortedIndex = (ds_cmd->drawSurfs[i].sort >> QSORT_SHADERNUM_SHIFT) & (MAX_SHADERS - 1);
                         if ((int)sortedIndex >= newShader) {
-                            ds_cmd->drawSurfs[i].sort += 1U << QSORT_SHADERNUM_SHIFT;
+                            ds_cmd->drawSurfs[i].sort += (uint64_t)1 << QSORT_SHADERNUM_SHIFT;
                         }
                     }
                     curCmd = (const void*)(ds_cmd + 1);

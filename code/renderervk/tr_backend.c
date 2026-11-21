@@ -510,7 +510,7 @@ static void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 #endif
 	int				i;
 	drawSurf_t		*drawSurf;
-	unsigned int	oldSort;
+	uint64_t	oldSort;
 #ifdef USE_PMLIGHT
 	float			oldShaderSort;
 #endif
@@ -525,7 +525,7 @@ static void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 	oldDepthRange = qfalse;
 	wasCrosshair = qfalse;
 #endif
-	oldSort = MAX_UINT;
+	oldSort = ~(uint64_t)0;
 #ifdef USE_PMLIGHT
 	oldShaderSort = -1;
 #endif
@@ -706,7 +706,7 @@ static void RB_RenderLitSurfList( dlight_t* dl ) {
 #endif
 	qboolean		depthRange, isCrosshair;
 	const litSurf_t	*litSurf;
-	unsigned int	oldSort;
+	uint64_t	oldSort;
 	double			originalTime;
 
 	originalTime = backEnd.refdef.floatTime;
@@ -718,7 +718,7 @@ static void RB_RenderLitSurfList( dlight_t* dl ) {
 	oldDepthRange = qfalse;
 	wasCrosshair = qfalse;
 #endif
-	oldSort = MAX_UINT;
+	oldSort = ~(uint64_t)0;
 	depthRange = qfalse;
 
 	tess.dlightUpdateParams = qtrue;

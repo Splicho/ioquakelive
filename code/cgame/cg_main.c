@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "cg_local.h"
+#include "cg_fx_compat.h"
 
 #include "../ui/ui_shared.h"
 displayContextDef_t cgDC;
@@ -214,6 +215,16 @@ vmCvar_t cg_stats;
 vmCvar_t cg_paused;
 vmCvar_t cg_blood;
 vmCvar_t cg_useQ3gibs;
+vmCvar_t cg_fxfile;
+vmCvar_t cg_fxinterval;
+vmCvar_t cg_fxratio;
+vmCvar_t cg_fxScriptMinEmitter;
+vmCvar_t cg_fxScriptMinDistance;
+vmCvar_t cg_fxScriptMinInterval;
+vmCvar_t cg_fxCompiled;
+vmCvar_t cg_fxDebug;
+vmCvar_t cg_fxScriptDebug;
+vmCvar_t cg_vibrateMaxDistance;
 
 vmCvar_t cg_gibCount;
 vmCvar_t cg_gibColor;
@@ -573,6 +584,16 @@ static cvarTable_t cvarTable[] = {
     {&cg_viewsize, "cg_viewsize", "100", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "30", "100"},
     {&cg_shadows, "cg_shadows", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_useQ3gibs, "cg_useQ3gibs", "1", CVAR_ARCHIVE},
+    {&cg_fxfile, "cg_fxfile", "", CVAR_ARCHIVE},
+    {&cg_fxinterval, "cg_fxinterval", "25", CVAR_ARCHIVE},
+    {&cg_fxratio, "cg_fxratio", "0.002", CVAR_ARCHIVE},
+    {&cg_fxScriptMinEmitter, "cg_fxScriptMinEmitter", "0.0", CVAR_ARCHIVE},
+    {&cg_fxScriptMinDistance, "cg_fxScriptMinDistance", "0.001", CVAR_ARCHIVE},
+    {&cg_fxScriptMinInterval, "cg_fxScriptMinInterval", "0.001", CVAR_ARCHIVE},
+    {&cg_fxCompiled, "cg_fxCompiled", "0", CVAR_ARCHIVE},
+    {&cg_fxDebug, "cg_fxDebug", "0", CVAR_ARCHIVE},
+    {&cg_fxScriptDebug, "debug_fxscript", "0", 0},
+    {&cg_vibrateMaxDistance, "cg_vibrateMaxDistance", "800", CVAR_ARCHIVE},
     {&cg_gibCount, "cg_gibCount", "15", CVAR_ARCHIVE},
     {&cg_gibColor, "cg_gibColor", "", CVAR_ARCHIVE},
     {&cg_gibJump, "cg_gibJump", "0", CVAR_ARCHIVE},
@@ -3482,10 +3503,14 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum) {
 
     CG_ShaderStateChanged();
 
+    CG_FX_RegisterCommands();
+    CG_ReloadQ3mmeScripts(cg_fxfile.string);
+
     trap_S_ClearLoopingSounds(qtrue);
 
     cg.showJoinMenu = qtrue;
 }
 
 void CG_Shutdown(void) {
+    CG_FX_LogClose();
 }

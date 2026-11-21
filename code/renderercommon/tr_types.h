@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define MAX_DLIGHTS 32
 
-#define REFENTITYNUM_BITS 10
+#define REFENTITYNUM_BITS 14
 #define REFENTITYNUM_MASK ((1 << REFENTITYNUM_BITS) - 1)
 #define MAX_REFENTITIES ((1 << REFENTITYNUM_BITS) - 1)
 #define REFENTITYNUM_WORLD ((1 << REFENTITYNUM_BITS) - 1)
@@ -68,6 +68,11 @@ typedef enum {
     RT_LIGHTNING,
     RT_PORTALSURFACE,
 
+    RT_SPRITE_FIXED,
+    RT_SPARK,
+    RT_BEAM_Q3MME,
+    RT_RAIL_RINGS_Q3MME,
+
     RT_MAX_REF_ENTITY_TYPE
 } refEntityType_t;
 
@@ -99,6 +104,7 @@ typedef struct {
 
     float radius;
     float rotation;
+    float width;
 } refEntity_t;
 
 #define MAX_RENDER_STRINGS 8

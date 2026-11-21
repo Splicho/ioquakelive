@@ -404,6 +404,177 @@ static void RB_SurfaceBeam( void )
 #endif
 }
 
+static void DoRailDiscs(int numSegs, const vec3_t start, const vec3_t dir, const vec3_t right, const vec3_t up,
+                        float spanWidth);
+
+static void RB_AddQuadStampRef(const vec3_t origin, const vec3_t left, const vec3_t up, const byte* rgba) {
+    color4ub_t color;
+
+    color.rgba[0] = rgba[0];
+    color.rgba[1] = rgba[1];
+    color.rgba[2] = rgba[2];
+    color.rgba[3] = rgba[3];
+    RB_AddQuadStamp(origin, left, up, color);
+}
+
+static void RB_SurfaceSpriteFixed(void) {
+    vec3_t forward, up, left;
+    float radius;
+    const refEntity_t* re;
+    vec3_t angles;
+    vec3_t dir;
+    vec3_t axis[3];
+
+    re = &backEnd.currentEntity->e;
+    radius = re->radius;
+
+    VectorCopy(re->oldorigin, dir);
+    vectoangles(dir, angles);
+    AngleVectors(angles, forward, left, up);
+    VectorSubtract(vec3_origin, left, left);
+
+    VectorCopy(forward, axis[0]);
+    VectorCopy(left, axis[1]);
+    VectorCopy(up, axis[2]);
+    RotateAroundDirection(axis, re->rotation);
+    VectorCopy(axis[0], forward);
+    VectorCopy(axis[1], left);
+    VectorCopy(axis[2], up);
+
+    VectorScale(left, radius, left);
+    VectorScale(up, radius, up);
+
+    if (backEnd.viewParms.portalView == PV_MIRROR) {
+        VectorSubtract(vec3_origin, left, left);
+    }
+
+    RB_AddQuadStampRef(re->origin, up, left, re->shaderRGBA);
+}
+
+static void RB_SurfaceSpark(void) {
+    vec3_t left, up, forward;
+    float radius;
+    float width;
+    const refEntity_t* re;
+    vec3_t v;
+    vec3_t newForward;
+
+    re = &backEnd.currentEntity->e;
+
+    radius = re->radius * 0.5f;
+    width = re->width * 0.5f;
+
+    VectorCopy(re->oldorigin, up);
+    VectorNormalize(up);
+    MakeNormalVectors(up, forward, left);
+
+    PointToPlane(v, backEnd.viewParms.or.origin, re->origin, up);
+    VectorSubtract(v, re->origin, newForward);
+    VectorNormalize(newForward);
+    CrossProduct(up, newForward, left);
+
+    VectorNormalize(left);
+    VectorNormalize(up);
+
+    VectorScale(left, width, left);
+    VectorScale(up, radius, up);
+
+    if (backEnd.viewParms.portalView == PV_MIRROR) {
+        VectorSubtract(vec3_origin, left, left);
+    }
+
+    VectorSubtract(vec3_origin, up, up);
+    VectorSubtract(vec3_origin, left, left);
+
+    RB_AddQuadStampRef(re->origin, up, left, re->shaderRGBA);
+}
+
+static void RB_SurfaceBeamQ3mme(void) {
+    vec3_t left, up, forward;
+    float radius;
+    float width;
+    vec3_t angles;
+    const refEntity_t* re;
+    int repetitions;
+    int i;
+    vec3_t origin;
+    vec3_t v;
+    vec3_t newForward;
+
+    re = &backEnd.currentEntity->e;
+
+    repetitions = re->rotation ? (int)(180.0f / re->rotation) : 1;
+    radius = re->radius * 0.5f;
+    width = VectorLength(re->oldorigin) * 0.5f;
+
+    vectoangles(re->oldorigin, angles);
+    AngleVectors(angles, forward, left, up);
+
+    PointToPlane(v, backEnd.viewParms.or.origin, re->origin, forward);
+    VectorSubtract(v, re->origin, newForward);
+    VectorNormalize(newForward);
+    CrossProduct(forward, newForward, left);
+    VectorCopy(left, up);
+    VectorSubtract(vec3_origin, up, up);
+
+    VectorCopy(forward, left);
+    VectorSubtract(vec3_origin, left, left);
+    VectorScale(left, width, left);
+    VectorScale(up, radius, up);
+    VectorMA(re->origin, width, forward, origin);
+
+    for (i = 0; i < repetitions; i++) {
+        if (backEnd.viewParms.portalView == PV_MIRROR) {
+            VectorSubtract(vec3_origin, up, up);
+        }
+
+        RB_AddQuadStampRef(origin, left, up, re->shaderRGBA);
+
+        vectoangles(re->oldorigin, angles);
+        angles[ROLL] += re->rotation * (i + 1);
+        AngleVectors(angles, forward, left, up);
+
+        PointToPlane(v, backEnd.viewParms.or.origin, re->origin, forward);
+        VectorSubtract(v, re->origin, newForward);
+        VectorNormalize(newForward);
+        CrossProduct(forward, newForward, left);
+
+        VectorCopy(left, up);
+        VectorSubtract(vec3_origin, up, up);
+
+        VectorCopy(forward, left);
+        VectorSubtract(vec3_origin, left, left);
+        VectorScale(left, width, left);
+        VectorScale(up, radius, up);
+        VectorMA(re->origin, width, forward, origin);
+    }
+}
+
+static void RB_SurfaceRailRingsQ3mme(void) {
+    const refEntity_t* e;
+    int numSegs;
+    float len;
+    vec3_t vec;
+    vec3_t right, up;
+    vec3_t start, end;
+
+    e = &backEnd.currentEntity->e;
+
+    VectorCopy(e->origin, end);
+    VectorMA(e->origin, 1, e->oldorigin, start);
+
+    VectorSubtract(end, start, vec);
+    len = VectorNormalize(vec);
+    MakeNormalVectors(vec, right, up);
+    numSegs = (int)(len / (e->rotation > 0 ? e->rotation : 1));
+    if (numSegs <= 0) {
+        numSegs = 1;
+    }
+
+    VectorScale(vec, (e->rotation > 0 ? e->rotation : 1), vec);
+    DoRailDiscs(numSegs, start, vec, right, up, e->radius);
+}
+
 static void DoRailCore( const vec3_t start, const vec3_t end, const vec3_t up, float len, float spanWidth )
 {
 	float		spanWidth2;
@@ -458,12 +629,11 @@ static void DoRailCore( const vec3_t start, const vec3_t end, const vec3_t up, f
 	tess.indexes[tess.numIndexes++] = vbase + 3;
 }
 
-static void DoRailDiscs( int numSegs, const vec3_t start, const vec3_t dir, const vec3_t right, const vec3_t up )
+static void DoRailDiscs( int numSegs, const vec3_t start, const vec3_t dir, const vec3_t right, const vec3_t up, float spanWidth )
 {
 	int i;
 	vec3_t	pos[4];
 	vec3_t	v;
-	int		spanWidth = r_railWidth->integer;
 	float c, s;
 	float		scale;
 
@@ -503,6 +673,7 @@ static void DoRailDiscs( int numSegs, const vec3_t start, const vec3_t dir, cons
 			tess.vertexColors[tess.numVertexes].rgba[0] = backEnd.currentEntity->e.shaderRGBA[0];
 			tess.vertexColors[tess.numVertexes].rgba[1] = backEnd.currentEntity->e.shaderRGBA[1];
 			tess.vertexColors[tess.numVertexes].rgba[2] = backEnd.currentEntity->e.shaderRGBA[2];
+			tess.vertexColors[tess.numVertexes].rgba[3] = backEnd.currentEntity->e.shaderRGBA[3];
 			tess.numVertexes++;
 
 			VectorAdd( pos[j], dir, pos[j] );
@@ -540,7 +711,7 @@ static void RB_SurfaceRailRings( void ) {
 
 	VectorScale( vec, r_railSegmentLength->value, vec );
 
-	DoRailDiscs( numSegs, start, vec, right, up );
+	DoRailDiscs( numSegs, start, vec, right, up, r_railWidth->integer );
 }
 
 static void RB_SurfaceRailCore( void ) {
@@ -1213,14 +1384,26 @@ static void RB_SurfaceEntity( const surfaceType_t *surfType ) {
 	case RT_SPRITE:
 		RB_SurfaceSprite();
 		break;
+	case RT_SPRITE_FIXED:
+		RB_SurfaceSpriteFixed();
+		break;
+	case RT_SPARK:
+		RB_SurfaceSpark();
+		break;
 	case RT_BEAM:
 		RB_SurfaceBeam();
+		break;
+	case RT_BEAM_Q3MME:
+		RB_SurfaceBeamQ3mme();
 		break;
 	case RT_RAIL_CORE:
 		RB_SurfaceRailCore();
 		break;
 	case RT_RAIL_RINGS:
 		RB_SurfaceRailRings();
+		break;
+	case RT_RAIL_RINGS_Q3MME:
+		RB_SurfaceRailRingsQ3mme();
 		break;
 	case RT_LIGHTNING:
 		RB_SurfaceLightningBolt();

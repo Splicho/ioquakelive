@@ -320,7 +320,7 @@ void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, int numDrawSurfs) {
     qboolean depthRange, oldDepthRange, isCrosshair, wasCrosshair;
     int i;
     drawSurf_t* drawSurf;
-    int oldSort;
+    uint64_t oldSort;
     double originalTime;
     FBO_t* fbo = NULL;
 
@@ -337,7 +337,7 @@ void RB_RenderDrawSurfList(drawSurf_t* drawSurfs, int numDrawSurfs) {
     oldDlighted = qfalse;
     oldPshadowed = qfalse;
     oldCubemapIndex = -1;
-    oldSort = -1;
+    oldSort = ~(uint64_t)0;
 
     backEnd.pc.c_surfaces += numDrawSurfs;
 

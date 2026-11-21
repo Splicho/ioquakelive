@@ -2003,9 +2003,9 @@ static void FindLightingBundle( void )
 }
 #endif
 
-static void FixSortedIndex( unsigned int *sort, int newShader ) {
+static void FixSortedIndex( uint64_t *sort, int newShader ) {
 	if ( (int)(( *sort >> QSORT_SHADERNUM_SHIFT ) & SHADERNUM_MASK) >= newShader ) {
-		*sort += 1U << QSORT_SHADERNUM_SHIFT;
+		*sort += (uint64_t)1 << QSORT_SHADERNUM_SHIFT;
 	}
 }
 

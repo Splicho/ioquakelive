@@ -1,3 +1,6 @@
+#ifndef CG_LOCAL_H
+#define CG_LOCAL_H
+
 /*
 ===========================================================================
 Copyright (C) 1999-2005 Id Software, Inc.
@@ -23,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../renderercommon/tr_types.h"
 #include "../game/bg_public.h"
 #include "cg_public.h"
+#include "cg_fx_scripts.h"
 
 #define POWERUP_BLINKS 5
 
@@ -142,6 +146,43 @@ typedef struct centity_s {
     int miscTime;
     int pickupFrame;
 
+    vec3_t lastFlashIntervalPosition;
+    double lastFlashIntervalTime;
+    vec3_t lastFlashDistancePosition;
+    double lastFlashDistanceTime;
+    vec3_t lastModelIntervalPosition;
+    double lastModelIntervalTime;
+    vec3_t lastModelDistancePosition;
+    double lastModelDistanceTime;
+    vec3_t lastTrailIntervalPosition;
+    double lastTrailIntervalTime;
+    vec3_t lastTrailDistancePosition;
+    double lastTrailDistanceTime;
+    vec3_t lastImpactIntervalPosition;
+    double lastImpactIntervalTime;
+    vec3_t lastImpactDistancePosition;
+    double lastImpactDistanceTime;
+    vec3_t lastLegsIntervalPosition;
+    double lastLegsIntervalTime;
+    vec3_t lastLegsDistancePosition;
+    double lastLegsDistanceTime;
+    vec3_t lastTorsoIntervalPosition;
+    double lastTorsoIntervalTime;
+    vec3_t lastTorsoDistancePosition;
+    double lastTorsoDistanceTime;
+    vec3_t lastHeadIntervalPosition;
+    double lastHeadIntervalTime;
+    vec3_t lastHeadDistancePosition;
+    double lastHeadDistanceTime;
+    positionData_t flashPositionData;
+    positionData_t modelPositionData;
+    positionData_t trailPositionData;
+    positionData_t flightPositionData;
+    positionData_t hastePositionData;
+    int lastPointContents;
+    qhandle_t extraShader;
+    double extraShaderEndTime;
+
     int snapShotTime;
     int stuckAxes;
 
@@ -192,7 +233,10 @@ typedef enum {
     LEF_TUMBLE = 0x0002,
     LEF_SOUND1 = 0x0004,
     LEF_SOUND2 = 0x0008,
-    LEF_PUFF_DONT_SCALE_NOT_KIDDING_MAN = 0x0010
+    LEF_PUFF_DONT_SCALE_NOT_KIDDING_MAN = 0x0010,
+    LEF_REAL_TIME = 0x0020,
+    LEF_ALREADY_ADDED = 0x0040,
+    LEF_ALREADY_ADDED_FX = 0x0080
 } leFlag_t;
 
 typedef enum {
@@ -237,6 +281,19 @@ typedef struct localEntity_s {
     leBounceSoundType_t leBounceSoundType;
 
     refEntity_t refEntity;
+
+    unsigned int fxSpawnSerial;
+    leFXType_t fxType;
+    fxModelType_t fxModelType;
+    struct localEntity_s *lowPrev, *lowNext;
+    const char *emitterScript;
+    const char *emitterScriptEnd;
+    double lastRunTime;
+    double trTimef;
+
+    ScriptVars_t sv;
+    qboolean lowPriority;
+    int frameCountHandled;
 } localEntity_t;
 
 #define MAX_FLOATING_EFFECTS 32
@@ -575,6 +632,9 @@ typedef struct {
 
     int time;
     int oldTime;
+    int vibrateCameraValue;
+    int vibrateCameraPhase;
+    int vibrateCameraTime;
 
     int physicsTime;
 
@@ -2405,3 +2465,5 @@ void CG_ParticleMisc(qhandle_t pshader, vec3_t origin, int size, int duration, f
 void CG_ParticleExplosion(char* animStr, vec3_t origin, vec3_t vel, int duration, int sizeStart, int sizeEnd);
 extern qboolean initparticles;
 int CG_NewParticleArea(int num);
+
+#endif // CG_LOCAL_H

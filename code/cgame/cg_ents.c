@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "cg_local.h"
+#include "cg_fx_compat.h"
 
 void CG_PositionEntityOnTag(refEntity_t* entity, const refEntity_t* parent, qhandle_t parentModel, char* tagName) {
     int i;
@@ -874,6 +875,15 @@ static void CG_Missile(centity_t* cent) {
         s1->weapon = 0;
     }
     weapon = &cg_weapons[s1->weapon];
+
+    if (s1->weapon >= 0 && s1->weapon < WP_MAX_NUM_WEAPONS_ALL_PROTOCOLS) {
+        if (CG_FX_RunScript(EffectScripts.weapons[s1->weapon].projectileScript, cent, cent->lerpOrigin, cent->lerpAngles,
+                            s1->pos.trDelta)) {
+            return;
+        }
+        CG_FX_RunScript(EffectScripts.weapons[s1->weapon].trailScript, cent, cent->lerpOrigin, cent->lerpAngles,
+                        s1->pos.trDelta);
+    }
 
     VectorCopy(s1->angles, cent->lerpAngles);
 

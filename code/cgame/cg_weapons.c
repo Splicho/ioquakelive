@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "cg_local.h"
+#include "cg_fx_compat.h"
 #include "../../ui/menudef.h"
 
 static void CG_MachineGunEjectBrass(centity_t* cent) {
@@ -290,6 +291,12 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
 
     localEntity_t* le;
     refEntity_t* re;
+
+    VectorSubtract(end, start, temp);
+    VectorNormalize(temp);
+    if (CG_FX_RunRailScript(EffectScripts.weapons[WP_RAILGUN].trailScript, ci, start, end)) {
+        return;
+    }
 
 #define RADIUS 4
 #define ROTATION 1
@@ -669,6 +676,10 @@ void CG_GrappleTrail(centity_t* owner, const centity_t* hook, const vec3_t start
     refEntity_t beam;
 
     if (owner->currentState.weapon != WP_GRAPPLING_HOOK) {
+        return;
+    }
+
+    if (CG_FX_RunScript(EffectScripts.weapons[WP_GRAPPLING_HOOK].trailScript, owner, start, NULL, NULL)) {
         return;
     }
 
@@ -1076,6 +1087,10 @@ static void CG_LightningBolt(centity_t* cent, vec3_t origin) {
         return;
     }
 
+    if (CG_FX_RunScript(EffectScripts.weapons[WP_LIGHTNING].trailScript, cent, origin, NULL, NULL)) {
+        return;
+    }
+
     memset(&beam, 0, sizeof(beam));
 
     if ((cent->currentState.number == cg.predictedPlayerState.clientNum) &&
@@ -1312,6 +1327,7 @@ void CG_AddPlayerWeapon(refEntity_t* parent, playerState_t* ps, centity_t* cent,
     centity_t* nonPredictedCent;
     orientation_t lerped;
     qboolean own = (cent->currentState.clientNum == cg.snap->ps.clientNum);
+    qboolean fxFlash = qfalse;
 
     weaponNum = cent->currentState.weapon;
 
@@ -1465,7 +1481,8 @@ void CG_AddPlayerWeapon(refEntity_t* parent, playerState_t* ps, centity_t* cent,
     }
 
     CG_PositionRotatedEntityOnTag(&flash, &gun, weapon->weaponModel, "tag_flash");
-    if (!ps || (cg_muzzleFlash.integer && cg_drawGun.integer)) {
+    fxFlash = CG_FX_RunScript(EffectScripts.weapons[weaponNum].flashScript, cent, flash.origin, angles, NULL);
+    if (!fxFlash && (!ps || (cg_muzzleFlash.integer && cg_drawGun.integer))) {
         trap_R_AddRefEntityToScene(&flash);
     }
 
@@ -1978,6 +1995,10 @@ void CG_FireWeapon(centity_t* cent) {
         CG_Error("CG_FireWeapon: ent->weapon >= WP_NUM_WEAPONS");
         return;
     }
+    if (ent->weapon < WP_MAX_NUM_WEAPONS_ALL_PROTOCOLS &&
+        CG_FX_RunScript(EffectScripts.weapons[ent->weapon].fireScript, cent, cent->lerpOrigin, NULL, NULL)) {
+        return;
+    }
     weap = &cg_weapons[ent->weapon];
 
     cent->muzzleFlashTime = cg.time;
@@ -2028,6 +2049,11 @@ void CG_MissileHitWall(int weapon, int clientNum, vec3_t origin, vec3_t dir, imp
     int duration;
     vec3_t sprOrg;
     vec3_t sprVel;
+
+    if (weapon >= 0 && weapon < WP_MAX_NUM_WEAPONS_ALL_PROTOCOLS &&
+        CG_FX_RunImpactScript(EffectScripts.weapons[weapon].impactScript, NULL, origin, dir)) {
+        return;
+    }
 
     mod = 0;
     shader = 0;
@@ -2203,6 +2229,13 @@ void CG_MissileHitWall(int weapon, int clientNum, vec3_t origin, vec3_t dir, imp
 }
 
 void CG_MissileHitPlayer(int weapon, vec3_t origin, vec3_t dir, int entityNum) {
+    if (weapon >= 0 && weapon < WP_MAX_NUM_WEAPONS_ALL_PROTOCOLS &&
+        CG_FX_RunImpactScript(EffectScripts.weapons[weapon].impactFleshScript, NULL, origin, dir)) {
+        return;
+    }
+    if (CG_FX_RunImpactScript(EffectScripts.impactFlesh, NULL, origin, dir)) {
+        return;
+    }
     if (entityNum != cg.snap->ps.clientNum) {
         int i;
         for (i = 0; i < 2; i++) {
@@ -2503,6 +2536,13 @@ void CG_Bullet(vec3_t end, int sourceEntityNum, vec3_t normal, qboolean flesh, i
     trace_t trace;
     int sourceContentType, destContentType;
     vec3_t start;
+
+    if (flesh && CG_FX_RunImpactScript(EffectScripts.weapons[WP_MACHINEGUN].impactFleshScript, NULL, end, normal)) {
+        return;
+    }
+    if (flesh && CG_FX_RunImpactScript(EffectScripts.impactFlesh, NULL, end, normal)) {
+        return;
+    }
 
     if (sourceEntityNum >= 0 && cg_tracerChance.value > 0) {
         if (CG_CalcMuzzlePoint(sourceEntityNum, start)) {

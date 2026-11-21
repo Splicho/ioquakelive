@@ -1035,20 +1035,22 @@ static ID_INLINE void R_Radix( int byte, int size, const drawSurf_t *source, dra
     dest[ index[ *sortKey ]++ ] = source[ i ];
 }
 
-static void R_RadixSort( drawSurf_t *source, int size )
-{
-  static drawSurf_t scratch[ MAX_DRAWSURFS ];
+/* Sort all 64 bits; dense FX scenes use entity bits above the old key. */
+static void R_RadixSort(drawSurf_t *source, int size) {
+    static drawSurf_t scratch[MAX_DRAWSURFS];
+    int pass;
+    for (pass = 0; pass < 8; pass++) {
 #ifdef Q3_LITTLE_ENDIAN
-  R_Radix( 0, size, source, scratch );
-  R_Radix( 1, size, scratch, source );
-  R_Radix( 2, size, source, scratch );
-  R_Radix( 3, size, scratch, source );
+        int byte = pass;
 #else
-  R_Radix( 3, size, source, scratch );
-  R_Radix( 2, size, scratch, source );
-  R_Radix( 1, size, source, scratch );
-  R_Radix( 0, size, scratch, source );
+        int byte = 7 - pass;
 #endif
+        if (pass & 1) {
+            R_Radix(byte, size, scratch, source);
+        } else {
+            R_Radix(byte, size, source, scratch);
+        }
+    }
 }
 
 #ifdef USE_PMLIGHT
@@ -1155,7 +1157,7 @@ void R_AddLitSurf( surfaceType_t *surface, shader_t *shader, int fogIndex )
 
 	litsurf = &tr.refdef.litSurfs[ tr.refdef.numLitSurfs++ ];
 
-	litsurf->sort = (shader->sortedIndex << QSORT_SHADERNUM_SHIFT) 
+	litsurf->sort = ((uint64_t)shader->sortedIndex << QSORT_SHADERNUM_SHIFT)
 		| tr.shiftedEntityNum | ( fogIndex << QSORT_FOGNUM_SHIFT );
 	litsurf->surface = surface;
 
@@ -1168,7 +1170,7 @@ void R_AddLitSurf( surfaceType_t *surface, shader_t *shader, int fogIndex )
 	tr.light->tail->next = NULL;
 }
 
-void R_DecomposeLitSort( unsigned sort, int *entityNum, shader_t **shader, int *fogNum ) {
+void R_DecomposeLitSort( uint64_t sort, int *entityNum, shader_t **shader, int *fogNum ) {
 	*fogNum = ( sort >> QSORT_FOGNUM_SHIFT ) & FOGNUM_MASK;
 	*shader = tr.sortedShaders[ ( sort >> QSORT_SHADERNUM_SHIFT ) & SHADERNUM_MASK ];
 	*entityNum = ( sort >> QSORT_REFENTITYNUM_SHIFT ) & REFENTITYNUM_MASK;
@@ -1181,13 +1183,13 @@ void R_AddDrawSurf( surfaceType_t *surface, shader_t *shader,
 	int			index;
 
 	index = tr.refdef.numDrawSurfs & DRAWSURF_MASK;
-	tr.refdef.drawSurfs[index].sort = (shader->sortedIndex << QSORT_SHADERNUM_SHIFT) 
+	tr.refdef.drawSurfs[index].sort = ((uint64_t)shader->sortedIndex << QSORT_SHADERNUM_SHIFT)
 		| tr.shiftedEntityNum | ( fogIndex << QSORT_FOGNUM_SHIFT ) | (int)dlightMap;
 	tr.refdef.drawSurfs[index].surface = surface;
 	tr.refdef.numDrawSurfs++;
 }
 
-void R_DecomposeSort( unsigned sort, int *entityNum, shader_t **shader, 
+void R_DecomposeSort( uint64_t sort, int *entityNum, shader_t **shader,
 					 int *fogNum, int *dlightMap ) {
 	*fogNum = ( sort >> QSORT_FOGNUM_SHIFT ) & FOGNUM_MASK;
 	*shader = tr.sortedShaders[ ( sort >> QSORT_SHADERNUM_SHIFT ) & SHADERNUM_MASK ];
@@ -1277,10 +1279,14 @@ static void R_AddEntitySurfaces( void ) {
 		case RT_PORTALSURFACE:
 			break;
 		case RT_SPRITE:
+		case RT_SPRITE_FIXED:
+		case RT_SPARK:
 		case RT_BEAM:
+		case RT_BEAM_Q3MME:
 		case RT_LIGHTNING:
 		case RT_RAIL_CORE:
 		case RT_RAIL_RINGS:
+		case RT_RAIL_RINGS_Q3MME:
 			if ( (ent->e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE) ) {
 				continue;
 			}

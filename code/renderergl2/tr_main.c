@@ -1063,32 +1063,35 @@ static ID_INLINE void R_Radix(int byte, int size, drawSurf_t* source, drawSurf_t
         dest[index[*sortKey]++] = source[i];
 }
 
-static void R_RadixSort(drawSurf_t* source, int size) {
+/* Sort all 64 bits; dense FX scenes use entity bits above the old key. */
+static void R_RadixSort(drawSurf_t *source, int size) {
     static drawSurf_t scratch[MAX_DRAWSURFS];
+    int pass;
+    for (pass = 0; pass < 8; pass++) {
 #ifdef Q3_LITTLE_ENDIAN
-    R_Radix(0, size, source, scratch);
-    R_Radix(1, size, scratch, source);
-    R_Radix(2, size, source, scratch);
-    R_Radix(3, size, scratch, source);
+        int byte = pass;
 #else
-    R_Radix(3, size, source, scratch);
-    R_Radix(2, size, scratch, source);
-    R_Radix(1, size, source, scratch);
-    R_Radix(0, size, scratch, source);
+        int byte = 7 - pass;
 #endif
+        if (pass & 1) {
+            R_Radix(byte, size, scratch, source);
+        } else {
+            R_Radix(byte, size, source, scratch);
+        }
+    }
 }
 
 void R_AddDrawSurf(surfaceType_t* surface, shader_t* shader, int fogIndex, int dlightMap, int pshadowMap, int cubemap) {
     int index;
 
     index = tr.refdef.numDrawSurfs & DRAWSURF_MASK;
-    tr.refdef.drawSurfs[index].sort = (shader->sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT) | ((int)pshadowMap << QSORT_PSHADOW_SHIFT) | (int)dlightMap;
+    tr.refdef.drawSurfs[index].sort = ((uint64_t)shader->sortedIndex << QSORT_SHADERNUM_SHIFT) | tr.shiftedEntityNum | (fogIndex << QSORT_FOGNUM_SHIFT) | ((int)pshadowMap << QSORT_PSHADOW_SHIFT) | (int)dlightMap;
     tr.refdef.drawSurfs[index].cubemapIndex = cubemap;
     tr.refdef.drawSurfs[index].surface = surface;
     tr.refdef.numDrawSurfs++;
 }
 
-void R_DecomposeSort(unsigned sort, int* entityNum, shader_t** shader, int* fogNum, int* dlightMap, int* pshadowMap) {
+void R_DecomposeSort(uint64_t sort, int* entityNum, shader_t** shader, int* fogNum, int* dlightMap, int* pshadowMap) {
     *fogNum = (sort >> QSORT_FOGNUM_SHIFT) & 31;
     *shader = tr.sortedShaders[(sort >> QSORT_SHADERNUM_SHIFT) & (MAX_SHADERS - 1)];
     *entityNum = (sort >> QSORT_REFENTITYNUM_SHIFT) & REFENTITYNUM_MASK;
@@ -1158,10 +1161,14 @@ static void R_AddEntitySurface(int entityNum) {
         case RT_PORTALSURFACE:
             break;
         case RT_SPRITE:
+        case RT_SPRITE_FIXED:
+        case RT_SPARK:
         case RT_BEAM:
+        case RT_BEAM_Q3MME:
         case RT_LIGHTNING:
         case RT_RAIL_CORE:
         case RT_RAIL_RINGS:
+        case RT_RAIL_RINGS_Q3MME:
             if ((ent->e.renderfx & RF_THIRD_PERSON) && !tr.viewParms.isPortal) {
                 return;
             }

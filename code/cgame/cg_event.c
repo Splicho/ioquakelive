@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "cg_local.h"
+#include "cg_fx_compat.h"
 
 #include "../../ui/menudef.h"
 
@@ -879,6 +880,9 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
 
         case EV_JUMP_PAD:
             DEBUGNAME("EV_JUMP_PAD");
+            if (CG_FX_RunScript(EffectScripts.jumpPad, cent, cent->lerpOrigin, NULL, NULL)) {
+                break;
+            }
             {
                 vec3_t up = {0, 0, 1};
 
@@ -1134,12 +1138,18 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
 
         case EV_PLAYER_TELEPORT_IN:
             DEBUGNAME("EV_PLAYER_TELEPORT_IN");
+            if (CG_FX_RunScript(EffectScripts.playerTeleportIn, cent, position, NULL, NULL)) {
+                break;
+            }
             trap_S_StartSound(NULL, es->number, CHAN_AUTO, cgs.media.teleInSound);
             CG_SpawnEffect(position);
             break;
 
         case EV_PLAYER_TELEPORT_OUT:
             DEBUGNAME("EV_PLAYER_TELEPORT_OUT");
+            if (CG_FX_RunScript(EffectScripts.playerTeleportOut, cent, position, NULL, NULL)) {
+                break;
+            }
             trap_S_StartSound(NULL, es->number, CHAN_AUTO, cgs.media.teleOutSound);
             CG_SpawnEffect(position);
             break;
@@ -1646,6 +1656,10 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
 
         case EV_GIB_PLAYER:
             DEBUGNAME("EV_GIB_PLAYER");
+            if (*EffectScripts.gibbed) {
+                CG_FX_GibPlayer(cent);
+                break;
+            }
             if (!(es->eFlags & EF_KAMIKAZE)) {
                 if (CG_Q3GibsEnabled()) {
                     trap_S_StartSound(NULL, es->number, CHAN_BODY,
@@ -1721,6 +1735,9 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
             break;
         case EV_THAW_PLAYER:
             DEBUGNAME("EV_THAW_PLAYER");
+            if (CG_FX_RunScript(EffectScripts.thawed, cent, cent->lerpOrigin, NULL, NULL)) {
+                break;
+            }
             CG_ThawPlayer(cent->lerpOrigin);
             break;
         case EV_THAW_TICK:
@@ -1819,6 +1836,24 @@ void CG_EntityEvent(centity_t* cent, vec3_t position) {
             DEBUGNAME("EV_AWARD");
             if (cg.snap->ps.clientNum == es->clientNum) {
                 int count = es->modelindex2;
+                const char* fxScript = NULL;
+
+                switch (es->generic1) {
+                case 0: fxScript = EffectScripts.playerMedalComboKill; break;
+                case 1: fxScript = EffectScripts.playerMedalRampage; break;
+                case 2: fxScript = EffectScripts.playerMedalMidAir; break;
+                case 3: fxScript = EffectScripts.playerMedalRevenge; break;
+                case 4: fxScript = EffectScripts.playerMedalPerforated; break;
+                case 5: fxScript = *EffectScripts.headShot ? EffectScripts.headShot : EffectScripts.playerMedalHeadshot; break;
+                case 6: fxScript = EffectScripts.playerMedalAccuracy; break;
+                case 7: fxScript = EffectScripts.playerMedalQuadGod; break;
+                case 8: fxScript = EffectScripts.playerMedalFirstFrag; break;
+                case 9: fxScript = EffectScripts.playerMedalPerfect; break;
+                }
+                if (fxScript && *fxScript && CG_FX_RunScript(fxScript, cent, cent->lerpOrigin, NULL, NULL)) {
+                    break;
+                }
+
                 switch (es->generic1) {
                 case 0: CG_PushReward(cgs.media.comboKillSounds[rand() % 3], cgs.media.medalComboKill, count); break;
                 case 1: CG_PushReward(cgs.media.rampageSounds[rand() % 3], cgs.media.medalRampage, count); break;

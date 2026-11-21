@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "cg_local.h"
+#include "cg_fx_compat.h"
 
 void CG_BubbleTrail(vec3_t start, vec3_t end, float spacing) {
     vec3_t move;
@@ -34,6 +35,10 @@ void CG_BubbleTrail(vec3_t start, vec3_t end, float spacing) {
     VectorCopy(start, move);
     VectorSubtract(end, start, vec);
     len = VectorNormalize(vec);
+
+    if (CG_FX_RunScript(EffectScripts.bubbles, NULL, start, vec, NULL)) {
+        return;
+    }
 
     i = rand() % (int)spacing;
     VectorMA(move, i, vec, move);

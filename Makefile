@@ -1915,6 +1915,10 @@ endif
 
 Q3CGOBJ_ = \
   $(B)/$(BASEGAME)/cgame/cg_main.o \
+  $(B)/$(BASEGAME)/cgame/cg_mem.o \
+  $(B)/$(BASEGAME)/cgame/cg_fx_scripts.o \
+  $(B)/$(BASEGAME)/cgame/cg_fx_compat.o \
+  $(B)/$(BASEGAME)/cgame/cg_fx_commands.o \
   $(B)/$(BASEGAME)/cgame/bg_misc.o \
   $(B)/$(BASEGAME)/cgame/bg_pmove.o \
   $(B)/$(BASEGAME)/cgame/bg_slidemove.o \

@@ -20,11 +20,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 #include "cg_local.h"
+#include "cg_fx_compat.h"
 
-#define MAX_LOCAL_ENTITIES 512
+// Match Wolfcam: a long, densely sampled rail can emit over 10,000 rings.
+#define MAX_LOCAL_ENTITIES (MAX_REFENTITIES - 3)
 localEntity_t cg_localEntities[MAX_LOCAL_ENTITIES];
 localEntity_t cg_activeLocalEntities;
 localEntity_t* cg_freeLocalEntities;
+static localEntity_t *cg_fxUpdatingEntity, *cg_nextLocalEntity;
+unsigned int cg_localEntitySerial;
 
 void CG_InitLocalEntities(void) {
     int i;
@@ -43,6 +47,9 @@ void CG_FreeLocalEntity(localEntity_t* le) {
         CG_Error("CG_FreeLocalEntity: not active");
     }
 
+    if (cg_nextLocalEntity == le) {
+        cg_nextLocalEntity = le->prev;
+    }
     le->prev->next = le->next;
     le->next->prev = le->prev;
 
@@ -54,7 +61,11 @@ localEntity_t* CG_AllocLocalEntity(void) {
     localEntity_t* le;
 
     if (!cg_freeLocalEntities) {
-        CG_FreeLocalEntity(cg_activeLocalEntities.prev);
+        localEntity_t *oldest = cg_activeLocalEntities.prev;
+        if (oldest == cg_fxUpdatingEntity) {
+            oldest = oldest->prev;
+        }
+        CG_FreeLocalEntity(oldest);
     }
 
     le = cg_freeLocalEntities;
@@ -62,6 +73,7 @@ localEntity_t* CG_AllocLocalEntity(void) {
 
     memset(le, 0, sizeof(*le));
 
+    le->fxSpawnSerial = ++cg_localEntitySerial;
     le->next = cg_activeLocalEntities.next;
     le->prev = &cg_activeLocalEntities;
     cg_activeLocalEntities.next->prev = le;
@@ -213,7 +225,6 @@ void CG_ReflectVelocity(localEntity_t* le, trace_t* trace) {
         (trace->plane.normal[2] > 0 &&
          (le->pos.trDelta[2] < 40 || le->pos.trDelta[2] < -cg.frametime * le->pos.trDelta[2]))) {
         le->pos.trType = TR_STATIONARY;
-    } else {
     }
 }
 
@@ -655,16 +666,336 @@ void CG_AddScorePlum(localEntity_t* le) {
     }
 }
 
+/* WolfcamQL emitted-entity lifecycle (GPL v2), adapted to native cgame.
+ * le->sv is the creation snapshot. Only movement/event cursors persist;
+ * lerp expressions and fades must be evaluated afresh, never accumulated.
+ */
+static void CG_Add_FX_Emitted (localEntity_t *le)
+{
+	refEntity_t *re;
+	float totalFade;
+	float lf;
+	double deltaTime;
+	vec3_t newOrigin;
+	float gravityValue;
+	trace_t trace;
+	vec3_t delta;
+	float len;
+	vec3_t lastOrigin;
+	float dot;
+	CG_GetStoredScriptVarsFromLE(le);
+	if (cg.renderingThirdPerson  ||  cgs.freecam) {
+		ScriptVars.inEyes = qfalse;
+	} else {
+		ScriptVars.inEyes = ScriptVars.clientNum >= 0 && ScriptVars.clientNum < MAX_CLIENTS &&
+            CG_IsUs(&cgs.clientinfo[ScriptVars.clientNum]);
+	}
+	ScriptVars.lerp = (float)(cg.time - le->startTime) / (float)(le->endTime - le->startTime);
+	if (ScriptVars.lerp >= 1.0) {
+		ScriptVars.lerp = 1.01f;
+	}
+	re = &le->refEntity;
+    VectorCopy(re->origin, newOrigin);
+	if (re->reType == RT_MODEL) {
+		re->skinNum = cg.clientFrame & 1;
+	}
+	if (ScriptVars.hasSink  &&  le->pos.trType == TR_STATIONARY) {
+		double tf;
+		float oldZ;
+		float newZ;
+		float sinkTime;
+		vec3_t mins, maxs;
+		sinkTime = (1.0 - ScriptVars.sink1) * (le->endTime - le->startTime);
+		tf = le->endTime - cg.time;
+		if (tf < sinkTime  &&  sinkTime != 0.0) {
+			VectorCopy(re->origin, re->lightingOrigin);
+			re->renderfx |= RF_LIGHTING_ORIGIN;
+			oldZ = re->origin[2];
+			re->origin[2] -= ScriptVars.sink2 * (1.0 - (float)tf / sinkTime);
+			newZ = re->origin[2];
+			CG_AddRefEntityFX(re);
+			re->origin[2] = oldZ;
+		} else {
+			oldZ = re->origin[2];
+			newZ = re->origin[2];
+			CG_AddRefEntityFX(re);
+		}
+		switch (re->reType) {
+		case RT_SPARK:
+		case RT_SPRITE:
+		case RT_SPRITE_FIXED:
+			if (fabs(newZ - oldZ) > re->radius) {
+				le->endTime = 0;
+				le->fxType = 0;
+			}
+			break;
+		case RT_MODEL:
+			trap_R_ModelBounds(re->hModel, mins, maxs);
+			if (fabs(newZ - oldZ) > ((float)maxs[2] * re->radius)) {
+				le->endTime = 0;
+				le->fxType = 0;
+			}
+			break;
+		default:
+			break;
+		}
+		return;
+	} else if (le->pos.trType != TR_STATIONARY &&
+               (ScriptVars.hasMoveBounce || ScriptVars.hasMoveGravity)) {
+		deltaTime = (cg.time - le->trTimef) * 0.001;
+		VectorMA(le->pos.trBase, deltaTime, ScriptVars.velocity, newOrigin);
+		VectorCopy(re->origin, lastOrigin);
+		gravityValue = 0;
+		if (ScriptVars.hasMoveGravity) {
+			gravityValue = ScriptVars.moveGravity;
+		} else if (ScriptVars.hasMoveBounce) {
+			gravityValue = ScriptVars.moveBounce1;
+		}
+		if (gravityValue  &&  Q_fabs(deltaTime) > 0.0f) {
+			newOrigin[2] -= gravityValue * deltaTime * deltaTime;
+            // The trajectory uses p = p0 + v0*t - g*t*t. Its current
+            // velocity is v0 - 2*g*t, not the original launch velocity.
+            ScriptVars.velocity[2] -= 2.0f * gravityValue * deltaTime;
+		}
+		CG_Trace(&trace, re->origin, NULL, NULL, newOrigin, -1, CONTENTS_SOLID);
+		if (trace.fraction != 1.0) {
+			if (CG_PointContents(trace.endpos, 0) & CONTENTS_NODROP) {
+				CG_FreeLocalEntity(le);
+				return;
+			}
+			if (trace.surfaceFlags & SURF_NOIMPACT) {
+				CG_FreeLocalEntity(le);
+				return;
+			}
+			VectorCopy(trace.endpos, newOrigin);
+			if (ScriptVars.hasMoveBounce) {
+
+				dot = DotProduct(ScriptVars.velocity, trace.plane.normal);
+				VectorMA(ScriptVars.velocity, -2 * dot, trace.plane.normal, ScriptVars.velocity);
+				VectorScale(ScriptVars.velocity, ScriptVars.moveBounce2, ScriptVars.velocity);
+				VectorCopy(ScriptVars.velocity, le->sv.velocity);
+				VectorCopy(trace.endpos, le->pos.trBase);
+				le->trTimef = cg.time;
+				VectorCopy(trace.endpos, ScriptVars.impactOrigin);
+				VectorCopy(trace.endpos, le->sv.impactOrigin);
+				VectorCopy(trace.plane.normal, ScriptVars.impactDir);
+				VectorCopy(trace.plane.normal, le->sv.impactDir);
+				ScriptVars.impacted = qtrue;
+				le->sv.impacted = qtrue;
+				if (VectorLength(ScriptVars.velocity) < 20) {
+					le->pos.trType = TR_STATIONARY;
+				}
+			} else {
+				CG_FreeLocalEntity(le);
+				return;
+			}
+		}
+		le->sv.distance += Distance(lastOrigin, newOrigin);
+		ScriptVars.distance = le->sv.distance;
+		VectorCopy(newOrigin, ScriptVars.origin);
+	}
+	if (le->lastRunTime != cg.time &&
+        (cg.time - le->lastRunTime >= cg_fxinterval.value || ScriptVars.lerp >= 1.0f)) {
+		DistanceScript = qfalse;
+		EmitterScript = qtrue;
+		CG_RunQ3mmeScript(le->emitterScript, NULL);
+		EmitterScript = qfalse;
+		DistanceScript = qfalse;
+		le->lastRunTime = cg.time;
+		if (ScriptVars.hasMoveBounce  ||  ScriptVars.hasMoveGravity) {
+			VectorCopy(newOrigin, re->origin);
+		} else {
+			VectorCopy(ScriptVars.origin, re->origin);
+		}
+	} else {
+		if (ScriptVars.hasMoveBounce  ||  ScriptVars.hasMoveGravity) {
+			VectorCopy(newOrigin, re->origin);
+		}
+		if (ScriptVars.cullNear  ||  ScriptVars.cullRadius) {
+			if (re->reType == RT_SPRITE  ||  re->reType == RT_SPRITE_FIXED  ||  re->reType == RT_SPARK) {
+				VectorSubtract(re->origin, cg.refdef.vieworg, delta);
+				len = VectorLength(delta);
+				if (len < ScriptVars.size) {
+					return;
+				}
+			}
+		}
+		if (ScriptVars.cullDistance) {
+			if (re->reType == RT_SPRITE  ||  re->reType == RT_SPRITE_FIXED  ||  re->reType == RT_SPARK) {
+				VectorSubtract(re->origin, cg.refdef.vieworg, delta);
+				len = VectorLength(delta);
+				if (len >= ScriptVars.cullDistanceValue) {
+					return;
+				}
+			}
+		}
+		CG_AddRefEntityFX(re);
+		return;
+	}
+	le->sv.distance = ScriptVars.distance;
+	le->sv.impacted = ScriptVars.impacted;
+	VectorCopy(ScriptVars.lastIntervalPosition, le->sv.lastIntervalPosition);
+	le->sv.lastIntervalTime = ScriptVars.lastIntervalTime;
+	VectorCopy(ScriptVars.lastDistancePosition, le->sv.lastDistancePosition);
+	le->sv.lastDistanceTime = ScriptVars.lastDistanceTime;
+	if (ScriptVars.hasShaderTime) {
+		re->shaderTime = ScriptVars.shaderTime;
+	}
+	if (re->reType == RT_SPRITE  ||  re->reType == RT_SPRITE_FIXED  ||  re->reType == RT_SPARK) {
+		VectorSubtract(re->origin, cg.refdef.vieworg, delta);
+		len = VectorLength(delta);
+		if (len < ScriptVars.size) {
+			if (ScriptVars.cullNear  ||  ScriptVars.cullRadius) {
+				return;
+			}
+		}
+		if (ScriptVars.cullDistance) {
+			if (len >= ScriptVars.cullDistanceValue) {
+				return;
+			}
+		}
+	}
+	if (ScriptVars.hasAlphaFade) {
+		totalFade = 1.0 - ScriptVars.alphaFade;
+		lf = 1 - totalFade * ScriptVars.lerp;
+		ScriptVars.color[3] *= lf;
+	}
+	if (ScriptVars.hasColorFade) {
+		totalFade = 1.0 - ScriptVars.colorFade;
+		lf = 1.0 - totalFade * ScriptVars.lerp;
+		ScriptVars.color[0] *= lf;
+		ScriptVars.color[1] *= lf;
+		ScriptVars.color[2] *= lf;
+	}
+	re->shaderRGBA[0] = 255 * Com_Clamp(0, 1, ScriptVars.color[0]);
+	re->shaderRGBA[1] = 255 * Com_Clamp(0, 1, ScriptVars.color[1]);
+	re->shaderRGBA[2] = 255 * Com_Clamp(0, 1, ScriptVars.color[2]);
+	re->shaderRGBA[3] = 255 * Com_Clamp(0, 1, ScriptVars.color[3]);
+	if (re->reType == RT_SPRITE  ||  re->reType == RT_SPRITE_FIXED  ||  re->reType == RT_SPARK) {
+		if (re->reType == RT_SPARK) {
+			VectorCopy(ScriptVars.velocity, re->oldorigin);
+			re->width = ScriptVars.width;
+		} else if (re->reType == RT_SPRITE_FIXED) {
+			VectorCopy(ScriptVars.dir, re->oldorigin);
+			re->width = 0;
+		}
+	} else if (re->reType == RT_BEAM_Q3MME) {
+		VectorCopy(ScriptVars.dir, re->oldorigin);
+	} else if (re->reType == RT_RAIL_RINGS_Q3MME) {
+		VectorCopy(ScriptVars.dir, re->oldorigin);
+	}
+	if (re->reType == RT_MODEL) {
+        CG_FX_ModelAxis(re, le->fxModelType);
+    }
+	re->radius = ScriptVars.size;
+	if (re->reType == RT_RAIL_RINGS_Q3MME) {
+		re->rotation = ScriptVars.width;
+	} else {
+		re->rotation = ScriptVars.rotate;
+	}
+	CG_AddRefEntityFX(re);
+}
+static void CG_Run_FX_Emitted_Script (localEntity_t *le)
+{
+	CG_GetStoredScriptVarsFromLE(le);
+	ScriptVars.lerp = (float)(cg.time - le->startTime) / (float)(le->endTime - le->startTime);
+	if (ScriptVars.lerp >= 1.0) {
+		ScriptVars.lerp = 1.01f;
+	}
+	if (cg.time != le->lastRunTime) {
+		EmitterScript = qtrue;
+		PlainScript = qtrue;
+		CG_RunQ3mmeScript(le->emitterScript, NULL);
+		EmitterScript = qfalse;
+		PlainScript = qfalse;
+		le->lastRunTime = cg.time;
+	}
+}
+static void CG_Add_FX_Emitted_Light (localEntity_t *le)
+{
+	CG_GetStoredScriptVarsFromLE(le);
+	ScriptVars.lerp = (float)(cg.time - le->startTime) / (float)(le->endTime - le->startTime);
+	if (ScriptVars.lerp >= 1.0) {
+		ScriptVars.lerp = 1.01f;
+	}
+	if (cg.time != le->lastRunTime) {
+		EmitterScript = qtrue;
+		CG_RunQ3mmeScript(le->emitterScript, NULL);
+		EmitterScript = qfalse;
+		le->lastRunTime = cg.time;
+	}
+	trap_R_AddLightToScene(ScriptVars.origin, ScriptVars.size, ScriptVars.color[0], ScriptVars.color[1], ScriptVars.color[2]);
+}
+static void CG_Add_FX_Emitted_Sound (localEntity_t *le)
+{
+	sfxHandle_t sfx;
+	CG_GetStoredScriptVarsFromLE(le);
+	ScriptVars.lerp = (float)(cg.time - le->startTime) / (float)(le->endTime - le->startTime);
+	if (ScriptVars.lerp >= 1.0) {
+		ScriptVars.lerp = 1.01f;
+	}
+	if (cg.time != le->lastRunTime) {
+		EmitterScript = qtrue;
+		CG_RunQ3mmeScript(le->emitterScript, NULL);
+		EmitterScript = qfalse;
+		le->lastRunTime = cg.time;
+	}
+	if (*ScriptVars.sound) {
+		sfx = trap_S_RegisterSound(ScriptVars.sound, qfalse);
+		CG_StartSound(ScriptVars.origin, ENTITYNUM_WORLD, CHAN_AUTO, sfx);
+	}
+}
+static void CG_Add_FX_Emitted_LoopSound (localEntity_t *le)
+{
+	qhandle_t lsound;
+	CG_GetStoredScriptVarsFromLE(le);
+	ScriptVars.lerp = (float)(cg.time - le->startTime) / (float)(le->endTime - le->startTime);
+	if (ScriptVars.lerp >= 1.0) {
+		ScriptVars.lerp = 1.01f;
+	}
+	if (cg.time != le->lastRunTime) {
+		EmitterScript = qtrue;
+		CG_RunQ3mmeScript(le->emitterScript, NULL);
+		EmitterScript = qfalse;
+		le->lastRunTime = cg.time;
+	}
+	lsound = trap_S_RegisterSound(ScriptVars.loopSound, qfalse);
+	if (lsound) {
+		{
+			if (FxLoopSounds >= MAX_LOOP_SOUNDS) {
+				CG_Printf("^3fx:  (emitted) max loop sounds added\n");
+			} else {
+				CG_AddLoopingSound(FxLoopSounds, ScriptVars.origin, ScriptVars.velocity, lsound);
+				FxLoopSounds++;
+			}
+		}
+	}
+}
+
 void CG_AddLocalEntities(void) {
-    localEntity_t *le, *next;
+    localEntity_t *le;
 
     le = cg_activeLocalEntities.prev;
-    for (; le != &cg_activeLocalEntities; le = next) {
-        next = le->prev;
+    for (; le != &cg_activeLocalEntities; le = cg_nextLocalEntity) {
+        cg_nextLocalEntity = le->prev;
+        cg_fxUpdatingEntity = le;
 
         if (cg.time >= le->endTime) {
-            CG_FreeLocalEntity(le);
-            continue;
+            if (le->fxType && le->sv.emitterFullLerp && !le->sv.emitterKill) {
+                le->sv.emitterKill = qtrue;
+            } else {
+                CG_FreeLocalEntity(le);
+                continue;
+            }
+        }
+
+        switch (le->fxType) {
+            case LEFX_EMIT: CG_Add_FX_Emitted(le); continue;
+            case LEFX_SCRIPT: CG_Run_FX_Emitted_Script(le); continue;
+            case LEFX_EMIT_LIGHT: CG_Add_FX_Emitted_Light(le); continue;
+            case LEFX_EMIT_SOUND: CG_Add_FX_Emitted_Sound(le); continue;
+            case LEFX_EMIT_LOOPSOUND: CG_Add_FX_Emitted_LoopSound(le); continue;
+            default: break;
         }
         switch (le->leType) {
             default:
@@ -723,4 +1054,6 @@ void CG_AddLocalEntities(void) {
                 break;
         }
     }
+    cg_fxUpdatingEntity = NULL;
+    cg_nextLocalEntity = NULL;
 }

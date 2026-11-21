@@ -844,6 +844,20 @@ void Vector4Scale(const vec4_t in, vec_t scale, vec4_t out) {
     out[3] = in[3] * scale;
 }
 
+void PointToPlane(vec3_t dst, const vec3_t point, const vec3_t planePoint, const vec3_t normal) {
+    vec3_t pv;
+    float d, nm, denom;
+
+    VectorSubtract(point, planePoint, pv);
+    nm = -DotProduct(normal, pv);
+    denom = DotProduct(normal, normal);
+    if (Q_fabs(denom) == 0.0f) {
+        return;
+    }
+    d = nm / denom;
+    VectorMA(point, d, normal, dst);
+}
+
 int Q_log2(int val) {
     int answer;
 

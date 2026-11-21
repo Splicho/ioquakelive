@@ -1131,6 +1131,7 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
     }
 
     trap_S_ClearLoopingSounds(qfalse);
+    FxLoopSounds = 0;
 
     trap_R_ClearScene();
 
