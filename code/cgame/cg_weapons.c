@@ -255,6 +255,23 @@ static qboolean CG_GetRailColorByte(clientInfo_t* ci, byte* rgb) {
     return qtrue;
 }
 
+static qhandle_t CG_RailCoreShader(void) {
+    return cg_railBlack.integer ? cgs.media.railCoreBlackShader : cgs.media.railCoreShader;
+}
+
+static qhandle_t CG_RailRingsShader(void) {
+    return cg_railBlack.integer ? cgs.media.railRingsBlackShader : cgs.media.railRingsShader;
+}
+
+static void CG_RailBlackColor(localEntity_t* le) {
+    if (cg_railBlack.integer) {
+        le->color[0] = 0.0f;
+        le->color[1] = 0.0f;
+        le->color[2] = 0.0f;
+        le->color[3] = 1.0f;
+    }
+}
+
 static void CG_RailTrailCore(clientInfo_t* ci, vec3_t start, vec3_t end) {
     localEntity_t* le;
     refEntity_t* re;
@@ -269,7 +286,7 @@ static void CG_RailTrailCore(clientInfo_t* ci, vec3_t start, vec3_t end) {
 
     re->shaderTime = cg.time / 1000.0f;
     re->reType = RT_RAIL_RINGS;
-    re->customShader = cgs.media.railRingsShader;
+    re->customShader = CG_RailRingsShader();
 
     VectorCopy(start, re->origin);
     VectorCopy(end, re->oldorigin);
@@ -280,6 +297,7 @@ static void CG_RailTrailCore(clientInfo_t* ci, vec3_t start, vec3_t end) {
         le->color[2] = ci->color2[2] * 0.75;
     }
     le->color[3] = 1.0f;
+    CG_RailBlackColor(le);
 
     AxisClear(re->axis);
 }
@@ -312,7 +330,7 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
 
     re->shaderTime = cg.time / 1000.0f;
     re->reType = RT_RAIL_CORE;
-    re->customShader = cgs.media.railCoreShader;
+    re->customShader = CG_RailCoreShader();
     re->radius = 256;
 
     VectorCopy(start, re->origin);
@@ -324,6 +342,7 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
         le->color[2] = ci->color1[2] * 0.75;
     }
     le->color[3] = 1.0f;
+    CG_RailBlackColor(le);
 
     AxisClear(re->axis);
 
@@ -397,12 +416,17 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
             re->shaderTime = cg.time / 1000.0f;
             re->reType = RT_SPRITE;
             re->radius = 1.1f;
-            re->customShader = cgs.media.railRingsShader;
+            re->customShader = CG_RailRingsShader();
 
             if (!CG_GetRailColorByte(ci, re->shaderRGBA)) {
                 re->shaderRGBA[0] = ci->color2[0] * 255;
                 re->shaderRGBA[1] = ci->color2[1] * 255;
                 re->shaderRGBA[2] = ci->color2[2] * 255;
+            }
+            if (cg_railBlack.integer) {
+                re->shaderRGBA[0] = 0;
+                re->shaderRGBA[1] = 0;
+                re->shaderRGBA[2] = 0;
             }
             re->shaderRGBA[3] = 255;
 
@@ -412,6 +436,7 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
                 le->color[2] = ci->color2[2] * 0.75;
             }
             le->color[3] = 1.0f;
+            CG_RailBlackColor(le);
 
             le->pos.trType = TR_LINEAR;
             le->pos.trTime = cg.time;
@@ -930,6 +955,8 @@ void CG_RegisterWeapon(int weaponNum) {
             cgs.media.railExplosionShader = trap_R_RegisterShader("railExplosion");
             cgs.media.railRingsShader = trap_R_RegisterShader("railDisc");
             cgs.media.railCoreShader = trap_R_RegisterShader("railCore");
+            cgs.media.railRingsBlackShader = trap_R_RegisterShader("railDiscBlack");
+            cgs.media.railCoreBlackShader = trap_R_RegisterShader("railCoreBlack");
             break;
 
         case WP_BFG:

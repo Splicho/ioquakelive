@@ -991,6 +991,8 @@ typedef struct {
 
     qhandle_t railRingsShader;
     qhandle_t railCoreShader;
+    qhandle_t railRingsBlackShader;
+    qhandle_t railCoreBlackShader;
 
     qhandle_t lightningShader[5];
     qhandle_t lightningFadedShader[5];
@@ -1840,6 +1842,7 @@ extern vmCvar_t cg_impactSparksVelocity;
 extern vmCvar_t cg_muzzleFlash;
 extern vmCvar_t cg_plasmaStyle;
 extern vmCvar_t cg_railStyle;
+extern vmCvar_t cg_railBlack;
 extern vmCvar_t cg_svFps;
 extern vmCvar_t cg_projectileNudge;
 extern vmCvar_t cg_autoProjectileNudge;

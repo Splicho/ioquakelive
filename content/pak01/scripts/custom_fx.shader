@@ -31,3 +31,30 @@ q3bloodTrail
         alphaGen vertex
     }
 }
+
+railCoreBlack
+{
+    nopicmip
+    sort nearest
+    cull none
+    {
+        map gfx/misc/railcorethin_mono.tga
+        blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+        rgbGen vertex
+        tcMod scroll -1 0
+    }
+}
+
+railDiscBlack
+{
+    nopicmip
+    sort nearest
+    cull none
+    deformVertexes wave 100 sin 0 .5 0 2.4
+    {
+        clampmap gfx/misc/raildisc_mono2.tga
+        blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+        rgbGen vertex
+        tcMod rotate -30
+    }
+}
