@@ -724,7 +724,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_flagStyle, "cg_flagStyle", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "1", "2"},
     {&cg_forceEnemyModel, "cg_forceEnemyModel", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
     {&cg_forceTeamModel, "cg_forceTeamModel", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
-    {&cg_hitBeep, "cg_hitBeep", "5", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "5"},
+    {&cg_hitBeep, "cg_hitBeep", "4", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "4"},
     {&cg_impactSparks, "cg_impactSparks", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_impactSparksLifetime, "cg_impactSparksLifetime", "250", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1000"},
     {&cg_impactSparksSize, "cg_impactSparksSize", "8", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "2", "16"},

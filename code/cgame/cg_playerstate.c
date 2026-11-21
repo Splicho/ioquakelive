@@ -254,67 +254,60 @@ void CG_PushReward(sfxHandle_t sfx, qhandle_t shader, int rewardCount) {
     }
 }
 
-#define HITBEEP_COMBO_RESET 1000
+static sfxHandle_t CG_ComboHitBeepSound(int mode) {
+    int stage;
 
-static sfxHandle_t CG_ComboHitBeepSound(void) {
     if (cg.hitBeepCombo <= 4) {
-        return cgs.media.hitBeepSounds[0];
+        stage = 0;
+    } else if (cg.hitBeepCombo <= 9) {
+        stage = 1;
+    } else {
+        stage = 2;
     }
-    if (cg.hitBeepCombo <= 7) {
-        return cgs.media.hitBeepSounds[1];
+
+    if (mode == 2) {
+        return cgs.media.hitBeepSounds[2 - stage];  /* ascending: hit5 -> hit4 -> hit3 */
     }
-    return cgs.media.hitBeepSounds[2];
+    return cgs.media.hitBeepSounds[stage];          /* descending/waterfall: hit3 -> hit4 -> hit5 */
 }
 
-static sfxHandle_t CG_DamageHitBeepSound(const playerState_t* ps) {
-    int tier = ps->generic1 >> 6;
+static qboolean CG_HitBeepAiming(void) {
+    int target = cg.crosshairClientNum;
 
-    if (tier <= 1) {
-        return cgs.media.hitBeepSounds[0];  // hit3: high pitch, low damage
+    if (target < 0 || target >= MAX_CLIENTS) {
+        return qfalse;
     }
-    if (tier == 2) {
-        return cgs.media.hitBeepSounds[1];  // hit4: middle
+    if (cg.crosshairClientTime == 0 || cg.time - cg.crosshairClientTime > 100) {
+        return qfalse;
     }
-    return cgs.media.hitBeepSounds[2];      // hit5: low pitch, high damage
+    if (!cgs.clientinfo[target].infoValid) {
+        return qfalse;
+    }
+    if (cgs.gametype >= GT_TEAM && cgs.clientinfo[target].team == cg.snap->ps.persistant[PERS_TEAM]) {
+        return qfalse;
+    }
+    return qtrue;
 }
 
 static sfxHandle_t CG_HitBeepSound(const playerState_t* ps) {
-    int tier = ps->generic1 >> 6;
-
-    if (cg_hitBeep.integer == 1) {
-        return cgs.media.hitSounds[1];
-    }
-    if (cg_hitBeep.integer == 3) {
-        tier = 3 - tier;
-    }
-    switch (tier) {
-        case 1:
-            return cgs.media.hitSounds[1];
-        case 2:
-            return cgs.media.hitSounds[2];
-        case 3:
-            return cgs.media.hitSounds[3];
-        default:
-            return cgs.media.hitSounds[0];
-    }
+    (void)ps;
+    return cgs.media.hitSounds[1];
 }
 
 static void CG_CheckHitSounds(const playerState_t* ps, const playerState_t* ops) {
+    if (cg_hitBeep.integer >= 2 && cg.crosshairClientTime != 0 && !CG_HitBeepAiming()) {
+        cg.hitBeepCombo = 0;
+    }
+
     if (ps->persistant[PERS_HITS] > ops->persistant[PERS_HITS]) {
         if (cg_killBeep.integer >= 1 &&
             ps->persistant[PERS_ATTACKEE_ARMOR] > ops->persistant[PERS_ATTACKEE_ARMOR]) {
             trap_S_StartLocalSoundVolume(cgs.media.killBeepSounds[cg_killBeep.integer - 1],
                                          CHAN_LOCAL_SOUND, s_killBeepVolume.value);
         } else if (cg_hitBeep.integer) {
-            if (cg_hitBeep.integer == 4) {
-                if (cg.time - cg.hitBeepLastTime > HITBEEP_COMBO_RESET) {
-                    cg.hitBeepCombo = 0;
-                }
+            if (cg_hitBeep.integer >= 2) {
                 cg.hitBeepCombo++;
-                cg.hitBeepLastTime = cg.time;
-                trap_S_StartLocalSound(CG_ComboHitBeepSound(), CHAN_LOCAL_SOUND);
-            } else if (cg_hitBeep.integer == 5) {
-                trap_S_StartLocalSound(CG_DamageHitBeepSound(ps), CHAN_LOCAL_SOUND);
+                trap_S_StartLocalSound(CG_ComboHitBeepSound(cg_hitBeep.integer), CHAN_LOCAL_SOUND);
             } else {
                 trap_S_StartLocalSound(CG_HitBeepSound(ps), CHAN_LOCAL_SOUND);
             }
@@ -331,7 +324,6 @@ void CG_CheckLocalSounds(playerState_t* ps, playerState_t* ops) {
 
     if (ps->persistant[PERS_SPAWN_COUNT] != ops->persistant[PERS_SPAWN_COUNT]) {
         cg.hitBeepCombo = 0;
-        cg.hitBeepLastTime = 0;
         return;
     }
 

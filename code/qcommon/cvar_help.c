@@ -278,10 +278,9 @@ static const cvarHelp_t cvarHelp[] = {
     {"cg_hitBeep", "sound when you hit someone\n"
                    HV("0") "Off\n"
                    HV("1") "One pitch\n"
-                   HV("2") "Pitch falling with the damage\n"
-                   HV("3") "Pitch rising with the damage\n"
-                   HV("4") "Combo: four hit3 beeps, three hit4 beeps, then hit5; resets after a short gap\n"
-                   HV("5") "Damage pitch: low damage hit3, medium hit4, high hit5 (falling pitch)"},
+                   HV("2") "Ascending streak: four hit5, five hit4, then hit3; resets when aim breaks\n"
+                   HV("3") "Descending streak: four hit3, five hit4, then hit5; resets when aim breaks\n"
+                   HV("4") "Waterfall: same descending streak as mode 3"},
     {"cg_killBeep", "sound when you frag someone\n"
                     HV("0") "Off\n"
                     HV("1") "Ting\n"

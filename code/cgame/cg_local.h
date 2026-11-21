@@ -778,7 +778,6 @@ typedef struct {
     int crosshairHitTime;
     int crosshairHitType;
     int hitBeepCombo;
-    int hitBeepLastTime;
 
     int obitSlideStart;
     int obitSlideKey;
