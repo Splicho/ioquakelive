@@ -909,15 +909,19 @@ static void SD_Close(void) {
 static void* SD_Open(void) {
     char path[MAX_OSPATH];
     char dir[MAX_OSPATH];
-    void* lib = (void*)LoadLibraryA(SD_LIB_NAME);
+    void* lib = NULL;
 
-    if (!lib && SD_RegistryString("Software\\Valve\\Steam\\ActiveProcess", "SteamClientDll64", path,
-                                  sizeof(path))) {
+    /* Prefer the Steam client registered by the running installation over a
+       same-named DLL that happens to be on PATH (for example a SteamCMD copy). */
+    if (SD_RegistryString("Software\\Valve\\Steam\\ActiveProcess", "SteamClientDll64", path, sizeof(path))) {
         lib = (void*)LoadLibraryExA(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
     }
     if (!lib && SD_RegistryString("Software\\Valve\\Steam", "SteamPath", dir, sizeof(dir))) {
         Com_sprintf(path, sizeof(path), "%s\\" SD_LIB_NAME, dir);
         lib = (void*)LoadLibraryExA(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+    }
+    if (!lib) {
+        lib = (void*)LoadLibraryA(SD_LIB_NAME);
     }
     return lib;
 }
