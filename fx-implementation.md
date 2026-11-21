@@ -28,8 +28,9 @@ A later round of changes (by ChatGPT, then reviewed/staged here) supersedes part
   - both interpreted and `--compiled` cache paths pass
   - reported CPU check: roughly 23.7 ms/update interpreted vs 7.3 ms/update compiled for 10,240 rings (mock renderer)
 - Rail and gib rendering issues were reported fixed after these changes.
-- Gore was merged into `pak01.pk3` with explicit redistribution permission; the
-  separate `pak-gore.pk3` was removed.
+- Gore and q3mme assets were folded into `pak01.pk3`; separate `pak-gore`,
+  `pak-fx`, and `pak-fx-assets` paks were removed to avoid pure-server checksum
+  kicks.
 - Latest staged cgame: **1,483,776 bytes**. Verify staging again before testing.
 - FX logging was reduced:
   - `cg_fxDebug 0` is the default
@@ -140,10 +141,12 @@ The repository remains uncommitted. No proprietary assets were added or bundled.
 - Rail hook runs and creates FX local entities.
 - q3mme renderer entity types are being submitted (`type=10` beam, `type=11` rail rings).
 - Gib model entities are created (`model=116..125`) and now pass the submission check.
-- `pak-fx-assets.pk3` supplies:
+- `pak01.pk3` supplies:
+  - `dlc_gibs/` gore models and blood textures
   - `models/gibsq3/*.md3` aliases
   - `q3gibs`, `q3bloodMark`, `q3bloodTrail` shaders
   - `sound/player/gibsplt1.wav`, `gibimp1/2/3.wav`
+  - the shipped `example.fx`, `flesh.fx`, and `q3mme.fx` scripts
 - Debug logging goes to `fxdebug.log` via `FS_APPEND_SYNC`.
 
 ### Still broken / incomplete
@@ -324,14 +327,15 @@ Loading summary in `fxdebug.log` is the fastest way to confirm what the parser a
 
 ### Runtime content
 
-- `build/ioquakelive-windows-x64/baseq3/scripts/*.fx`
-- `build/ioquakelive-windows-x64/baseq3/pak-fx.pk3`
-- `build/ioquakelive-windows-x64/baseq3/pak-fx-assets.pk3`
-- `build/ioquakelive-windows-x64/baseq3/pak01.pk3` (now includes `dlc_gibs/` gore)
+- `build/ioquakelive-windows-x64/baseq3/scripts/*.fx` (user scripts, including `madir.fx`)
+- `build/ioquakelive-windows-x64/baseq3/pak01.pk3` (gore + FX assets + shipped scripts)
 - `build/Release/x64/baseq3/` equivalents
 
-`pak-gore.pk3` was removed from both trees; the gore assets now ship inside `pak01.pk3`.
-`pak-fx-assets.pk3` remains a local/private q3mme compatibility pack.
+Only `pak00.pk3`, `pak01.pk3`, and `iobin.pk3` are shipped. `pak-gore.pk3`,
+`pak-fx.pk3`, and `pak-fx-assets.pk3` were removed. `pak01` is
+`ENGINE_CONTENT_PAKNAME`, so it is not included in the pure-server checksum
+list; this is why the local assets load without an `Unpure client` kick.
+`madir.fx` is intentionally not packed.
 
 ---
 
@@ -680,13 +684,14 @@ assets. `content/optional/gore/dlc_gibs` and its shader were moved into:
 separate `pak-gore.pk3` was removed. `cg_useQ3gibs 1` remains the default, and
 the cgame detects the pack via `dlc_gibs/skull.md3`.
 
-### q3mme compatibility pack
+### q3mme compatibility assets
 
-`pak-fx-assets.pk3` is separate and remains local/private. It contains:
+The q3mme compatibility assets are also folded into `pak01.pk3`:
 
 - `models/gibsq3/*.md3` aliases for q3mme scripts
 - `q3gibs`, `q3bloodMark`, `q3bloodTrail` shaders
 - extra textures and `sound/player` files used by the tested `.fx` scripts
+- `scripts/example.fx`, `scripts/flesh.fx`, `scripts/q3mme.fx`
 
 `madir.fx` is a user script and is not part of the repository. It references
 Wolfcam paths:
@@ -697,7 +702,7 @@ Wolfcam paths:
 - `sound/player/gibsplt1.wav`
 - `sound/player/gibimp*.wav`
 
-The asset pak provides aliases/shaders, but the visual result is still not
+The assets are in `pak01`, but the visual result is still not
 Wolfcam-identical.
 
 ---
