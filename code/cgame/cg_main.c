@@ -314,6 +314,7 @@ vmCvar_t cg_flagStyle;
 vmCvar_t cg_forceEnemyModel;
 vmCvar_t cg_forceTeamModel;
 vmCvar_t cg_hitBeep;
+vmCvar_t cg_nolgbeam;
 vmCvar_t cg_impactSparks;
 vmCvar_t cg_impactSparksLifetime;
 vmCvar_t cg_impactSparksSize;
@@ -725,6 +726,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_forceEnemyModel, "cg_forceEnemyModel", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
     {&cg_forceTeamModel, "cg_forceTeamModel", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
     {&cg_hitBeep, "cg_hitBeep", "4", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "4"},
+    {&cg_nolgbeam, "cg_nolgbeam", "0", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_impactSparks, "cg_impactSparks", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_impactSparksLifetime, "cg_impactSparksLifetime", "250", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1000"},
     {&cg_impactSparksSize, "cg_impactSparksSize", "8", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "2", "16"},
