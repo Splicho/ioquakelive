@@ -264,11 +264,20 @@ static qhandle_t CG_RailCoreShader(const clientInfo_t* ci) {
 }
 
 static qhandle_t CG_RailRingsShader(const clientInfo_t* ci) {
-    return (cg_railBlack.integer && CG_IsOwnRail(ci)) ? cgs.media.railRingsBlackShader : cgs.media.railRingsShader;
+    return (cg_railDiscBlack.integer && CG_IsOwnRail(ci)) ? cgs.media.railRingsBlackShader : cgs.media.railRingsShader;
 }
 
-static void CG_RailBlackColor(localEntity_t* le, const clientInfo_t* ci) {
+static void CG_RailBlackCoreColor(localEntity_t* le, const clientInfo_t* ci) {
     if (cg_railBlack.integer && CG_IsOwnRail(ci)) {
+        le->color[0] = 0.0f;
+        le->color[1] = 0.0f;
+        le->color[2] = 0.0f;
+        le->color[3] = 1.0f;
+    }
+}
+
+static void CG_RailBlackDiscColor(localEntity_t* le, const clientInfo_t* ci) {
+    if (cg_railDiscBlack.integer && CG_IsOwnRail(ci)) {
         le->color[0] = 0.0f;
         le->color[1] = 0.0f;
         le->color[2] = 0.0f;
@@ -301,7 +310,7 @@ static void CG_RailTrailCore(clientInfo_t* ci, vec3_t start, vec3_t end) {
         le->color[2] = ci->color2[2] * 0.75;
     }
     le->color[3] = 1.0f;
-    CG_RailBlackColor(le, ci);
+    CG_RailBlackDiscColor(le, ci);
 
     AxisClear(re->axis);
 }
@@ -346,7 +355,7 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
         le->color[2] = ci->color1[2] * 0.75;
     }
     le->color[3] = 1.0f;
-    CG_RailBlackColor(le, ci);
+    CG_RailBlackCoreColor(le, ci);
 
     AxisClear(re->axis);
 
@@ -427,7 +436,7 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
                 re->shaderRGBA[1] = ci->color2[1] * 255;
                 re->shaderRGBA[2] = ci->color2[2] * 255;
             }
-            if (cg_railBlack.integer && CG_IsOwnRail(ci)) {
+            if (cg_railDiscBlack.integer && CG_IsOwnRail(ci)) {
                 re->shaderRGBA[0] = 0;
                 re->shaderRGBA[1] = 0;
                 re->shaderRGBA[2] = 0;
@@ -440,7 +449,7 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
                 le->color[2] = ci->color2[2] * 0.75;
             }
             le->color[3] = 1.0f;
-            CG_RailBlackColor(le, ci);
+            CG_RailBlackDiscColor(le, ci);
 
             le->pos.trType = TR_LINEAR;
             le->pos.trTime = cg.time;

@@ -332,6 +332,7 @@ vmCvar_t cg_playerLean;
 vmCvar_t cg_plasmaStyle;
 vmCvar_t cg_railStyle;
 vmCvar_t cg_railBlack;
+vmCvar_t cg_railDiscBlack;
 vmCvar_t ch_animateRewardIcons;
 vmCvar_t cg_animateChatBalloon;
 vmCvar_t ch_animateScroll;
@@ -745,6 +746,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_plasmaStyle, "cg_plasmaStyle", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "1", "2"},
     {&cg_railStyle, "cg_railStyle", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "1", "2"},
     {&cg_railBlack, "cg_railBlack", "0", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
+    {&cg_railDiscBlack, "cg_railDiscBlack", "0", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&ch_animateRewardIcons, "ch_animateRewardIcons", "1", CVAR_ARCHIVE},
     {&cg_animateChatBalloon, "cg_animateChatBalloon", "1", CVAR_ARCHIVE},
     {&ch_animateScroll, "ch_animateScroll", "1", CVAR_ARCHIVE},
