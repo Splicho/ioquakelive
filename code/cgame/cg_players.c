@@ -348,19 +348,19 @@ static qboolean CG_RegisterClientModelname(clientInfo_t* ci, const char* modelNa
     return qtrue;
 }
 
-static const vec3_t cg_playerColors[26] = {
+static const vec3_t cg_playerColors[27] = {
     {1.0f, 0.0f, 0.0f},       {1.0f, 0.2734375f, 0.0f}, {1.0f, 0.5f, 0.0f},       {1.0f, 0.734375f, 0.0f},
     {1.0f, 1.0f, 0.0f},       {0.734375f, 1.0f, 0.0f},  {0.5f, 1.0f, 0.0f},       {0.2734375f, 1.0f, 0.0f},
     {0.0f, 1.0f, 0.0f},       {0.0f, 1.0f, 0.2734375f}, {0.0f, 1.0f, 0.5f},       {0.0f, 1.0f, 0.734375f},
     {0.0f, 1.0f, 1.0f},       {0.0f, 0.734375f, 1.0f},  {0.0f, 0.5f, 1.0f},       {0.0f, 0.2734375f, 1.0f},
     {0.0f, 0.0f, 1.0f},       {0.2734375f, 0.0f, 1.0f}, {0.5f, 0.0f, 1.0f},       {0.734375f, 0.0f, 1.0f},
     {1.0f, 0.0f, 1.0f},       {1.0f, 0.0f, 0.734375f},  {1.0f, 0.0f, 0.5f},       {1.0f, 0.0f, 0.2734375f},
-    {1.0f, 1.0f, 1.0f},       {0.5f, 0.5f, 0.5f}};
+    {1.0f, 1.0f, 1.0f},       {0.5f, 0.5f, 0.5f},      {0.0f, 0.0f, 0.0f}};
 
 static void CG_ColorFromString(const char* v, vec3_t color) {
     int index = atoi(v) - 1;
 
-    if (index < 0 || index > 25) {
+    if (index < 0 || index > 26) {
         index = 0;
     }
     VectorCopy(cg_playerColors[index], color);

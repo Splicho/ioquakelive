@@ -352,8 +352,6 @@ static const cvarHelp_t cvarHelp[] = {
     {"cg_railStyle", "rail trail\n"
                      HV("1") "Beam\n"
                      HV("2") "Spiral"},
-    {"cg_railBlack", "1 uses the black alpha-blended rail beam shader for your own rail; 0 uses normal colors"},
-    {"cg_railDiscBlack", "1 uses the black alpha-blended rail disc/spiral shader for your own rail; 0 uses normal colors"},
     {"cg_railTrailTime", "milliseconds rail trails last"},
     {"cg_rocketStyle", "rocket trail\n"
                        HV("1") "No plume\n"

@@ -867,7 +867,7 @@ static void ST_DrawInput(int i, float x, float y, const smRect_t* clip) {
 static void ST_DrawSwatch(float x, float y, float w, int value, const smRect_t* clip) {
     const vec4_t* palette = UI_CrosshairPalette();
 
-    if (value < 1 || value > 26) {
+    if (value < 1 || value > 27) {
         return;
     }
     SM_Fill(x, y, w, SM_Len(21.0f), palette[value - 1], clip);
@@ -1391,6 +1391,9 @@ static float ST_MenuLayout(int i, float w, float* cellW, float* cellH, int* perR
 static int ST_OptionCount(int i) {
     switch (stCvars[i].widget) {
         case ST_PALETTE:
+            if (stCvars[i].cvar && (!Q_stricmp(stCvars[i].cvar, "color1") || !Q_stricmp(stCvars[i].cvar, "color2"))) {
+                return 27;
+            }
             return 26;
         case ST_CROSSHAIR:
             return NUM_CROSSHAIRS;

@@ -31,6 +31,14 @@ static char* netnames[] = {
 static int gamecodetoui[] = {4, 2, 3, 0, 5, 1, 6};
 static int uitogamecode[] = {4, 6, 2, 3, 1, 5, 7};
 
+static int UI_EffectsColorFromCvar(int color) {
+    if (color < 1 || color > 7) {
+        return 0;
+    }
+    return gamecodetoui[color - 1];
+}
+
+
 static const char *skillLevels[] = {
     "I Can Win",
     "Bring It On",
@@ -1249,7 +1257,7 @@ static void UI_DrawRedBlue(rectDef_t* rect, float scale, vec4_t color, int textS
     Text_Paint(rect->x, rect->y, scale, color, (uiInfo.redBlue == 0) ? "Red" : "Blue", 0, 0, textStyle);
 }
 
-static const vec4_t ui_crosshairPalette[26] = {
+static const vec4_t ui_crosshairPalette[27] = {
     {1.0f, 0.0f, 0.0f, 1.0f},       {1.0f, 0.2734375f, 0.0f, 1.0f}, {1.0f, 0.5f, 0.0f, 1.0f},
     {1.0f, 0.734375f, 0.0f, 1.0f},  {1.0f, 1.0f, 0.0f, 1.0f},       {0.734375f, 1.0f, 0.0f, 1.0f},
     {0.5f, 1.0f, 0.0f, 1.0f},       {0.2734375f, 1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f},
@@ -1258,7 +1266,7 @@ static const vec4_t ui_crosshairPalette[26] = {
     {0.0f, 0.2734375f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f},       {0.2734375f, 0.0f, 1.0f, 1.0f},
     {0.5f, 0.0f, 1.0f, 1.0f},       {0.734375f, 0.0f, 1.0f, 1.0f},  {1.0f, 0.0f, 1.0f, 1.0f},
     {1.0f, 0.0f, 0.734375f, 1.0f},  {1.0f, 0.0f, 0.5f, 1.0f},       {1.0f, 0.0f, 0.2734375f, 1.0f},
-    {1.0f, 1.0f, 1.0f, 1.0f},       {0.5f, 0.5f, 0.5f, 1.0f},
+    {1.0f, 1.0f, 1.0f, 1.0f},       {0.5f, 0.5f, 0.5f, 1.0f},       {0.0f, 0.0f, 0.0f, 1.0f},
 };
 
 const vec4_t* UI_CrosshairPalette(void) {
@@ -4991,7 +4999,7 @@ void _UI_Init(qboolean inGameLoad) {
     UI_BuildQ3Model_List();
     UI_LoadBots();
 
-    uiInfo.effectsColor = gamecodetoui[(int)trap_Cvar_VariableValue("color1") - 1];
+    uiInfo.effectsColor = UI_EffectsColorFromCvar((int)trap_Cvar_VariableValue("color1"));
     uiInfo.currentCrosshair = (int)trap_Cvar_VariableValue("cg_drawCrosshair") % NUM_CROSSHAIRS;
     if (uiInfo.currentCrosshair < 0) {
         uiInfo.currentCrosshair = 0;
@@ -5100,7 +5108,7 @@ void _UI_SetActiveMenu(uiMenuCommand_t menu) {
                 return;
             case UIMENU_MAIN:
                 trap_Key_SetCatcher(KEYCATCH_UI);
-                uiInfo.effectsColor = gamecodetoui[(int)trap_Cvar_VariableValue("color1") - 1];
+                uiInfo.effectsColor = UI_EffectsColorFromCvar((int)trap_Cvar_VariableValue("color1"));
                 uiInfo.currentCrosshair = (int)trap_Cvar_VariableValue("cg_drawCrosshair");
                 if (uiInfo.inGameLoad) {
                     UI_LoadNonIngame();
@@ -5123,7 +5131,7 @@ void _UI_SetActiveMenu(uiMenuCommand_t menu) {
                 trap_Cvar_Set("cl_paused", "1");
                 trap_Key_SetCatcher(KEYCATCH_UI);
                 UI_BuildPlayerList();
-                uiInfo.effectsColor = gamecodetoui[(int)trap_Cvar_VariableValue("color1") - 1];
+                uiInfo.effectsColor = UI_EffectsColorFromCvar((int)trap_Cvar_VariableValue("color1"));
                 uiInfo.currentCrosshair = (int)trap_Cvar_VariableValue("cg_drawCrosshair");
 
                 Menus_CloseAll();
@@ -5152,7 +5160,7 @@ void _UI_SetActiveMenu(uiMenuCommand_t menu) {
                 Menus_ActivateByName("endofgame");
                 return;
             case UIMENU_INGAME:
-                uiInfo.effectsColor = gamecodetoui[(int)trap_Cvar_VariableValue("color1") - 1];
+                uiInfo.effectsColor = UI_EffectsColorFromCvar((int)trap_Cvar_VariableValue("color1"));
                 uiInfo.currentCrosshair = (int)trap_Cvar_VariableValue("cg_drawCrosshair");
                 trap_Cvar_Set("ui_mousePitch", (trap_Cvar_VariableValue("m_pitch") >= 0) ? "0" : "1");
                 trap_Cvar_Set("ui_cvGameType", "-1");

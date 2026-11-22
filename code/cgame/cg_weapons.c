@@ -259,16 +259,24 @@ static qboolean CG_IsOwnRail(const clientInfo_t* ci) {
     return ci && (ci - cgs.clientinfo) == cg.snap->ps.clientNum;
 }
 
+static qboolean CG_RailCoreIsBlack(const clientInfo_t* ci) {
+    return CG_IsOwnRail(ci) && (int)trap_Cvar_VariableValue("color1") == 27;
+}
+
+static qboolean CG_RailDiscIsBlack(const clientInfo_t* ci) {
+    return CG_IsOwnRail(ci) && (int)trap_Cvar_VariableValue("color2") == 27;
+}
+
 static qhandle_t CG_RailCoreShader(const clientInfo_t* ci) {
-    return (cg_railBlack.integer && CG_IsOwnRail(ci)) ? cgs.media.railCoreBlackShader : cgs.media.railCoreShader;
+    return CG_RailCoreIsBlack(ci) ? cgs.media.railCoreBlackShader : cgs.media.railCoreShader;
 }
 
 static qhandle_t CG_RailRingsShader(const clientInfo_t* ci) {
-    return (cg_railDiscBlack.integer && CG_IsOwnRail(ci)) ? cgs.media.railRingsBlackShader : cgs.media.railRingsShader;
+    return CG_RailDiscIsBlack(ci) ? cgs.media.railRingsBlackShader : cgs.media.railRingsShader;
 }
 
 static void CG_RailBlackCoreColor(localEntity_t* le, const clientInfo_t* ci) {
-    if (cg_railBlack.integer && CG_IsOwnRail(ci)) {
+    if (CG_RailCoreIsBlack(ci)) {
         le->color[0] = 0.0f;
         le->color[1] = 0.0f;
         le->color[2] = 0.0f;
@@ -277,7 +285,7 @@ static void CG_RailBlackCoreColor(localEntity_t* le, const clientInfo_t* ci) {
 }
 
 static void CG_RailBlackDiscColor(localEntity_t* le, const clientInfo_t* ci) {
-    if (cg_railDiscBlack.integer && CG_IsOwnRail(ci)) {
+    if (CG_RailDiscIsBlack(ci)) {
         le->color[0] = 0.0f;
         le->color[1] = 0.0f;
         le->color[2] = 0.0f;
@@ -436,7 +444,7 @@ void CG_RailTrail(clientInfo_t* ci, vec3_t start, vec3_t end) {
                 re->shaderRGBA[1] = ci->color2[1] * 255;
                 re->shaderRGBA[2] = ci->color2[2] * 255;
             }
-            if (cg_railDiscBlack.integer && CG_IsOwnRail(ci)) {
+            if (CG_RailDiscIsBlack(ci)) {
                 re->shaderRGBA[0] = 0;
                 re->shaderRGBA[1] = 0;
                 re->shaderRGBA[2] = 0;
