@@ -255,16 +255,12 @@ static qboolean CG_GetRailColorByte(clientInfo_t* ci, byte* rgb) {
     return qtrue;
 }
 
-static qboolean CG_IsOwnRail(const clientInfo_t* ci) {
-    return ci && (ci - cgs.clientinfo) == cg.snap->ps.clientNum;
-}
-
 static qboolean CG_RailCoreIsBlack(const clientInfo_t* ci) {
-    return CG_IsOwnRail(ci) && (int)trap_Cvar_VariableValue("color1") == 27;
+    return ci && ci->color1Index == 27;
 }
 
 static qboolean CG_RailDiscIsBlack(const clientInfo_t* ci) {
-    return CG_IsOwnRail(ci) && (int)trap_Cvar_VariableValue("color2") == 27;
+    return ci && ci->color2Index == 27;
 }
 
 static qhandle_t CG_RailCoreShader(const clientInfo_t* ci) {

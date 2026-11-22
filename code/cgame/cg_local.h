@@ -454,6 +454,8 @@ typedef struct {
 
     vec3_t color1;
     vec3_t color2;
+    int color1Index;
+    int color2Index;
 
     byte c1RGBA[4];
     byte c2RGBA[4];

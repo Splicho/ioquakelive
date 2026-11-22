@@ -775,6 +775,8 @@ static qboolean CG_BuildClientInfo(int clientNum, const char* configstring, clie
 
     CG_ColorFromString(Info_ValueForKey(configstring, "c1"), newInfo.color1);
     CG_ColorFromString(Info_ValueForKey(configstring, "c2"), newInfo.color2);
+    newInfo.color1Index = atoi(Info_ValueForKey(configstring, "c1"));
+    newInfo.color2Index = atoi(Info_ValueForKey(configstring, "c2"));
 
     newInfo.c1RGBA[0] = 255 * newInfo.color1[0];
     newInfo.c1RGBA[1] = 255 * newInfo.color1[1];
