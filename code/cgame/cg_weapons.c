@@ -1127,10 +1127,6 @@ static void CG_LightningBolt(centity_t* cent, vec3_t origin) {
     int anim, style;
     float opacity;
 
-    if (cg_nolgbeam.integer && cent->currentState.clientNum == cg.snap->ps.clientNum) {
-        return;
-    }
-
     if (cent->currentState.weapon != WP_LIGHTNING) {
         return;
     }

@@ -368,7 +368,6 @@ static const cvarHelp_t cvarHelp[] = {
     {"cg_trueLightning", "how closely the lightning beam follows your aim: 1 exactly, 0 as the server sees it,\n"
                          "values in between mix the two"},
     {"cg_lightningImpact", "draws where the lightning beam hits"},
-    {"cg_nolgbeam", "1 hides your own lightning gun beam; enemy lightning beams still render"},
     {"cg_trueShotgun", "shotgun impacts\n"
                        HV("0") "A fancy spread\n"
                        HV("1") "Where the server's pellets land"},

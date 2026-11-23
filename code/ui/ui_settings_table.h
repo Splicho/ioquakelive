@@ -233,6 +233,8 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_WEAPONS, "Bubble Trail", "cg_bubbletrail", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Draw a bubble trail for weapon projectiles that travel underwater.", 0},
     {ST_TAB_WEAPONS, "Plasma Style", "cg_plasmastyle", ST_SELECT, 1.0f, 2.0f, 0.0f, stOpts_cg_plasmastyle, 2, "Customize the plasma to either exclude or include a particle trail.", 0},
     {ST_TAB_WEAPONS, "Rocket Style", "cg_rocketstyle", ST_SELECT, 1.0f, 2.0f, 0.0f, stOpts_cg_rocketstyle, 2, "Customize the rocket explosion to either exclude or include a fire plume.", 0},
+    {ST_TAB_WEAPONS, "Lightning Beam", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
+    {ST_TAB_WEAPONS, "Transparent LG", "cg_lightningOpacity", ST_RANGE, 0.0f, 1.0f, 0.05f, NULL, 0, "Opacity of your own lightning gun beam; 1 is opaque, 0 is invisible.", 0},
     {ST_TAB_WEAPONS, "Lightning Style", "cg_lightningstyle", ST_SELECT, 1.0f, 5.0f, 0.0f, stOpts_cg_lightningstyle, 5, "Customize the lightning gun stream effect.", 0},
     {ST_TAB_WEAPONS, "Lightning Impact", "cg_lightningimpact", ST_BOOL, 0.0f, 1.0f, 1.0f, NULL, 0, "Draw the lightning gun impact effect on surfaces.", 0},
     {ST_TAB_WEAPONS, "Lightning Impact Cap", "cg_lightningimpactcap", ST_RANGE, 0.0f, 768.0f, 32.0f, NULL, 0, NULL, 0},

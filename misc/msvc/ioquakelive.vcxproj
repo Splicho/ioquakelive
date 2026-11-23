@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -791,6 +791,7 @@ powershell.exe -NoLogo -ExecutionPolicy Bypass -File "..\..\code\tools\Make-Pak0
     <ClCompile Include="..\..\code\sys\con_log.c" />
     <ClCompile Include="..\..\code\sys\con_passive.c" />
     <ClCompile Include="..\..\code\sys\sys_autoupdater.c" />
+    <ClCompile Include="..\..\code\sys\sys_github_updater.c" />
     <ClCompile Include="..\..\code\sys\sys_main.c" />
     <ClCompile Include="..\..\code\sys\sys_win32.c" />
     <ClCompile Include="..\..\code\sys\sys_win32_video.c" />

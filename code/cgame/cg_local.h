@@ -1762,7 +1762,6 @@ extern vmCvar_t cg_forceTeamSkin;
 extern vmCvar_t cg_forceBlueTeamModel;
 extern vmCvar_t cg_forceRedTeamModel;
 extern vmCvar_t cg_hitBeep;
-extern vmCvar_t cg_nolgbeam;
 extern vmCvar_t cg_voiceChatIndicator;
 extern vmCvar_t cg_killBeep;
 extern vmCvar_t cg_lightningImpactCap;

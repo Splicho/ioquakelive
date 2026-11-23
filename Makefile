@@ -1399,6 +1399,7 @@ Q3OBJ = \
   \
   $(B)/client/con_log.o \
   $(B)/client/sys_autoupdater.o \
+  $(B)/client/sys_github_updater.o \
   $(B)/client/q_math_sse.o \
   $(B)/client/sys_main.o
 
@@ -1406,6 +1407,7 @@ ifdef MINGW
   Q3OBJ += \
     $(B)/client/con_passive.o \
     $(B)/client/win_snd.o
+  CLIENT_LIBS += -lwinhttp
 else
 ifeq ($(PLATFORM),emscripten)
   Q3OBJ += \

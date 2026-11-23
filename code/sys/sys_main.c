@@ -556,6 +556,11 @@ int main(int argc, char** argv) {
     }
     Sys_SetDefaultInstallPath(DEFAULT_BASEDIR);
 
+    {
+        extern void Sys_CheckForGithubUpdate(void);
+        Sys_CheckForGithubUpdate();
+    }
+
     for (i = 1; i < argc; i++) {
         commandLineSize += (int)strlen(argv[i]) + 3;
     }
