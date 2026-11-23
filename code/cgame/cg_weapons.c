@@ -1202,7 +1202,8 @@ static void CG_LightningBolt(centity_t* cent, vec3_t origin) {
                 ? cg_lightningStyle.integer - 1
                 : 0;
     if (cg_lightningStyle.integer == 6) {
-        style = 0;
+        // Transparent only hides your own beam; use the thin shaft for everyone else.
+        style = (cent->currentState.number == cg.clientNum) ? 0 : 3;
     }
     beam.customShader = cgs.media.lightningShader[style];
 
