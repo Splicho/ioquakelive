@@ -171,8 +171,161 @@ done:
     return ok;
 }
 
-static BOOL HttpDownload(const wchar_t* url, const char* filename) {
-    URL_COMPONENTS components;
+static HWND updateProgressWindow;
+static int updateProgressPercent;
+static qboolean updateProgressCancelled;
+static char updateProgressText[256];
+
+static void UpdateProgressPaint(HWND hwnd) {
+    PAINTSTRUCT ps;
+    HDC dc;
+    RECT client;
+    RECT textRect;
+    RECT barOuter;
+    RECT barInner;
+    HBRUSH background;
+    HBRUSH border;
+    HBRUSH fill;
+    int fillWidth;
+
+    dc = BeginPaint(hwnd, &ps);
+    GetClientRect(hwnd, &client);
+
+    background = CreateSolidBrush(RGB(24, 24, 24));
+    FillRect(dc, &client, background);
+    DeleteObject(background);
+
+    SetBkMode(dc, TRANSPARENT);
+    SetTextColor(dc, RGB(240, 240, 240));
+    textRect.left = 20;
+    textRect.right = client.right - 20;
+    textRect.top = 16;
+    textRect.bottom = 58;
+    DrawTextA(dc, updateProgressText, -1, &textRect,
+              DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+    barOuter.left = 30;
+    barOuter.right = client.right - 30;
+    barOuter.top = 76;
+    barOuter.bottom = 98;
+    border = CreateSolidBrush(RGB(90, 90, 90));
+    FrameRect(dc, &barOuter, border);
+    DeleteObject(border);
+
+    barInner = barOuter;
+    InflateRect(&barInner, -2, -2);
+    fillWidth = (barInner.right - barInner.left) * (updateProgressPercent < 0 ? 0 : updateProgressPercent) / 100;
+    barInner.right = barInner.left + fillWidth;
+    if (barInner.right > barInner.left) {
+        fill = CreateSolidBrush(RGB(45, 170, 75));
+        FillRect(dc, &barInner, fill);
+        DeleteObject(fill);
+    }
+
+    EndPaint(hwnd, &ps);
+}
+
+static LRESULT CALLBACK UpdateProgressProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+        case WM_CLOSE:
+            updateProgressCancelled = qtrue;
+            return 0;
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_PAINT:
+            UpdateProgressPaint(hwnd);
+            return 0;
+        default:
+            return DefWindowProcA(hwnd, message, wParam, lParam);
+    }
+}
+
+static void UpdateProgressPump(void) {
+    MSG message;
+
+    while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&message);
+        DispatchMessageA(&message);
+    }
+}
+
+static void UpdateProgressSet(int percent, const char* text) {
+    if (percent < 0) {
+        percent = 0;
+    }
+    if (percent > 100) {
+        percent = 100;
+    }
+    updateProgressPercent = percent;
+    Q_strncpyz(updateProgressText, text, sizeof(updateProgressText));
+    if (updateProgressWindow) {
+        InvalidateRect(updateProgressWindow, NULL, FALSE);
+        UpdateWindow(updateProgressWindow);
+    }
+    UpdateProgressPump();
+}
+
+static BOOL UpdateProgressCreate(void) {
+    WNDCLASSA windowClass;
+    RECT workArea;
+    RECT windowRect;
+    int width = 460;
+    int height = 130;
+    int x;
+    int y;
+
+    if (updateProgressWindow) {
+        return TRUE;
+    }
+
+    memset(&windowClass, 0, sizeof(windowClass));
+    windowClass.lpfnWndProc = UpdateProgressProc;
+    windowClass.hInstance = GetModuleHandleA(NULL);
+    windowClass.hCursor = LoadCursorA(NULL, IDC_ARROW);
+    windowClass.lpszClassName = "ioquakeliveUpdateProgress";
+    RegisterClassA(&windowClass);
+
+    windowRect.left = 0;
+    windowRect.top = 0;
+    windowRect.right = width;
+    windowRect.bottom = height;
+    AdjustWindowRectEx(&windowRect, WS_POPUP | WS_CAPTION | WS_SYSMENU, FALSE, WS_EX_TOPMOST | WS_EX_TOOLWINDOW);
+
+    SystemParametersInfoA(SPI_GETWORKAREA, 0, &workArea, 0);
+    x = workArea.left + ((workArea.right - workArea.left) - (windowRect.right - windowRect.left)) / 2;
+    y = workArea.top + ((workArea.bottom - workArea.top) - (windowRect.bottom - windowRect.top)) / 2;
+
+    updateProgressWindow = CreateWindowExA(
+        WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+        "ioquakeliveUpdateProgress",
+        "ioquakelive update",
+        WS_POPUP | WS_CAPTION | WS_SYSMENU,
+        x, y,
+        windowRect.right - windowRect.left,
+        windowRect.bottom - windowRect.top,
+        NULL, NULL, GetModuleHandleA(NULL), NULL);
+    if (!updateProgressWindow) {
+        return FALSE;
+    }
+
+    updateProgressCancelled = qfalse;
+    updateProgressPercent = 0;
+    Q_strncpyz(updateProgressText, "Preparing update...", sizeof(updateProgressText));
+    ShowWindow(updateProgressWindow, SW_SHOWNORMAL);
+    UpdateWindow(updateProgressWindow);
+    UpdateProgressPump();
+    return TRUE;
+}
+
+static void UpdateProgressClose(void) {
+    if (updateProgressWindow) {
+        DestroyWindow(updateProgressWindow);
+        updateProgressWindow = NULL;
+    }
+    UpdateProgressPump();
+}
+
+static BOOL HttpDownload(const wchar_t* url, const char* filename) {    URL_COMPONENTS components;
     wchar_t host[256];
     wchar_t path[4096];
     HINTERNET session = NULL;
@@ -235,27 +388,56 @@ static BOOL HttpDownload(const wchar_t* url, const char* filename) {
         goto done;
     }
 
-    file = fopen(filename, "wb");
-    if (!file) {
-        goto done;
-    }
+    {
+        DWORD contentLength = 0;
+        DWORD contentLengthSize = sizeof(contentLength);
+        DWORD downloaded = 0;
 
-    for (;;) {
-        DWORD available = 0;
-        DWORD read = 0;
-        char buffer[16384];
+        WinHttpQueryHeaders(request, WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER,
+                            WINHTTP_HEADER_NAME_BY_INDEX, &contentLength, &contentLengthSize,
+                            WINHTTP_NO_HEADER_INDEX);
+        UpdateProgressSet(0, "Downloading update...");
 
-        if (!WinHttpQueryDataAvailable(request, &available) || available == 0) {
-            break;
-        }
-        if (available > sizeof(buffer)) {
-            available = sizeof(buffer);
-        }
-        if (!WinHttpReadData(request, buffer, available, &read) || read == 0) {
-            break;
-        }
-        if (fwrite(buffer, 1, read, file) != read) {
+        file = fopen(filename, "wb");
+        if (!file) {
             goto done;
+        }
+
+        for (;;) {
+            DWORD available = 0;
+            DWORD read = 0;
+            char buffer[16384];
+
+            if (updateProgressCancelled) {
+                goto done;
+            }
+            if (!WinHttpQueryDataAvailable(request, &available) || available == 0) {
+                break;
+            }
+            if (available > sizeof(buffer)) {
+                available = sizeof(buffer);
+            }
+            if (!WinHttpReadData(request, buffer, available, &read) || read == 0) {
+                break;
+            }
+            if (fwrite(buffer, 1, read, file) != read) {
+                goto done;
+            }
+            downloaded += read;
+            if (contentLength > 0) {
+                char statusText[128];
+                int percent = (int)((ULONGLONG)downloaded * 100 / contentLength);
+                if (percent > 100) {
+                    percent = 100;
+                }
+                snprintf(statusText, sizeof(statusText), "Downloading update... %d%%", percent);
+                UpdateProgressSet(percent, statusText);
+            } else {
+                char statusText[128];
+                snprintf(statusText, sizeof(statusText), "Downloading update... %.1f MB",
+                         downloaded / (1024.0 * 1024.0));
+                UpdateProgressSet(0, statusText);
+            }
         }
     }
 
@@ -452,12 +634,25 @@ void Sys_CheckForGithubUpdate(void) {
     snprintf(zipPath, sizeof(zipPath), "%sioquakelive-%s.zip", tempPath, tag);
     DeleteFileA(zipPath);
 
-    if (MultiByteToWideChar(CP_ACP, 0, assetUrl, -1, assetUrlWide, ARRAY_LEN(assetUrlWide)) <= 0 ||
-        !HttpDownload(assetUrlWide, zipPath)) {
-        UpdateMessage("Could not download the update. Try again later.", MB_OK | MB_ICONERROR);
-        DeleteFileA(zipPath);
+    if (MultiByteToWideChar(CP_ACP, 0, assetUrl, -1, assetUrlWide, ARRAY_LEN(assetUrlWide)) <= 0) {
+        UpdateMessage("Could not prepare the update download.", MB_OK | MB_ICONERROR);
         return;
     }
+
+    UpdateProgressCreate();
+    if (!HttpDownload(assetUrlWide, zipPath)) {
+        BOOL cancelled = updateProgressCancelled;
+        UpdateProgressClose();
+        DeleteFileA(zipPath);
+        if (!cancelled) {
+            UpdateMessage("Could not download the update. Try again later.", MB_OK | MB_ICONERROR);
+        }
+        return;
+    }
+
+    UpdateProgressSet(100, "Download complete. Installing...");
+    Sleep(500);
+    UpdateProgressClose();
 
     RunUpdaterAndExit(zipPath, installDir, exeName);
 }
