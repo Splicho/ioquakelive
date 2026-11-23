@@ -112,6 +112,7 @@ The exact commands used by CI, including packaging, are in [`.github/workflows/b
 - Improved demo player.
 - Quake Club integration.
 - No launcher: direct startup and in-game updates.
+- Bunch of QoL improvements, native quake 3 gore, cpma fullbright skins etc.
 - New console commands: `help <command or cvar>` and `searchconsole`.
 
 ## If your antivirus blocks it
