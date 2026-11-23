@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "cg_local.h"
 #include "cg_fx_compat.h"
+#include "cg_mem.h"
 
 // Match Wolfcam: a long, densely sampled rail can emit over 10,000 rings.
 #define MAX_LOCAL_ENTITIES (MAX_REFENTITIES - 3)
