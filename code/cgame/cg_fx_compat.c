@@ -269,7 +269,7 @@ void CG_RemoveFXLocalEntities(qboolean all, float emitterId) {
 
     for (le = cg_activeLocalEntities.prev; le != &cg_activeLocalEntities; le = next) {
         next = le->prev;
-        if (le->fxType && (all || le->sv.emitterId == emitterId)) {
+        if (le->fxType && le->sv && (all || le->sv->emitterId == emitterId)) {
             CG_FreeLocalEntity(le);
         }
     }

@@ -593,7 +593,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_fxScriptMinEmitter, "cg_fxScriptMinEmitter", "0.0", CVAR_ARCHIVE},
     {&cg_fxScriptMinDistance, "cg_fxScriptMinDistance", "0.001", CVAR_ARCHIVE},
     {&cg_fxScriptMinInterval, "cg_fxScriptMinInterval", "0.001", CVAR_ARCHIVE},
-    {&cg_fxCompiled, "cg_fxCompiled", "0", CVAR_ARCHIVE},
+    {&cg_fxCompiled, "cg_fxCompiled", "1", CVAR_ARCHIVE},
     {&cg_fxDebug, "cg_fxDebug", "0", CVAR_ARCHIVE},
     {&cg_fxScriptDebug, "debug_fxscript", "0", 0},
     {&cg_vibrateMaxDistance, "cg_vibrateMaxDistance", "800", CVAR_ARCHIVE},

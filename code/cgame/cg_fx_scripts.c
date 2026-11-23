@@ -617,7 +617,7 @@ static const char *CG_GetFxTokenExt (const char *inputString, char *token,
         Com_Printf("CG_GetFxTokenExt() inputString == NULL\n");
         return NULL;
     }
-    canCompile = cg_fxCompiled.integer && address >= begin && address < end;
+    canCompile = address >= begin && address < end;
     if (canCompile) {
         uintptr_t offset = address - begin;
         bucket = (unsigned int)((offset ^ (offset >> 12) ^ (unsigned int)isFilename)
@@ -690,6 +690,10 @@ static localEntity_t *CG_AllocFxEntity (float id)
 	localEntity_t *le;
 
 	le = CG_AllocLocalEntity();
+	le->sv = CG_CallocMem(sizeof(*le->sv));
+	if (!le->sv) {
+		CG_Error("CG_AllocFxEntity: out of memory");
+	}
 	if (id < 0.0) {
 		CG_MakeLowPriorityEntity(le);
 	}
@@ -739,8 +743,6 @@ static int Q_stricmpt (const char *s1, const char *s2)
 int QstrcmpCount = 0;
 static int Q_stricmpt (const char *s1, const char *s2)
 {
-	QstrcmpCount++;
-
 	return Q_stricmp(s1, s2);
 	//return strcmp(s1, s2);
 }
@@ -3204,32 +3206,38 @@ static void CG_FX_FinishEmitter(const char *script, unsigned int firstSerial)
         if (le->fxSpawnSerial <= firstSerial) {
             break;
         }
-        if (le->emitterScript != script) {
+        if (le->emitterScript != script || !le->sv) {
             continue;
         }
-        le->sv.hasMoveBounce = ScriptVars.hasMoveBounce;
-        le->sv.moveBounce1 = ScriptVars.moveBounce1;
-        le->sv.moveBounce2 = ScriptVars.moveBounce2;
-        le->sv.hasMoveGravity = ScriptVars.hasMoveGravity;
-        le->sv.moveGravity = ScriptVars.moveGravity;
-        le->sv.hasSink = ScriptVars.hasSink;
-        le->sv.sink1 = ScriptVars.sink1;
-        le->sv.sink2 = ScriptVars.sink2;
+        le->sv->hasMoveBounce = ScriptVars.hasMoveBounce;
+        le->sv->moveBounce1 = ScriptVars.moveBounce1;
+        le->sv->moveBounce2 = ScriptVars.moveBounce2;
+        le->sv->hasMoveGravity = ScriptVars.hasMoveGravity;
+        le->sv->moveGravity = ScriptVars.moveGravity;
+        le->sv->hasSink = ScriptVars.hasSink;
+        le->sv->sink1 = ScriptVars.sink1;
+        le->sv->sink2 = ScriptVars.sink2;
     }
 }
 
 static void CG_CopyStoredScriptVarsToLE (localEntity_t *le)
 {
-
-
-	memcpy(&le->sv, &ScriptVars, sizeof(ScriptVars_t));
+	if (!le->sv) {
+		le->sv = CG_CallocMem(sizeof(*le->sv));
+		if (!le->sv) {
+			CG_Error("CG_CopyStoredScriptVarsToLE: out of memory");
+		}
+	}
+	memcpy(le->sv, &ScriptVars, sizeof(ScriptVars_t));
 }
 
 void CG_GetStoredScriptVarsFromLE (const localEntity_t *le)
 {
-
-
-	memcpy(&ScriptVars, &le->sv, sizeof(ScriptVars_t));
+	if (!le->sv) {
+		CG_ResetScriptVars();
+		return;
+	}
+	memcpy(&ScriptVars, le->sv, sizeof(ScriptVars_t));
 }
 
 static void CG_FX_Sprite (qboolean viewAligned, qboolean isSpark)
@@ -3270,10 +3278,10 @@ static void CG_FX_Sprite (qboolean viewAligned, qboolean isSpark)
 		}
 #endif
 		CG_CopyStoredScriptVarsToLE(le);
-		VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-		VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-		le->sv.lastDistanceTime = cg.time;
-		le->sv.lastIntervalTime = cg.time;
+		VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+		VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+		le->sv->lastDistanceTime = cg.time;
+		le->sv->lastIntervalTime = cg.time;
 		le->fxType = LEFX_EMIT;
 		le->leFlags = LEF_PUFF_DONT_SCALE;
 		le->leType = LE_MOVE_SCALE_FADE;
@@ -3402,10 +3410,10 @@ static void CG_FX_Beam (void)
 		le->emitterScriptEnd = ScriptVars.emitterScriptEnd;
 		CG_CopyStoredScriptVarsToLE(le);
 
-		VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-		VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-		le->sv.lastDistanceTime = cg.time;
-		le->sv.lastIntervalTime = cg.time;
+		VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+		VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+		le->sv->lastDistanceTime = cg.time;
+		le->sv->lastIntervalTime = cg.time;
 
 		le->fxType = LEFX_EMIT;
 
@@ -3495,10 +3503,10 @@ static void CG_FX_Light (void)
 		le->emitterScript = ScriptVars.emitterScriptStart;
 		le->emitterScriptEnd = ScriptVars.emitterScriptEnd;
 		CG_CopyStoredScriptVarsToLE(le);
-		VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-		VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-		le->sv.lastDistanceTime = cg.time;
-		le->sv.lastIntervalTime = cg.time;
+		VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+		VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+		le->sv->lastDistanceTime = cg.time;
+		le->sv->lastIntervalTime = cg.time;
 		le->fxType = LEFX_EMIT_LIGHT;
 		le->leFlags = LEF_PUFF_DONT_SCALE;
 		le->leType = LE_MOVE_SCALE_FADE;
@@ -3613,10 +3621,10 @@ static void CG_FX_Model (fxModelType_t ftype)
 		le->trTimef = cg.time;
 		CG_CopyStoredScriptVarsToLE(le);
 
-		VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-		VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-		le->sv.lastDistanceTime = cg.time;
-		le->sv.lastIntervalTime = cg.time;
+		VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+		VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+		le->sv->lastDistanceTime = cg.time;
+		le->sv->lastIntervalTime = cg.time;
 
 		le->fxType = LEFX_EMIT;
         le->fxModelType = ftype;
@@ -3789,10 +3797,10 @@ static void CG_FX_Rings (void)
 		le->emitterScriptEnd = ScriptVars.emitterScriptEnd;
 		CG_CopyStoredScriptVarsToLE(le);
 
-		VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-		VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-		le->sv.lastDistanceTime = cg.time;
-		le->sv.lastIntervalTime = cg.time;
+		VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+		VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+		le->sv->lastDistanceTime = cg.time;
+		le->sv->lastIntervalTime = cg.time;
 
 		le->fxType = LEFX_EMIT;
 
@@ -3860,10 +3868,10 @@ static void CG_FX_Sound (int channel)
 		le->emitterScript = ScriptVars.emitterScriptStart;
 		le->emitterScriptEnd = ScriptVars.emitterScriptEnd;
 		CG_CopyStoredScriptVarsToLE(le);
-		VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-		VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-		le->sv.lastDistanceTime = cg.time;
-		le->sv.lastIntervalTime = cg.time;
+		VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+		VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+		le->sv->lastDistanceTime = cg.time;
+		le->sv->lastIntervalTime = cg.time;
 		le->fxType = LEFX_EMIT_SOUND;
 		le->leFlags = LEF_PUFF_DONT_SCALE;
 		le->leType = LE_MOVE_SCALE_FADE;
@@ -3918,10 +3926,10 @@ static void CG_FX_LoopSound (void)
 		le->emitterScript = ScriptVars.emitterScriptStart;
 		le->emitterScriptEnd = ScriptVars.emitterScriptEnd;
 		CG_CopyStoredScriptVarsToLE(le);
-		VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-		VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-		le->sv.lastDistanceTime = cg.time;
-		le->sv.lastIntervalTime = cg.time;
+		VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+		VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+		le->sv->lastDistanceTime = cg.time;
+		le->sv->lastIntervalTime = cg.time;
 		le->fxType = LEFX_EMIT_LOOPSOUND;
 		le->leFlags = LEF_PUFF_DONT_SCALE;
 		le->leType = LE_MOVE_SCALE_FADE;
@@ -5505,10 +5513,10 @@ qboolean CG_RunQ3mmeScript (const char *script, const char *emitterEnd)
 			le->endTime = cg.time + ScriptVars.emitterTime * 1000.0;
 			le->lifeRate = 1.0 / (le->endTime - le->startTime);
 
-			VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-			VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-			le->sv.lastDistanceTime = cg.time;
-			le->sv.lastIntervalTime = cg.time;
+			VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+			VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+			le->sv->lastDistanceTime = cg.time;
+			le->sv->lastIntervalTime = cg.time;
 
 #endif
 			// just parsing and setting up for things to be run later
@@ -5537,10 +5545,10 @@ qboolean CG_RunQ3mmeScript (const char *script, const char *emitterEnd)
 				le->endTime = cg.time + ScriptVars.emitterTime * 1000.0;
 				le->lifeRate = 1.0 / (le->endTime - le->startTime);
 
-				VectorCopy(ScriptVars.origin, le->sv.lastDistancePosition);
-				VectorCopy(ScriptVars.origin, le->sv.lastIntervalPosition);
-				le->sv.lastDistanceTime = cg.time;
-				le->sv.lastIntervalTime = cg.time;
+				VectorCopy(ScriptVars.origin, le->sv->lastDistancePosition);
+				VectorCopy(ScriptVars.origin, le->sv->lastIntervalPosition);
+				le->sv->lastDistanceTime = cg.time;
+				le->sv->lastIntervalTime = cg.time;
 			}
 
             script = CG_SkipBlock(script);

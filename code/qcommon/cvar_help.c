@@ -341,7 +341,7 @@ static const cvarHelp_t cvarHelp[] = {
     {"cg_fxScriptMinEmitter", "minimum emitter lifetime in seconds used by .fx scripts"},
     {"cg_fxScriptMinDistance", "minimum distance used by .fx distance scripts"},
     {"cg_fxScriptMinInterval", "minimum interval used by .fx interval scripts"},
-    {"cg_fxCompiled", "1 enables the .fx script JIT optimisation; 0 interprets scripts directly (safer while developing scripts)"},
+    {"cg_fxCompiled", "legacy toggle; the .fx token cache is always enabled now"},
     {"cg_fxDebug", "0 off; 1 logs script runs; 2 logs FX allocations; 3 logs load/effect details; 4 logs every submitted ref entity (very verbose; log capped at 8 MB)"},
     {"cg_vibrateMaxDistance", "maximum distance for .fx camera vibration effects"},
     {"cg_screenDamage", "colour of the flash when an enemy hurts you, as 0xRRGGBBAA"},

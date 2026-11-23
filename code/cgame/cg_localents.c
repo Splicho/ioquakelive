@@ -53,6 +53,11 @@ void CG_FreeLocalEntity(localEntity_t* le) {
     le->prev->next = le->next;
     le->next->prev = le->prev;
 
+    if (le->sv) {
+        CG_FreeMem(le->sv);
+        le->sv = NULL;
+    }
+
     le->next = cg_freeLocalEntities;
     cg_freeLocalEntities = le;
 }
@@ -683,6 +688,9 @@ static void CG_Add_FX_Emitted (localEntity_t *le)
 	float len;
 	vec3_t lastOrigin;
 	float dot;
+	if (!le->sv) {
+		return;
+	}
 	CG_GetStoredScriptVarsFromLE(le);
 	if (cg.renderingThirdPerson  ||  cgs.freecam) {
 		ScriptVars.inEyes = qfalse;
@@ -773,15 +781,15 @@ static void CG_Add_FX_Emitted (localEntity_t *le)
 				dot = DotProduct(ScriptVars.velocity, trace.plane.normal);
 				VectorMA(ScriptVars.velocity, -2 * dot, trace.plane.normal, ScriptVars.velocity);
 				VectorScale(ScriptVars.velocity, ScriptVars.moveBounce2, ScriptVars.velocity);
-				VectorCopy(ScriptVars.velocity, le->sv.velocity);
+				VectorCopy(ScriptVars.velocity, le->sv->velocity);
 				VectorCopy(trace.endpos, le->pos.trBase);
 				le->trTimef = cg.time;
 				VectorCopy(trace.endpos, ScriptVars.impactOrigin);
-				VectorCopy(trace.endpos, le->sv.impactOrigin);
+				VectorCopy(trace.endpos, le->sv->impactOrigin);
 				VectorCopy(trace.plane.normal, ScriptVars.impactDir);
-				VectorCopy(trace.plane.normal, le->sv.impactDir);
+				VectorCopy(trace.plane.normal, le->sv->impactDir);
 				ScriptVars.impacted = qtrue;
-				le->sv.impacted = qtrue;
+				le->sv->impacted = qtrue;
 				if (VectorLength(ScriptVars.velocity) < 20) {
 					le->pos.trType = TR_STATIONARY;
 				}
@@ -790,8 +798,8 @@ static void CG_Add_FX_Emitted (localEntity_t *le)
 				return;
 			}
 		}
-		le->sv.distance += Distance(lastOrigin, newOrigin);
-		ScriptVars.distance = le->sv.distance;
+		le->sv->distance += Distance(lastOrigin, newOrigin);
+		ScriptVars.distance = le->sv->distance;
 		VectorCopy(newOrigin, ScriptVars.origin);
 	}
 	if (le->lastRunTime != cg.time &&
@@ -832,12 +840,12 @@ static void CG_Add_FX_Emitted (localEntity_t *le)
 		CG_AddRefEntityFX(re);
 		return;
 	}
-	le->sv.distance = ScriptVars.distance;
-	le->sv.impacted = ScriptVars.impacted;
-	VectorCopy(ScriptVars.lastIntervalPosition, le->sv.lastIntervalPosition);
-	le->sv.lastIntervalTime = ScriptVars.lastIntervalTime;
-	VectorCopy(ScriptVars.lastDistancePosition, le->sv.lastDistancePosition);
-	le->sv.lastDistanceTime = ScriptVars.lastDistanceTime;
+	le->sv->distance = ScriptVars.distance;
+	le->sv->impacted = ScriptVars.impacted;
+	VectorCopy(ScriptVars.lastIntervalPosition, le->sv->lastIntervalPosition);
+	le->sv->lastIntervalTime = ScriptVars.lastIntervalTime;
+	VectorCopy(ScriptVars.lastDistancePosition, le->sv->lastDistancePosition);
+	le->sv->lastDistanceTime = ScriptVars.lastDistanceTime;
 	if (ScriptVars.hasShaderTime) {
 		re->shaderTime = ScriptVars.shaderTime;
 	}
@@ -981,8 +989,8 @@ void CG_AddLocalEntities(void) {
         cg_fxUpdatingEntity = le;
 
         if (cg.time >= le->endTime) {
-            if (le->fxType && le->sv.emitterFullLerp && !le->sv.emitterKill) {
-                le->sv.emitterKill = qtrue;
+            if (le->fxType && le->sv && le->sv->emitterFullLerp && !le->sv->emitterKill) {
+                le->sv->emitterKill = qtrue;
             } else {
                 CG_FreeLocalEntity(le);
                 continue;

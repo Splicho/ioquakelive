@@ -291,7 +291,7 @@ typedef struct localEntity_s {
     double lastRunTime;
     double trTimef;
 
-    ScriptVars_t sv;
+    ScriptVars_t *sv;
     qboolean lowPriority;
     int frameCountHandled;
 } localEntity_t;
