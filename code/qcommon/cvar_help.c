@@ -313,6 +313,7 @@ static const cvarHelp_t cvarHelp[] = {
                           HV("bright") "A flat skin in your enemy colours\n"
                           HV("sport") "The sport skin\n"
                           "Empty leaves each of them their own."},
+    {"cg_fullbright", "1 uses the fullbright skin on enemy players"},
     {"cg_forceTeamModel", "model every teammate is drawn with; empty for their own"},
     {"cg_forceTeamSkin", "skin every teammate is drawn with, like " HC("cg_forceEnemySkin")},
     {"cg_forceRedTeamModel", "model the red team is drawn with, for spectators"},
@@ -1492,6 +1493,7 @@ static const cvarHelp_t cvarHelp[] = {
                              HV("4") "Enemies'\n"
                              HV("8") "The ones lying on the map\n"
                              HV("16") "Everyone's while you spectate with the free camera"},
+    {"cg_gunSkin", "0 draws your held weapon normally; 1 draws it with the fullbright weapon skin"},
     {"cg_filter_angles", "smooths the view by averaging its angles over this many frames, up to 31; 0 for none"},
     {"cg_lightningImpactCap", "closer than this distance the lightning gun's impact gets smaller; 0 keeps it whole"},
     {"cg_skipItems", "hides the items lying on the map; their timers stay"},

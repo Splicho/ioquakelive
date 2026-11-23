@@ -710,6 +710,11 @@ static void CG_ResolveModelForClient(clientInfo_t* ci, int clientNum) {
     }
 
     skinForced = qfalse;
+    if (cg_fullbright.integer &&
+        (cgs.gametype < GT_TEAM || ci->team != viewerTeam ||
+         (cgs.gametype == GT_DUEL && viewerClient != clientNum))) {
+        forcedSkin = "fb";
+    }
     if (forcedSkin[0]) {
         Q_strncpyz(tmp, forcedModel[0] ? forcedModel : ci->modelName, sizeof(tmp));
         p = strtok(tmp, "/");

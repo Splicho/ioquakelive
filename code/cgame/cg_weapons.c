@@ -1333,12 +1333,16 @@ static const byte cg_brightWeaponColors[WP_NUM_WEAPONS][3] = {
 
 void CG_BrightWeapon(refEntity_t* ent, int weaponNum, int owner, brightWeapon_t kind) {
     int bit, viewerTeam, ownerTeam;
+    qboolean ownSkin;
 
-    if (!cg_drawBrightWeapons.integer || weaponNum <= WP_NONE || weaponNum >= WP_NUM_WEAPONS) {
+    ownSkin = (kind == BRIGHTWEAPON_OWN_VIEW && cg_gunSkin.integer == 1);
+    if ((!cg_drawBrightWeapons.integer && !ownSkin) || weaponNum <= WP_NONE || weaponNum >= WP_NUM_WEAPONS) {
         return;
     }
 
-    if (kind == BRIGHTWEAPON_ON_MAP) {
+    if (ownSkin) {
+        bit = 1;
+    } else if (kind == BRIGHTWEAPON_ON_MAP) {
         bit = 8;
     } else if (kind == BRIGHTWEAPON_OWN_VIEW) {
         bit = 1;
@@ -1353,7 +1357,7 @@ void CG_BrightWeapon(refEntity_t* ent, int weaponNum, int owner, brightWeapon_t 
             bit = 4;
         }
     }
-    if (!(cg_drawBrightWeapons.integer & bit)) {
+    if (!ownSkin && !(cg_drawBrightWeapons.integer & bit)) {
         return;
     }
 

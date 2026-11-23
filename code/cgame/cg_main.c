@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../ui/ui_shared.h"
 displayContextDef_t cgDC;
 
-static int cg_forceModelModCounts[6] = { -1, -1, -1, -1, -1, -1 };
+static int cg_forceModelModCounts[7] = { -1, -1, -1, -1, -1, -1, -1 };
 static int cg_hudFilesModCount = -1;
 static int cg_announcerModCount = -1;
 
@@ -191,6 +191,7 @@ vmCvar_t cg_addMarks;
 vmCvar_t cg_brassTime;
 vmCvar_t cg_viewsize;
 vmCvar_t cg_drawGun;
+vmCvar_t cg_gunSkin;
 vmCvar_t r_dynamicLight;
 vmCvar_t cg_gun_frame;
 vmCvar_t cg_gun_x;
@@ -490,6 +491,7 @@ vmCvar_t cg_drawHitFriendTime;
 vmCvar_t cg_forceBlueTeamModel;
 vmCvar_t cg_forceDrawCrosshair;
 vmCvar_t cg_forceEnemySkin;
+vmCvar_t cg_fullbright;
 vmCvar_t cg_forceEnemyWeaponColor;
 vmCvar_t cg_forceRedTeamModel;
 vmCvar_t cg_forceTeamSkin;
@@ -578,6 +580,7 @@ typedef struct {
 static cvarTable_t cvarTable[] = {
     {&cg_autoswitch, "cg_autoswitch", "0", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_drawGun, "cg_drawGun", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "3"},
+    {&cg_gunSkin, "cg_gunSkin", "0", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&r_dynamicLight, "r_dynamicLight", "1", CVAR_ARCHIVE | CVAR_USERSAVE, "0", "2"},
     {&cg_zoomFov, "cg_zoomfov", "30", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "10", "130"},
     {&cg_fov, "cg_fov", "100", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "10", "130"},
@@ -902,6 +905,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_forceBlueTeamModel, "cg_forceBlueTeamModel", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
     {&cg_forceDrawCrosshair, "cg_forceDrawCrosshair", "0", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_forceEnemySkin, "cg_forceEnemySkin", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
+    {&cg_fullbright, "cg_fullbright", "0", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_forceEnemyWeaponColor, "cg_forceEnemyWeaponColor", "0", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
     {&cg_forceRedTeamModel, "cg_forceRedTeamModel", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
     {&cg_forceTeamSkin, "cg_forceTeamSkin", "", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
@@ -1019,13 +1023,15 @@ void CG_UpdateCvars(void) {
             cg_forceModelModCounts[2] != cg_forceEnemyModel.modificationCount ||
             cg_forceModelModCounts[3] != cg_forceEnemySkin.modificationCount ||
             cg_forceModelModCounts[4] != cg_forceRedTeamModel.modificationCount ||
-            cg_forceModelModCounts[5] != cg_forceBlueTeamModel.modificationCount) {
+            cg_forceModelModCounts[5] != cg_forceBlueTeamModel.modificationCount ||
+            cg_forceModelModCounts[6] != cg_fullbright.modificationCount) {
             cg_forceModelModCounts[0] = cg_forceTeamModel.modificationCount;
             cg_forceModelModCounts[1] = cg_forceTeamSkin.modificationCount;
             cg_forceModelModCounts[2] = cg_forceEnemyModel.modificationCount;
             cg_forceModelModCounts[3] = cg_forceEnemySkin.modificationCount;
             cg_forceModelModCounts[4] = cg_forceRedTeamModel.modificationCount;
             cg_forceModelModCounts[5] = cg_forceBlueTeamModel.modificationCount;
+            cg_forceModelModCounts[6] = cg_fullbright.modificationCount;
             CG_NewClientInfo(cg.clientNum);
         }
         if (cg_hudFilesModCount != cg_hudFiles.modificationCount) {

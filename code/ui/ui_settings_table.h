@@ -29,6 +29,7 @@ static const stOption_t stOpts_cg_enemyoutline[] = {{"Off", "0"}, {"Thin", "1"},
 static const stOption_t stOpts_cg_forceenemyskin[] = {{"None", ""}, {"Red", "red"}, {"Blue", "blue"}, {"Bright", "bright"}, {"Sport", "sport"}, {"Sport (Red)", "sport_red"}, {"Sport (Blue)", "sport_blue"}, {"Fullbright", "fb"}};
 static const stOption_t stOpts_cg_drawgun[] = {{"Hidden", "0"}, {"Normal", "1"}, {"Still", "2"}, {"Transparent", "3"}};
 static const stOption_t stOpts_cg_guny[] = {{"Default", "0"}, {"Left", "18"}, {"Center", "3"}, {"Right", "-10"}};
+static const stOption_t stOpts_cg_gunskin[] = {{"Default", "0"}, {"Full Bright", "1"}};
 static const stOption_t stOpts_cg_brasstime[] = {{"None", "0"}, {"Short", "1000"}, {"Normal", "2500"}, {"Long", "5000"}};
 static const stOption_t stOpts_cg_impactmarktime[] = {{"Off", "0"}, {"Short", "2500"}, {"Normal", "5000"}, {"Long", "10000"}};
 static const stOption_t stOpts_cg_plasmastyle[] = {{"No Trail", "1"}, {"Particle Trails", "2"}};
@@ -213,6 +214,7 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_TEAM, "Team Damage Alpha", "cg_screendamagealpha_team", ST_RANGE, 0.0f, 255.0f, 5.0f, NULL, 0, NULL, 0},
     {ST_TAB_TEAM, "Force Enemy Model", "cg_forceenemymodel", ST_MODEL, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
     {ST_TAB_TEAM, "Force Enemy Skin", "cg_forceenemyskin", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_forceenemyskin, 8, NULL, 1},
+    {ST_TAB_TEAM, "Full Bright", "cg_fullbright", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Use the fullbright skin on enemies; the preview updates immediately.", 1},
     {ST_TAB_TEAM, "Enemy Head Color", "cg_enemyheadcolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
     {ST_TAB_TEAM, "Enemy Upper Color", "cg_enemyuppercolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
     {ST_TAB_TEAM, "Enemy Lower Color", "cg_enemylowercolor", ST_RGB, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
@@ -227,6 +229,7 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_WEAPONS, NULL, NULL, ST_BREAK, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 1},
     {ST_TAB_WEAPONS, "Gun Model", "cg_drawgun", ST_SELECT, 0.0f, 3.0f, 0.0f, stOpts_cg_drawgun, 4, "Alter the display of your currently held weapon.", 0},
     {ST_TAB_WEAPONS, "Gun Position", "cg_guny", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_guny, 4, "The screen alignment of your held weapon.", 0},
+    {ST_TAB_WEAPONS, "Gun Skin", "cg_gunskin", ST_SELECT, 0.0f, 1.0f, 0.0f, stOpts_cg_gunskin, 2, "Use a fullbright weapon skin for your own held weapon.", 0},
     {ST_TAB_WEAPONS, "Muzzle Flash", "cg_muzzleflash", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Toggle the display of your weapons' muzzle flash.", 0},
     {ST_TAB_WEAPONS, "Brass Ejections", "cg_brasstime", ST_SELECT, 0.0f, 0.0f, 0.0f, stOpts_cg_brasstime, 4, "The amount of time brass ejections remain in the worldspace.", 0},
     {ST_TAB_WEAPONS, "Impact Marks", "cg_impactmarktime", ST_SELECT, 0.0f, 10000.0f, 0.0f, stOpts_cg_impactmarktime, 4, NULL, 0},

@@ -951,6 +951,12 @@ static void ST_DrawTeamPreview(int slot, float x, float y, float w, float h) {
 
     trap_Cvar_VariableStringBuffer(models[slot], model, sizeof(model));
     trap_Cvar_VariableStringBuffer(skins[slot], skin, sizeof(skin));
+    if (slot == 1 && trap_Cvar_VariableValue("cg_fullbright") != 0.0f) {
+        Q_strncpyz(skin, "fb", sizeof(skin));
+        if (!model[0]) {
+            Q_strncpyz(model, "sarge", sizeof(model));
+        }
+    }
     if (!model[0] && !skin[0]) {
         const char* text = slot ? "Enemies keep their own model" : "Teammates keep their own model";
 
