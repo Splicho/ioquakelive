@@ -1106,7 +1106,7 @@ static float CG_LightningOpacity(int clientNum) {
         return 1.0f;
     }
     if (clientNum == viewer) {
-        opacity = (cg_lightningStyle.integer == 6) ? 0.35f : cg_lightningOpacity.value;
+        opacity = (cg_lightningStyle.integer == 6) ? 0.0f : cg_lightningOpacity.value;
     } else if (cgs.gametype < GT_TEAM || cgs.clientinfo[clientNum].team != cgs.clientinfo[viewer].team ||
                cg.predictedPlayerState.persistant[PERS_TEAM] == TEAM_SPECTATOR) {
         opacity = cg_enemyLightningOpacity.value;
