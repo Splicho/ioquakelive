@@ -583,10 +583,19 @@ static const char *PrintShort (const char *s, int len)
 	static char buffer[1024];
 	int n;
 
+	if (!s) {
+		Q_strncpyz(buffer, "<null>", sizeof(buffer));
+		return buffer;
+	}
+
 	if (len >= sizeof(buffer)) {
 		n = sizeof(buffer);
 	} else {
 		n = len;
+	}
+	if (n <= 0) {
+		buffer[0] = '\0';
+		return buffer;
 	}
 
 	Q_strncpyz(buffer, s, n);
