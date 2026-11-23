@@ -484,7 +484,11 @@ jobs:
         done
         ls -l engines/engine-linux-x86_64/ioquakelive.x86_64
         ls -l engines/engine-linux-arm64/ioquakelive.arm64
-        ls -l engines/engine-macos-arm64/ioquakelive.app/Contents/MacOS/
+        if [ -d engines/engine-macos-arm64/ioquakelive.app ]; then
+          ls -l engines/engine-macos-arm64/ioquakelive.app/Contents/MacOS/
+        else
+          echo "macOS engine artifact unavailable; packaging the other platforms"
+        fi
     - name: Download universal iobin.pk3
       uses: actions/download-artifact@v4
       with:
