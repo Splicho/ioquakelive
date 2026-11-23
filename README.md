@@ -113,6 +113,7 @@ The exact commands used by CI, including packaging, are in [`.github/workflows/b
 - Quake Club integration.
 - No launcher: direct startup and in-game updates.
 - Bunch of QoL improvements, native quake 3 gore, cpma fullbright skins etc.
+- `.fx` scripting engine, known from wolfcam/q3mme.
 - New console commands: `help <command or cvar>` and `searchconsole`.
 
 ## If your antivirus blocks it
