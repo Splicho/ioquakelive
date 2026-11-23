@@ -33,7 +33,7 @@ static const stOption_t stOpts_cg_brasstime[] = {{"None", "0"}, {"Short", "1000"
 static const stOption_t stOpts_cg_impactmarktime[] = {{"Off", "0"}, {"Short", "2500"}, {"Normal", "5000"}, {"Long", "10000"}};
 static const stOption_t stOpts_cg_plasmastyle[] = {{"No Trail", "1"}, {"Particle Trails", "2"}};
 static const stOption_t stOpts_cg_rocketstyle[] = {{"No Plume", "1"}, {"Fire Plume", "2"}};
-static const stOption_t stOpts_cg_lightningstyle[] = {{"Default", "1"}, {"QuakeWorld", "2"}, {"Team Arena", "3"}, {"Thin Shaft", "4"}, {"Wide Beam", "5"}};
+static const stOption_t stOpts_cg_lightningstyle[] = {{"Default", "1"}, {"QuakeWorld", "2"}, {"Team Arena", "3"}, {"Thin Shaft", "4"}, {"Wide Beam", "5"}, {"Transparent", "6"}};
 static const stOption_t stOpts_cg_railstyle[] = {{"Beam", "1"}, {"Spiral", "2"}};
 static const stOption_t stOpts_r_displayrefresh[] = {{"Automatic", "0"}, {"60hz", "60"}, {"120hz", "120"}, {"144hz", "144"}};
 static const stOption_t stOpts_r_mapoverbrightbits[] = {{"Low", "1"}, {"Medium", "2"}, {"High", "3"}};
@@ -233,9 +233,7 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_WEAPONS, "Bubble Trail", "cg_bubbletrail", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Draw a bubble trail for weapon projectiles that travel underwater.", 0},
     {ST_TAB_WEAPONS, "Plasma Style", "cg_plasmastyle", ST_SELECT, 1.0f, 2.0f, 0.0f, stOpts_cg_plasmastyle, 2, "Customize the plasma to either exclude or include a particle trail.", 0},
     {ST_TAB_WEAPONS, "Rocket Style", "cg_rocketstyle", ST_SELECT, 1.0f, 2.0f, 0.0f, stOpts_cg_rocketstyle, 2, "Customize the rocket explosion to either exclude or include a fire plume.", 0},
-    {ST_TAB_WEAPONS, "Lightning Beam", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, 0},
-    {ST_TAB_WEAPONS, "Transparent LG", "cg_lightningOpacity", ST_RANGE, 0.0f, 1.0f, 0.05f, NULL, 0, "Opacity of your own lightning gun beam; 1 is opaque, 0 is invisible.", 0},
-    {ST_TAB_WEAPONS, "Lightning Style", "cg_lightningstyle", ST_SELECT, 1.0f, 5.0f, 0.0f, stOpts_cg_lightningstyle, 5, "Customize the lightning gun stream effect.", 0},
+    {ST_TAB_WEAPONS, "Lightning Style", "cg_lightningstyle", ST_SELECT, 1.0f, 6.0f, 0.0f, stOpts_cg_lightningstyle, 6, "Customize the lightning gun stream effect, including Transparent.", 0},
     {ST_TAB_WEAPONS, "Lightning Impact", "cg_lightningimpact", ST_BOOL, 0.0f, 1.0f, 1.0f, NULL, 0, "Draw the lightning gun impact effect on surfaces.", 0},
     {ST_TAB_WEAPONS, "Lightning Impact Cap", "cg_lightningimpactcap", ST_RANGE, 0.0f, 768.0f, 32.0f, NULL, 0, NULL, 0},
     {ST_TAB_WEAPONS, "Lightning Sway", "cg_truelightning", ST_RANGE, 0.0f, 1.0f, 0.1f, NULL, 0, "Control the amount your lightninggun stream visually bends.", 0},

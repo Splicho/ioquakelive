@@ -1099,14 +1099,14 @@ static void CG_CalculateWeaponPosition(vec3_t origin, vec3_t angles) {
 #define LIGHTNING_OPACITY_MIN 0.0f
 
 static float CG_LightningOpacity(int clientNum) {
-    int viewer = cg.predictedPlayerState.clientNum;
+    int viewer = cg.clientNum;
     float opacity;
 
     if (clientNum < 0 || clientNum >= MAX_CLIENTS) {
         return 1.0f;
     }
     if (clientNum == viewer) {
-        opacity = cg_lightningOpacity.value;
+        opacity = (cg_lightningStyle.integer == 6) ? 0.35f : cg_lightningOpacity.value;
     } else if (cgs.gametype < GT_TEAM || cgs.clientinfo[clientNum].team != cgs.clientinfo[viewer].team ||
                cg.predictedPlayerState.persistant[PERS_TEAM] == TEAM_SPECTATOR) {
         opacity = cg_enemyLightningOpacity.value;
@@ -1201,6 +1201,9 @@ static void CG_LightningBolt(centity_t* cent, vec3_t origin) {
     style = (cg_lightningStyle.integer >= 2 && cg_lightningStyle.integer <= NUM_LIGHTNING_STYLES)
                 ? cg_lightningStyle.integer - 1
                 : 0;
+    if (cg_lightningStyle.integer == 6) {
+        style = 0;
+    }
     beam.customShader = cgs.media.lightningShader[style];
 
     opacity = CG_LightningOpacity(cent->currentState.number);

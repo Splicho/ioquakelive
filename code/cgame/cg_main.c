@@ -686,7 +686,7 @@ static cvarTable_t cvarTable[] = {
     {&cg_bigFont, "ui_bigFont", "0.4", CVAR_ROM},
 
     {&cg_trueLightning, "cg_trueLightning", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
-    {&cg_lightningStyle, "cg_lightningStyle", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "1", "5"},
+    {&cg_lightningStyle, "cg_lightningStyle", "1", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "1", "6"},
     {&cg_screenDamage, "cg_screenDamage", "0x700000C8", CVAR_USERSAVE | CVAR_REPLICATE | CVAR_ARCHIVE},
     {&cg_kickScale, "cg_kickScale", "0.25", CVAR_USERSAVE | CVAR_VM_CREATED | CVAR_REPLICATE | CVAR_ARCHIVE, "0", "1"},
 

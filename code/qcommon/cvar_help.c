@@ -364,7 +364,8 @@ static const cvarHelp_t cvarHelp[] = {
                           HV("2") "QuakeWorld\n"
                           HV("3") "Team Arena\n"
                           HV("4") "Thin\n"
-                          HV("5") "Wide"},
+                          HV("5") "Wide\n"
+                          HV("6") "Transparent"},
     {"cg_trueLightning", "how closely the lightning beam follows your aim: 1 exactly, 0 as the server sees it,\n"
                          "values in between mix the two"},
     {"cg_lightningImpact", "draws where the lightning beam hits"},
