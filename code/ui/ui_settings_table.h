@@ -43,8 +43,8 @@ static const stOption_t stOpts_r_texturemode[] = {{"Nearest", "GL_NEAREST_MIPMAP
 static const stOption_t stOpts_r_picmip[] = {{"Low", "8"}, {"Medium", "2"}, {"High", "0"}};
 static const stOption_t stOpts_r_enablebloom[] = {{"Off", "0"}, {"On (One Pass)", "1"}, {"On (Two Passes)", "2"}};
 static const stOption_t stOpts_cg_announcer[] = {{"Default", "1"}, {"Vadrigar", "2"}, {"Daemia", "3"}, {"Classic", "4"}};
-static const stOption_t stOpts_cg_hitbeep[] = {{"None", "0"}, {"Single Pitch", "1"}, {"Ascending Streak", "2"}, {"Descending Streak", "3"}, {"Waterfall", "4"}};
-static const stOption_t stOpts_cg_killbeep[] = {{"None", "0"}, {"Ting", "1"}, {"Tink", "2"}, {"Dramatic", "3"}, {"Voosh", "4"}, {"Drum", "5"}, {"Bang", "6"}, {"Ding", "7"}, {"Cha-Ching!", "8"}, {"Tonal D", "9"}, {"Tonal E", "10"}, {"Tonal F#", "11"}, {"Tonal G", "12"}, {"Cork Pop", "13"}, {"Cash Register", "14"}, {"Grapple", "15"}, {"Impact QC", "16"}};
+static const stOption_t stOpts_cg_hitbeep[] = {{"None", "0"}, {"Single Pitch", "1"}, {"Ascending Streak", "2"}, {"Descending Streak", "3"}, {"Quake Champions", "4"}};
+static const stOption_t stOpts_cg_killbeep[] = {{"None", "0"}, {"Ting", "1"}, {"Tink", "2"}, {"Dramatic", "3"}, {"Voosh", "4"}, {"Drum", "5"}, {"Bang", "6"}, {"Ding", "7"}, {"Cha-Ching!", "8"}, {"Tonal D", "9"}, {"Tonal E", "10"}, {"Tonal F#", "11"}, {"Tonal G", "12"}, {"Cork Pop", "13"}, {"Cash Register", "14"}, {"Grapple", "15"}, {"Quake Champions", "16"}};
 static const stOption_t stOpts_cg_voicechatindicator[] = {{"Off", "0"}, {"Right", "1"}, {"Left", "2"}};
 static const stOption_t stOpts_cg_specnames[] = {{"None", "0"}, {"Targeted", "1"}, {"Always On", "2"}};
 static const stOption_t stOpts_cg_specteamvitals[] = {{"None", "0"}, {"On", "1"}, {"On With HP", "2"}};
@@ -303,6 +303,7 @@ static const stCvar_t stCvars[] = {
     {ST_TAB_VIDEO, "Background FPS", "com_maxfpsunfocused", ST_RANGE, 0.0f, 250.0f, 5.0f, NULL, 0, NULL, 1},
     {ST_TAB_VIDEO, "Minimized FPS", "com_maxfpsminimized", ST_RANGE, 0.0f, 60.0f, 5.0f, NULL, 0, NULL, 1},
     {ST_TAB_VIDEO, "Bright Weapons", "cg_drawbrightweapons", ST_SELECT, 0.0f, 7.0f, 0.0f, stOpts_cg_drawbrightweapons, 5, NULL, 1},
+    {ST_TAB_VIDEO, "Quake 3 Gibs/Blood", "cg_useq3gibs", ST_BOOL, 0.0f, 1.0f, 0.0f, NULL, 0, "Use Quake 3 body-part gibs and blood when the optional gore pack is installed.", 1},
     {ST_TAB_SOUND, "Sound", NULL, ST_HEADING, 0.0f, 0.0f, 0.0f, NULL, 0, NULL, -1},
     {ST_TAB_SOUND, "Master Volume", "s_volume", ST_RANGE, 0.0f, 2.0f, 0.1f, NULL, 0, "Adjust the master game volume.", 0},
     {ST_TAB_SOUND, "Music Volume", "s_musicvolume", ST_RANGE, 0.0f, 2.0f, 0.1f, NULL, 0, "Adjust the in-game music volume.", 0},

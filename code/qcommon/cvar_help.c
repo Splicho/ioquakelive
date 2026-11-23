@@ -280,7 +280,7 @@ static const cvarHelp_t cvarHelp[] = {
                    HV("1") "One pitch\n"
                    HV("2") "Ascending streak: four hit5, five hit4, then hit3; resets when aim breaks\n"
                    HV("3") "Descending streak: four hit3, five hit4, then hit5; resets when aim breaks\n"
-                   HV("4") "Waterfall: same descending streak as mode 3"},
+                   HV("4") "Quake Champions: same descending streak as mode 3"},
     {"cg_killBeep", "sound when you frag someone\n"
                     HV("0") "Off\n"
                     HV("1") "Ting\n"
@@ -298,7 +298,7 @@ static const cvarHelp_t cvarHelp[] = {
                     HV("13") "Cork pop\n"
                     HV("14") "Cash register\n"
                     HV("15") "Grapple\n"
-                    HV("16") "Impact QC"},
+                    HV("16") "Quake Champions"},
     {"cg_raceBeep", "race: sound at each checkpoint, one of the " HC("cg_killBeep") " sounds"},
     {"cg_buzzerSound", "plays the buzzer when the time runs out"},
     {"cg_allowTaunt", "plays other players' taunts"},
