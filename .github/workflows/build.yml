@@ -489,16 +489,25 @@ jobs:
         else
           echo "macOS engine artifact unavailable; packaging the other platforms"
         fi
-    - name: Download universal iobin.pk3
+    - name: Download game library artifacts
       uses: actions/download-artifact@v4
       with:
-        name: iobin-pk3
-        path: shared/baseq3/
-    - name: Download deterministic pak01.pk3
-      uses: actions/download-artifact@v4
-      with:
-        name: pak01-pk3
-        path: shared/baseq3/
+        pattern: libs-*
+        path: iobin-stage
+        merge-multiple: true
+    - name: Build universal iobin.pk3
+      run: |
+        mkdir -p shared/baseq3
+        python3 code/tools/make_deterministic_pk3.py \
+          --input iobin-stage \
+          --output shared/baseq3/iobin.pk3
+        shasum -a 256 shared/baseq3/iobin.pk3
+    - name: Build deterministic pak01.pk3
+      run: |
+        python3 code/tools/make_deterministic_pk3.py \
+          --input content/pak01 \
+          --output shared/baseq3/pak01.pk3
+        shasum -a 256 shared/baseq3/pak01.pk3
     - name: Verify shared artifact hashes
       run: sha256sum shared/baseq3/iobin.pk3 shared/baseq3/pak01.pk3
     - name: Build per-platform release zips
