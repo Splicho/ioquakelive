@@ -108,7 +108,7 @@ The exact commands used by CI, including packaging, are in [`.github/workflows/b
 ## Features
 
 - OpenGL, OpenGL 2 and Vulkan renderers, with NVIDIA Reflex and AMD Anti-Lag 2 support in Vulkan.
-- Multi-threaded resource loading and uncapped FPS.
+- Multi-threaded resource loading and uncapped FPS (Fixed footstep sounds).
 - Improved demo player.
 - Quake Club integration.
 - No launcher: direct startup and in-game updates.
