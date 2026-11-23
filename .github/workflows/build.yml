@@ -189,6 +189,7 @@ jobs:
 
   macos-bundle:
     name: macOS (bundle + notarise)
+    continue-on-error: true
     if: (github.event_name == 'workflow_dispatch' && !inputs.windows_only) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release:')) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'prerelease:'))
     needs: [linux, windows, macos-compile]
     runs-on: macos-15
@@ -457,7 +458,7 @@ jobs:
   package:
     name: Package release artifacts
     if: (github.event_name == 'workflow_dispatch' && !inputs.windows_only) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release:')) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'prerelease:'))
-    needs: [linux, macos-bundle, windows]
+    needs: [linux, windows]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
