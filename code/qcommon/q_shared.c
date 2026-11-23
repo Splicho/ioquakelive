@@ -580,7 +580,9 @@ void Q_strncpyz(char* dest, const char* src, int destsize) {
         Com_Error(ERR_FATAL, "Q_strncpyz: NULL dest");
     }
     if (!src) {
-        Com_Error(ERR_FATAL, "Q_strncpyz: NULL src");
+        // A malformed config or script string must not disconnect the client.
+        dest[0] = 0;
+        return;
     }
     if (destsize < 1) {
         Com_Error(ERR_FATAL, "Q_strncpyz: destsize < 1");
