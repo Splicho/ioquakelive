@@ -110,7 +110,6 @@ The exact commands used by CI, including packaging, are in [`.github/workflows/b
 - OpenGL, OpenGL 2 and Vulkan renderers, with NVIDIA Reflex and AMD Anti-Lag 2 support in Vulkan.
 - Multi-threaded resource loading and uncapped FPS (Fixed footstep sounds).
 - Improved demo player.
-- Quake Club integration.
 - No launcher: direct startup and in-game updates.
 - Bunch of QoL improvements, native quake 3 gore, cpma fullbright skins etc.
 - `.fx` scripting engine, known from wolfcam/q3mme.
